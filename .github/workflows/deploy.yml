@@ -122,6 +122,7 @@ jobs:
 
             volumes:
               postgres_data:
+                driver: local
 
             networks:
               count-collab:
