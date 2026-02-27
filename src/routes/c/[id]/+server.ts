@@ -5,7 +5,7 @@ import { emitCounterUpdate } from "$lib/utils/socket";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ params }) => {
-  const counter = incrementCounter(params.id, 1);
+  const counter = await incrementCounter(params.id, 1);
 
   if (!counter) {
     logger.warn("Increment failed: counter not found", { id: params.id });

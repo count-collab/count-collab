@@ -1,20 +1,8 @@
-type CounterRecord = {
-  id: string;
-  title: string;
-  description: string | null;
-  count: number;
-  isPublic: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-type CounterHistoryEntry = {
-  id: number;
-  counterId: string;
-  previousValue: number;
-  newValue: number;
-  changedAt: Date;
-};
+import { desc, eq } from "drizzle-orm";
+import { db } from "$lib/db";
+import type { Counter, CounterHistory, NewCounter, NewCounterHistory } from "$lib/db/schema";
+import { counterHistory as counterHistoryTable, counters as countersTable } from "$lib/db/schema";
+import { logger } from "$lib/server/logger";
 
 type CreateCounterInput = {
   title: string;
@@ -22,44 +10,15 @@ type CreateCounterInput = {
   isPublic: boolean;
 };
 
-import { logger } from "$lib/server/logger";
-
-const counters = new Map<string, CounterRecord>();
-const history = new Map<string, CounterHistoryEntry[]>();
-let historyId = 1;
-
-function recordHistory(
-  counterId: string,
-  previousValue: number,
-  newValue: number,
-): void {
-  const entry: CounterHistoryEntry = {
-    id: historyId++,
-    counterId,
-    previousValue,
-    newValue,
-    changedAt: new Date(),
-  };
-
-  const entries = history.get(counterId) ?? [];
-  entries.unshift(entry);
-  history.set(counterId, entries);
-}
-
-export function createCounter(input: CreateCounterInput): CounterRecord {
-  const now = new Date();
-  const counter: CounterRecord = {
-    id: crypto.randomUUID(),
+export async function createCounter(input: CreateCounterInput): Promise<Counter> {
+  const newCounter: NewCounter = {
     title: input.title.trim(),
     description: input.description?.trim() || null,
     count: 0,
-    isPublic: input.isPublic,
-    createdAt: now,
-    updatedAt: now,
+    isPublic: input.isPublic ? 1 : 0,
   };
 
-  counters.set(counter.id, counter);
-  history.set(counter.id, []);
+  const [counter] = await db.insert(countersTable).values(newCounter).returning();
 
   logger.info("Counter created", {
     id: counter.id,
@@ -70,50 +29,80 @@ export function createCounter(input: CreateCounterInput): CounterRecord {
   return counter;
 }
 
-export function listPublicCounters(limit = 12): CounterRecord[] {
-  return [...counters.values()]
-    .filter((counter) => counter.isPublic)
-    .sort((a, b) => {
-      if (b.count !== a.count) return b.count - a.count;
-      return b.updatedAt.getTime() - a.updatedAt.getTime();
-    })
-    .slice(0, limit);
+export async function listPublicCounters(limit = 12): Promise<Counter[]> {
+  return await db
+    .select()
+    .from(countersTable)
+    .where(eq(countersTable.isPublic, 1))
+    .orderBy(desc(countersTable.count), desc(countersTable.updatedAt))
+    .limit(limit);
 }
 
-export function getCounter(counterId: string): CounterRecord | null {
-  return counters.get(counterId) ?? null;
+export async function getCounter(counterId: string): Promise<Counter | null> {
+  const [counter] = await db
+    .select()
+    .from(countersTable)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+    .where(eq(countersTable.id, counterId as any));
+  return counter ?? null;
 }
 
-export function incrementCounter(
+export async function incrementCounter(
   counterId: string,
   delta = 1,
-): CounterRecord | null {
-  const counter = counters.get(counterId);
-  if (!counter) return null;
+): Promise<Counter | null> {
+  // Use transaction to ensure atomic increment
+  return await db.transaction(async (tx) => {
+    // Lock the row for update to prevent race conditions
+    const [counter] = await tx
+      .select()
+      .from(countersTable)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+      .where(eq(countersTable.id, counterId as any))
+      .for("update");
 
-  const nextValue = counter.count + delta;
-  recordHistory(counterId, counter.count, nextValue);
+    if (!counter) return null;
 
-  const updated: CounterRecord = {
-    ...counter,
-    count: nextValue,
-    updatedAt: new Date(),
-  };
+    const nextValue = counter.count + delta;
 
-  counters.set(counterId, updated);
+    // Record history entry
+    const historyEntry: NewCounterHistory = {
+      counterId: counter.id,
+      previousValue: counter.count,
+      newValue: nextValue,
+    };
 
-  logger.debug("Counter incremented", {
-    id: counterId,
-    from: counter.count,
-    to: nextValue,
+    await tx.insert(counterHistoryTable).values(historyEntry);
+
+    // Update counter
+    const [updated] = await tx
+      .update(countersTable)
+      .set({
+        count: nextValue,
+        updatedAt: new Date(),
+      })
+      .where(eq(countersTable.id, counter.id))
+      .returning();
+
+    logger.debug("Counter incremented", {
+      id: counterId,
+      from: counter.count,
+      to: nextValue,
+    });
+
+    return updated;
   });
-
-  return updated;
 }
 
-export function getCounterHistory(
+export async function getCounterHistory(
   counterId: string,
   limit = 10,
-): CounterHistoryEntry[] {
-  return (history.get(counterId) ?? []).slice(0, limit);
+): Promise<CounterHistory[]> {
+  return await db
+    .select()
+    .from(counterHistoryTable)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+    .where(eq(counterHistoryTable.counterId, counterId as any))
+    .orderBy(desc(counterHistoryTable.changedAt))
+    .limit(limit);
 }

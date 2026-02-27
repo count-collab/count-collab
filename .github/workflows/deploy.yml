@@ -66,6 +66,20 @@ jobs:
             # Generate docker-compose.yml
             cat > "$DEPLOY_DIR/docker-compose.yml" <<EOF
             services:
+              migrations:
+                image: ghcr.io/count-collab/count-collab:latest
+                container_name: count-collab-migrations
+                env_file:
+                  - .env
+                depends_on:
+                  db:
+                    condition: service_healthy
+                networks:
+                  - count-collab
+                command: bun run db:push
+                profiles:
+                  - ""
+
               count-collab:
                 image: ghcr.io/count-collab/count-collab:latest
                 container_name: count-collab
@@ -75,8 +89,8 @@ jobs:
                 env_file:
                   - .env
                 depends_on:
-                  db:
-                    condition: service_healthy
+                  migrations:
+                    condition: service_completed_successfully
                 networks:
                   - count-collab
 
@@ -110,14 +124,14 @@ jobs:
 
             # Check if database container is already running
             if docker ps --format '{{.Names}}' | grep -q '^count-collab-db$'; then
-              echo "Database already running, restarting app only..."
-              docker compose up -d --no-deps count-collab
+              echo "Database already running, running migrations and restarting app..."
+              docker compose run --rm migrations
             else
-              echo "Starting full stack (database + app)..."
+              echo "Starting full stack (database + migrations + app)..."
               docker compose up -d
             fi
 
-            # Wait for health checks
+            # Wait for services to be healthy
             echo "Waiting for services to be healthy..."
             sleep 5
             docker compose ps

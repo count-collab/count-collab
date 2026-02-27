@@ -4,7 +4,7 @@ import { logger } from "$lib/server/logger";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ params, depends }) => {
-  const counter = getCounter(params.id);
+  const counter = await getCounter(params.id);
 
   if (!counter) {
     logger.warn("Counter not found", { id: params.id });
@@ -15,6 +15,6 @@ export const load: PageServerLoad = async ({ params, depends }) => {
 
   return {
     counter,
-    history: getCounterHistory(params.id),
+    history: await getCounterHistory(params.id),
   };
 };

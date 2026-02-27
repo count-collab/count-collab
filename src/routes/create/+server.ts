@@ -21,7 +21,7 @@ export const POST: RequestHandler = async ({ request }) => {
     return json({ errors }, { status: 400 });
   }
 
-  const counter = createCounter({
+  const counter = await createCounter({
     title,
     description,
     isPublic: visibility === "public",

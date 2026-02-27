@@ -5,6 +5,6 @@ export const load: PageServerLoad = async ({ depends }) => {
   depends("counters:list");
 
   return {
-    counters: listPublicCounters(100),
+    counters: await listPublicCounters(100),
   };
 };
