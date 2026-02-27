@@ -103,7 +103,7 @@ jobs:
                   POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
                   POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
                 volumes:
-                  - postgres_data:./db/data
+                  - postgres_data:/var/lib/postgresql/data
                 healthcheck:
                   test: ["CMD-SHELL", "pg_isready -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }}"]
                   interval: 10s
