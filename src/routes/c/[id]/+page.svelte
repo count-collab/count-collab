@@ -57,6 +57,11 @@
   });
 </script>
 
+<svelte:head>
+  <title>{data.title}</title>
+  <meta name="description" content={data.description} />
+</svelte:head>
+
 <div class="space-y-8">
   <header class="space-y-2">
     <p class="text-sm uppercase tracking-wide text-slate-500">

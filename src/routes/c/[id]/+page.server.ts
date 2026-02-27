@@ -16,5 +16,8 @@ export const load: PageServerLoad = async ({ params, depends }) => {
   return {
     counter,
     history: await getCounterHistory(params.id),
+    title: `${counter.title} | Count Collab`,
+    description:
+      counter.description || `${counter.title} counter is currently at ${counter.count}`,
   };
 };
