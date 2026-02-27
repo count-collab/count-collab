@@ -1,0 +1,39 @@
+name: Test and Build
+description: Run tests, linting, Svelte checks, and build the application
+
+runs:
+  using: composite
+
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+
+    - name: Install dependencies
+      run: bun install --frozen-lockfile
+      shell: bash
+
+    - name: Setup Biome
+      uses: biomejs/setup-biome@v2
+
+    - name: Lint
+      run: biome ci
+      shell: bash
+
+    - name: Prepare Svelte
+      run: bunx svelte-kit sync
+      shell: bash
+
+    - name: Check Svelte
+      run: bun run svelte-check
+      shell: bash
+
+    - name: Build
+      run: bun run build
+      shell: bash
+      env:
+        DATABASE_URL: postgresql://user:password@localhost:5432/count_collab

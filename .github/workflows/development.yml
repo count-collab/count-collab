@@ -1,0 +1,26 @@
+name: PR test, lint, and build
+
+on:
+  pull_request:
+
+jobs:
+  test-and-build:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/test-and-build
+
+  docker-build:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          push: false
+          tags: ghcr.io/count-collab/count-collab:latest
