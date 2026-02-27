@@ -24,6 +24,11 @@
   });
 </script>
 
+<svelte:head>
+  <title>Counter Browser | Count Collab</title>
+  <meta name="description" content="Browse and track public counters in real-time." />
+</svelte:head>
+
 <div class="space-y-6">
   <header class="flex flex-col gap-2">
     <h1 class="text-3xl font-bold text-slate-900">Counter Browser</h1>

@@ -35,6 +35,11 @@
   }
 </script>
 
+<svelte:head>
+  <title>Create Counter | Count Collab</title>
+  <meta name="description" content="Create a new shareable counter and track anything in real-time." />
+</svelte:head>
+
 <div class="max-w-2xl mx-auto space-y-8">
   <header class="space-y-2">
     <h1 class="text-3xl font-bold text-slate-900">Create a counter</h1>

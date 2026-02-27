@@ -24,6 +24,11 @@
   });
 </script>
 
+<svelte:head>
+  <title>Count Collab - Create and Share Counters</title>
+  <meta name="description" content="Create counters with unique links and share them to track anything in real-time." />
+</svelte:head>
+
 <div class="space-y-8">
   <section class="text-center py-12">
     <h1 class="text-5xl font-bold text-slate-900 mb-4">
