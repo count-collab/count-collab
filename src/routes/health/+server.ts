@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '$lib/db';
 import { counters } from '$lib/db/schema';
+import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
 	try {
