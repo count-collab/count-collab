@@ -50,6 +50,12 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
+            
+            # Function to URL-encode credentials
+            urlencode() {
+              python3 -c "import urllib.parse; print(urllib.parse.quote('''$1''', safe=''))"
+            }
+            
             DEPLOY_DIR="$HOME/count-collab"
             mkdir -p "$DEPLOY_DIR"
 
@@ -57,9 +63,11 @@ jobs:
             echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u NeptuUn --password-stdin
             docker pull ghcr.io/count-collab/count-collab:latest
 
-            # Generate .env file
+            # Generate .env file with URL-encoded credentials
+            ENCODED_USER=$(urlencode "${{ secrets.POSTGRES_USER }}")
+            ENCODED_PASSWORD=$(urlencode "${{ secrets.POSTGRES_PASSWORD }}")
             cat > "$DEPLOY_DIR/.env" <<EOF
-            DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}
+            DATABASE_URL=postgresql://${ENCODED_USER}:${ENCODED_PASSWORD}@db:5432/${{ secrets.POSTGRES_DB }}
             NODE_ENV=production
             EOF
 
