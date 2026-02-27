@@ -1,4 +1,4 @@
-name: main branch test, build, and deployment
+name: Test, Build, and Deploy to Production
 
 on:
   push:
