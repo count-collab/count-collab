@@ -1,17 +1,4 @@
 services:
-  count-collab:
-    image: ghcr.io/count-collab/count-collab:latest
-    container_name: count-collab
-    restart: unless-stopped
-    ports:
-      - "80:3000"
-    env_file:
-      - .env
-    depends_on:
-      - db
-    networks:
-      - app-network
-
   db:
     image: postgres:16-alpine
     environment:
@@ -27,12 +14,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - count-collab
 
 volumes:
   postgres_data:
-
-networks:
-  count-collab:
-    driver: bridge
