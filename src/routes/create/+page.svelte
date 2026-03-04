@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import { rateLimit } from "$lib/stores/ratelimit";
 
   let title = $state("");
   let description = $state("");
@@ -21,6 +22,17 @@
 
       if (!response.ok) {
         const body = await response.json();
+
+        // Handle rate limiting
+        if (response.status === 429) {
+          const retryAfter = body.retryAfterSeconds ?? 60;
+          rateLimit.setLimit("/create", retryAfter);
+          errors = {
+            general: `Too many requests. Please try again in ${retryAfter} seconds.`,
+          };
+          return;
+        }
+
         errors = body.errors ?? { general: "Failed to create counter." };
         return;
       }
@@ -37,7 +49,10 @@
 
 <svelte:head>
   <title>Create Counter | Count Collab</title>
-  <meta name="description" content="Create a new shareable counter and track anything in real-time." />
+  <meta
+    name="description"
+    content="Create a new shareable counter and track anything in real-time."
+  />
 </svelte:head>
 
 <div class="max-w-2xl mx-auto space-y-8">
@@ -104,10 +119,14 @@
     <div class="flex items-center gap-3">
       <button
         type="submit"
-        disabled={isSubmitting}
-        class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+        disabled={isSubmitting || $rateLimit.isLimited}
+        class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-2.5 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Create counter
+        {#if $rateLimit.isLimited}
+          Try again in {$rateLimit.retryAfterSeconds}s
+        {:else}
+          Create counter
+        {/if}
       </button>
       <a href="/" class="text-sm text-slate-600 hover:text-slate-900">Cancel</a>
     </div>

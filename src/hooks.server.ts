@@ -1,6 +1,12 @@
 import type { Handle } from "@sveltejs/kit";
 import { verifyDatabaseConnection } from "$lib/db";
 import { logger } from "$lib/server/logger";
+import {
+  checkRateLimit,
+  getClientIp,
+  RATE_LIMIT_CONFIG,
+  trackCounterIncrement,
+} from "$lib/server/ratelimit";
 
 let dbInitialized = false;
 
@@ -21,6 +27,12 @@ async function initializeDatabase() {
   }
 }
 
+function isWriteRoute(pathname: string): string | null {
+  if (pathname === "/create") return "/create";
+  if (pathname.match(/^\/c\/[a-f0-9-]+$/)) return "/c/[id]";
+  return null;
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
   if (!dbInitialized) {
     await initializeDatabase();
@@ -34,6 +46,62 @@ export const handle: Handle = async ({ event, resolve }) => {
     route,
     query: event.url.search || undefined,
   });
+
+  // Check rate limiting for write operations
+  if (method === "POST") {
+    const writeRoute = isWriteRoute(event.url.pathname);
+    if (writeRoute) {
+      const clientIp = getClientIp(event.request);
+      const config =
+        RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];
+
+      if (config) {
+        const rateLimitCheck = checkRateLimit(clientIp, writeRoute, config);
+
+        if (rateLimitCheck) {
+          logger.warn("Rate limit exceeded, returning 429", {
+            ip: clientIp,
+            route: writeRoute,
+            retryAfter: rateLimitCheck.retryAfter,
+          });
+
+          const response = new Response(
+            JSON.stringify({
+              error: "Too many requests",
+              retryAfterSeconds: rateLimitCheck.retryAfter,
+            }),
+            {
+              status: 429,
+              headers: {
+                "Content-Type": "application/json",
+                "Retry-After": String(rateLimitCheck.retryAfter),
+              },
+            },
+          );
+
+          const duration = (performance.now() - start).toFixed(2);
+          logger.warn(
+            `<-- ${method} ${event.url.pathname} 429 (rate limited)`,
+            {
+              route,
+              durationMs: duration,
+              ip: clientIp,
+            },
+          );
+
+          return response;
+        }
+
+        // Track counter increments for abuse detection
+        if (writeRoute === "/c/[id]") {
+          const match = event.url.pathname.match(/^\/c\/([a-f0-9-]+)$/);
+          if (match) {
+            trackCounterIncrement(clientIp, match[1]);
+          }
+        }
+      }
+    }
+  }
 
   try {
     const response = await resolve(event);

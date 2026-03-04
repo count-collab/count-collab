@@ -2,6 +2,7 @@
   import { browser } from "$app/environment";
   import { invalidate } from "$app/navigation";
   import { onCounterUpdated } from "$lib/stores/counters";
+  import { rateLimit } from "$lib/stores/ratelimit";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -26,7 +27,16 @@
 
       if (!response.ok) {
         const body = await response.json();
-        errorMessage = body.message ?? "Failed to increment counter.";
+
+        // Handle rate limiting
+        if (response.status === 429) {
+          const retryAfter = body.retryAfterSeconds ?? 60;
+          rateLimit.setLimit(`/c/${data.counter.id}`, retryAfter);
+          errorMessage = `Too many requests. Please try again in ${retryAfter} seconds.`;
+          return;
+        }
+
+        errorMessage = body.error ?? "Failed to increment counter.";
         return;
       }
 
@@ -34,6 +44,7 @@
         await response.json();
       optimisticCount = result.count;
       optimisticUpdatedAt = result.updatedAt;
+      rateLimit.reset();
     } catch {
       errorMessage = "Network error. Please try again.";
     } finally {
@@ -84,10 +95,14 @@
         <button
           type="button"
           onclick={handleIncrement}
-          disabled={isIncrementing}
-          class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+          disabled={isIncrementing || $rateLimit.isLimited}
+          class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-3 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          +1
+          {#if $rateLimit.isLimited}
+            {$rateLimit.retryAfterSeconds}s
+          {:else}
+            +1
+          {/if}
         </button>
       </div>
       <p class="text-sm text-slate-500">

@@ -14,10 +14,9 @@ Protect write endpoints from abuse and enforce predictable request limits under 
 
 ### 2) Rate limiting and anti-abuse
 
-- [ ] Add IP-based rate limiting in server hooks for write routes.
-- [ ] Add route-specific limits (`/create` lower threshold, `/c/:id` higher threshold).
-- [ ] Return `429` with `Retry-After` and structured log metadata.
-- [ ] Add basic abuse signals (rapid repeated increments per IP and counter).
+- [x] Add IP-based rate limiting in server hooks for write routes.
+- [x] Add route-specific limits (`/create` lower threshold, `/c/:id` higher threshold).
+- [x] Return `429` with `Retry-After` and structured log metadata.
 
 ### 3) CORS and transport security
 

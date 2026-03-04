@@ -3,8 +3,8 @@ import type { z } from "zod";
 import { logger } from "./logger";
 
 export type ValidateResult<T> =
-    | { success: true; data: T }
-    | { success: false; response: Response };
+  | { success: true; data: T }
+  | { success: false; response: Response };
 
 /**
  * Parse and validate request body using a Zod schema.
@@ -21,36 +21,36 @@ export type ValidateResult<T> =
  * const { title, description } = result.data;
  */
 export async function parseAndValidateBody<T>(
-    request: Request,
-    schema: z.ZodSchema<T>,
-    context = "Request",
+  request: Request,
+  schema: z.ZodSchema<T>,
+  context = "Request",
 ): Promise<ValidateResult<T>> {
-    let body: unknown;
+  let body: unknown;
 
-    try {
-        body = await request.json();
-    } catch (_error) {
-        const errorMsg = `${context}: Invalid JSON payload`;
-        logger.warn(errorMsg);
-        return {
-            success: false,
-            response: json({ error: "Invalid JSON payload" }, { status: 400 }),
-        };
-    }
-
-    const validation = schema.safeParse(body);
-
-    if (!validation.success) {
-        const errors = validation.error.flatten().fieldErrors;
-        logger.warn(`${context}: Validation failed`, { errors });
-        return {
-            success: false,
-            response: json({ errors }, { status: 400 }),
-        };
-    }
-
+  try {
+    body = await request.json();
+  } catch (_error) {
+    const errorMsg = `${context}: Invalid JSON payload`;
+    logger.warn(errorMsg);
     return {
-        success: true,
-        data: validation.data,
+      success: false,
+      response: json({ error: "Invalid JSON payload" }, { status: 400 }),
     };
+  }
+
+  const validation = schema.safeParse(body);
+
+  if (!validation.success) {
+    const errors = validation.error.flatten().fieldErrors;
+    logger.warn(`${context}: Validation failed`, { errors });
+    return {
+      success: false,
+      response: json({ errors }, { status: 400 }),
+    };
+  }
+
+  return {
+    success: true,
+    data: validation.data,
+  };
 }
