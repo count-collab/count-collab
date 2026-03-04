@@ -8,9 +8,9 @@ Protect write endpoints from abuse and enforce predictable request limits under 
 
 ### 1) Input and request hardening
 
-- [ ] Validate `POST /create` payload with strict schema (title length, description length, visibility enum).
-- [ ] Validate `POST /c/:id` params and reject malformed UUIDs with `400`.
-- [ ] Add consistent error payloads for validation failures.
+- [x] Validate `POST /create` payload with strict schema (title length, description length, visibility enum).
+- [x] Validate `POST /c/:id` params and reject malformed UUIDs with `400`.
+- [x] Add consistent error payloads for validation failures.
 
 ### 2) Rate limiting and anti-abuse
 
