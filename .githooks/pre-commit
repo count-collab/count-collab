@@ -1,0 +1,15 @@
+#!/bin/bash
+# Pre-commit hook to run code formatting and linting
+
+set -e
+
+echo "Running 'bun run fix' before commit..."
+bun run fix
+
+if [ $? -ne 0 ]; then
+    echo "❌ 'bun run fix' failed. Commit aborted."
+    exit 1
+fi
+
+echo "✓ Code formatting and linting passed. Proceeding with commit."
+exit 0
