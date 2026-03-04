@@ -13,6 +13,7 @@
     "lint:ci": "biome ci",
     "fix": "biome check --write .",
     "format": "prettier --plugin-search-dir . --write .",
+    "db:init": "bun run scripts/seed-counters.ts",
     "db:push": "drizzle-kit push:pg",
     "db:generate": "drizzle-kit generate:pg",
     "db:studio": "drizzle-kit studio"
