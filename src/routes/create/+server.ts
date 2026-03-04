@@ -1,26 +1,19 @@
 import { json } from "@sveltejs/kit";
 import { createCounter } from "$lib/server/counters";
-import { logger } from "$lib/server/logger";
+import { parseAndValidateBody } from "$lib/server/request";
 import { emitCounterCreated } from "$lib/utils/socket";
 import { createCounterSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request }) => {
-  let body: unknown;
-
-  try {
-    body = await request.json();
-  } catch (_error) {
-    logger.warn("Counter creation: Invalid JSON payload");
-    return json({ error: "Invalid JSON payload" }, { status: 400 });
-  }
-
-  const validation = createCounterSchema.safeParse(body);
+  const validation = await parseAndValidateBody(
+    request,
+    createCounterSchema,
+    "Counter creation",
+  );
 
   if (!validation.success) {
-    const errors = validation.error.flatten().fieldErrors;
-    logger.warn("Counter creation validation failed", { errors });
-    return json({ errors }, { status: 400 });
+    return validation.response;
   }
 
   const { title, description, visibility } = validation.data;
