@@ -19,10 +19,16 @@ Count Collab is a lightweight, shareable counter app. Create a counter, send the
 
 ### Installation
 
-Install dependencies using Bun:
+Install dependencies using Bun (requires TLS certificate bypass for package downloads):
 
 ```bash
-bun install
+NODE_TLS_REJECT_UNAUTHORIZED=0 bun install
+```
+
+For adding new packages:
+
+```bash
+NODE_TLS_REJECT_UNAUTHORIZED=0 bun add <package-name>
 ```
 
 ### Running Development Server
