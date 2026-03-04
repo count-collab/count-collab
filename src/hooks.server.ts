@@ -1,6 +1,6 @@
 import type { Handle } from "@sveltejs/kit";
-import { logger } from "$lib/server/logger";
 import { verifyDatabaseConnection } from "$lib/db";
+import { logger } from "$lib/server/logger";
 
 let dbInitialized = false;
 
