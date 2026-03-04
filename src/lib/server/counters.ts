@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "$lib/db";
 import type { Counter, CounterHistory, NewCounter, NewCounterHistory } from "$lib/db/schema";
 import { counterHistory as counterHistoryTable, counters as countersTable } from "$lib/db/schema";
@@ -29,11 +29,25 @@ export async function createCounter(input: CreateCounterInput): Promise<Counter>
   return counter;
 }
 
-export async function listPublicCounters(limit = 12): Promise<Counter[]> {
+export async function listPublicCounters(
+  limit = 12,
+  query?: string,
+): Promise<Counter[]> {
+  const searchQuery = query?.trim();
+  const whereClause = searchQuery
+    ? and(
+      eq(countersTable.isPublic, 1),
+      or(
+        ilike(countersTable.title, `%${searchQuery}%`),
+        ilike(countersTable.description, `%${searchQuery}%`),
+      ),
+    )
+    : eq(countersTable.isPublic, 1);
+
   return await db
     .select()
     .from(countersTable)
-    .where(eq(countersTable.isPublic, 1))
+    .where(whereClause)
     .orderBy(desc(countersTable.count), desc(countersTable.updatedAt))
     .limit(limit);
 }
