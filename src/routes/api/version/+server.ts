@@ -1,6 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { json } from "@sveltejs/kit";
-import { readFileSync } from "fs";
-import { resolve } from "path";
 import type { RequestHandler } from "./$types";
 
 interface BuildInfo {
