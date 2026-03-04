@@ -21,11 +21,12 @@
   "dependencies": {
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
-    "svelte": "^5.50.2",
+    "drizzle-orm": "^0.29.0",
+    "postgres": "^3.4.0",
     "socket.io": "^4.7.0",
     "socket.io-client": "^4.7.0",
-    "postgres": "^3.4.0",
-    "drizzle-orm": "^0.29.0"
+    "svelte": "^5.50.2",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^3.0.2",

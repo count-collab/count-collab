@@ -1,25 +1,29 @@
 import { json } from "@sveltejs/kit";
 import { createCounter } from "$lib/server/counters";
 import { logger } from "$lib/server/logger";
+import { createCounterSchema } from "$lib/utils/validation";
 import { emitCounterCreated } from "$lib/utils/socket";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request }) => {
-  const body = await request.json();
-  const title = (body.title ?? "").trim();
-  const description = (body.description ?? "").trim();
-  const visibility = body.visibility ?? "public";
+  let body: unknown;
 
-  const errors: Record<string, string> = {};
-
-  if (!title) {
-    errors.title = "Title is required.";
+  try {
+    body = await request.json();
+  } catch (_error) {
+    logger.warn("Counter creation: Invalid JSON payload");
+    return json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
-  if (Object.keys(errors).length > 0) {
+  const validation = createCounterSchema.safeParse(body);
+
+  if (!validation.success) {
+    const errors = validation.error.flatten().fieldErrors;
     logger.warn("Counter creation validation failed", { errors });
     return json({ errors }, { status: 400 });
   }
+
+  const { title, description, visibility } = validation.data;
 
   const counter = await createCounter({
     title,
