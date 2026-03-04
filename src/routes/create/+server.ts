@@ -1,8 +1,8 @@
 import { json } from "@sveltejs/kit";
 import { createCounter } from "$lib/server/counters";
 import { logger } from "$lib/server/logger";
-import { createCounterSchema } from "$lib/utils/validation";
 import { emitCounterCreated } from "$lib/utils/socket";
+import { createCounterSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request }) => {

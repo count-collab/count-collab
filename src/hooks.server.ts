@@ -21,7 +21,6 @@ async function initializeDatabase() {
   }
 }
 
-
 export const handle: Handle = async ({ event, resolve }) => {
   if (!dbInitialized) {
     await initializeDatabase();

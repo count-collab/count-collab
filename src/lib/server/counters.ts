@@ -1,7 +1,15 @@
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "$lib/db";
-import type { Counter, CounterHistory, NewCounter, NewCounterHistory } from "$lib/db/schema";
-import { counterHistory as counterHistoryTable, counters as countersTable } from "$lib/db/schema";
+import type {
+  Counter,
+  CounterHistory,
+  NewCounter,
+  NewCounterHistory,
+} from "$lib/db/schema";
+import {
+  counterHistory as counterHistoryTable,
+  counters as countersTable,
+} from "$lib/db/schema";
 import { logger } from "$lib/server/logger";
 
 type CreateCounterInput = {
@@ -10,7 +18,9 @@ type CreateCounterInput = {
   isPublic: boolean;
 };
 
-export async function createCounter(input: CreateCounterInput): Promise<Counter> {
+export async function createCounter(
+  input: CreateCounterInput,
+): Promise<Counter> {
   const newCounter: NewCounter = {
     title: input.title.trim(),
     description: input.description?.trim() || null,
@@ -18,7 +28,10 @@ export async function createCounter(input: CreateCounterInput): Promise<Counter>
     isPublic: input.isPublic ? 1 : 0,
   };
 
-  const [counter] = await db.insert(countersTable).values(newCounter).returning();
+  const [counter] = await db
+    .insert(countersTable)
+    .values(newCounter)
+    .returning();
 
   logger.info("Counter created", {
     id: counter.id,
@@ -36,12 +49,12 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-      eq(countersTable.isPublic, 1),
-      or(
-        ilike(countersTable.title, `%${searchQuery}%`),
-        ilike(countersTable.description, `%${searchQuery}%`),
-      ),
-    )
+        eq(countersTable.isPublic, 1),
+        or(
+          ilike(countersTable.title, `%${searchQuery}%`),
+          ilike(countersTable.description, `%${searchQuery}%`),
+        ),
+      )
     : eq(countersTable.isPublic, 1);
 
   return await db
