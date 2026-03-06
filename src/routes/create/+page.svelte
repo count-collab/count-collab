@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
+  import MetaTags from "$lib/components/MetaTags.svelte";
   import { rateLimit } from "$lib/stores/ratelimit";
 
   let title = $state("");
@@ -47,13 +48,11 @@
   }
 </script>
 
-<svelte:head>
-  <title>Create Counter | Count Collab</title>
-  <meta
-    name="description"
-    content="Create a new shareable counter and track anything in real-time."
-  />
-</svelte:head>
+<MetaTags
+  title="Create Counter | Count Collab"
+  description="Create a new shareable counter and track anything in real-time."
+  path="/create"
+/>
 
 <div class="max-w-2xl mx-auto space-y-8">
   <header class="space-y-2">

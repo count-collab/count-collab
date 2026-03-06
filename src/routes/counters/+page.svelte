@@ -1,8 +1,8 @@
 <script lang="ts">
-  
   import { untrack } from "svelte";
-import { browser } from "$app/environment";
+  import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
+  import MetaTags from "$lib/components/MetaTags.svelte";
   import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
   import type { PageData } from "./$types";
 
@@ -69,13 +69,11 @@ import { browser } from "$app/environment";
   });
 </script>
 
-<svelte:head>
-  <title>Counter Browser | Count Collab</title>
-  <meta
-    name="description"
-    content="Browse and track public counters in real-time."
-  />
-</svelte:head>
+<MetaTags
+  title="Counter Browser | Count Collab"
+  description="Browse and track public counters in real-time."
+  path="/counters"
+/>
 
 <div class="space-y-6">
   <header class="flex flex-col gap-2">

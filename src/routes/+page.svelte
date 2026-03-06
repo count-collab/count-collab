@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { invalidate } from "$app/navigation";
+  import MetaTags from "$lib/components/MetaTags.svelte";
   import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
   import type { PageData } from "./$types";
 
@@ -24,10 +25,11 @@
   });
 </script>
 
-<svelte:head>
-  <title>Count Collab - Create and Share Counters</title>
-  <meta name="description" content="Create counters with unique links and share them to track anything in real-time." />
-</svelte:head>
+<MetaTags
+  title="Count Collab - Create and Share Counters"
+  description="Create counters with unique links and share them to track anything in real-time."
+  path="/"
+/>
 
 <div class="space-y-8">
   <section class="text-center py-12">

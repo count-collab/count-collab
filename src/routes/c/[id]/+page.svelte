@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { invalidate } from "$app/navigation";
+  import MetaTags from "$lib/components/MetaTags.svelte";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
   import type { PageData } from "./$types";
@@ -68,10 +69,11 @@
   });
 </script>
 
-<svelte:head>
-  <title>{data.title}</title>
-  <meta name="description" content={data.description} />
-</svelte:head>
+<MetaTags
+  title={data.title}
+  description={data.description}
+  path="/c/{data.counter.id}"
+/>
 
 <div class="space-y-8">
   <header class="space-y-2">
