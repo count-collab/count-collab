@@ -13,6 +13,10 @@ import {
 } from "$lib/db/schema";
 import { logger } from "$lib/server/logger";
 
+function escapeLikePattern(input: string): string {
+  return input.replace(/[%_\\]/g, "\\$&");
+}
+
 type CreateCounterInput = {
   title: string;
   description?: string | null;
@@ -54,8 +58,11 @@ export async function listPublicCounters(
     ? and(
         eq(countersTable.isPublic, 1),
         or(
-          ilike(countersTable.title, `%${searchQuery}%`),
-          ilike(countersTable.description, `%${searchQuery}%`),
+          ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+          ilike(
+            countersTable.description,
+            `%${escapeLikePattern(searchQuery)}%`,
+          ),
         ),
       )
     : eq(countersTable.isPublic, 1);
@@ -223,8 +230,8 @@ export async function listAllCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-        ilike(countersTable.title, `%${searchQuery}%`),
-        ilike(countersTable.description, `%${searchQuery}%`),
+        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
       )
     : undefined;
 

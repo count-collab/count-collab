@@ -2,6 +2,10 @@ import { eq, desc, ilike, or, sql } from "drizzle-orm";
 import { db } from "$lib/db";
 import { users, roles, counters } from "$lib/db/schema";
 
+function escapeLikePattern(input: string): string {
+  return input.replace(/[%_\\]/g, "\\$&");
+}
+
 type UserWithRole = {
   id: string;
   name: string | null;
@@ -37,9 +41,9 @@ export async function listUsers(
     return baseQuery
       .where(
         or(
-          ilike(users.username, `%${searchQuery}%`),
-          ilike(users.name, `%${searchQuery}%`),
-          ilike(users.email, `%${searchQuery}%`),
+          ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
+          ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
+          ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
         ),
       )
       .orderBy(desc(users.id))
