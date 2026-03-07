@@ -1,10 +1,17 @@
 import { error } from "@sveltejs/kit";
 import { getCounter, getCounterHistory } from "$lib/server/counters";
+import {
+  canEditCounter,
+  canDeleteCounter,
+  canManageMembers,
+  canViewPrivateCounter,
+} from "$lib/server/authorize";
+import { getCounterMembers } from "$lib/server/members";
 import { logger } from "$lib/server/logger";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ params, depends }) => {
+export const load: PageServerLoad = async ({ params, depends, locals }) => {
   // Validate UUID format
   const idValidation = counterIdSchema.safeParse(params.id);
 
@@ -20,11 +27,36 @@ export const load: PageServerLoad = async ({ params, depends }) => {
     throw error(404, "Counter not found");
   }
 
+  const session = await locals.auth();
+  const userId = session?.user?.id;
+
+  // Private counter access check
+  if (!counter.isPublic && userId) {
+    const canView = await canViewPrivateCounter(userId, counter.id);
+    if (!canView) {
+      throw error(403, "You don't have access to this counter");
+    }
+  } else if (!counter.isPublic && !userId) {
+    throw error(403, "Sign in to view this private counter");
+  }
+
+  const canEdit = userId ? await canEditCounter(userId, counter.id) : false;
+  const canDelete = userId ? await canDeleteCounter(userId, counter.id) : false;
+  const canManage = userId ? await canManageMembers(userId, counter.id) : false;
+
+  const isOwner = userId ? counter.ownerId === userId : false;
+  const members = canManage ? await getCounterMembers(counter.id) : [];
+
   depends(`counter:${params.id}`);
 
   return {
     counter,
     history: await getCounterHistory(params.id),
+    canEdit,
+    canDelete,
+    canManage,
+    isOwner,
+    members,
     title: `${counter.title} | Count Collab`,
     description:
       counter.description ||

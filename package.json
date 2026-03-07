@@ -14,11 +14,14 @@
     "fix": "biome check --write .",
     "format": "prettier --plugin-search-dir . --write .",
     "db:init": "bun run scripts/seed-counters.ts",
+    "db:seed-roles": "bun run scripts/seed-roles.ts",
     "db:push": "drizzle-kit push:pg",
     "db:generate": "drizzle-kit generate:pg",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.1",
+    "@auth/sveltekit": "^1.11.1",
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
     "drizzle-orm": "^0.29.0",

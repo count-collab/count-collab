@@ -1,6 +1,6 @@
 <script lang="ts">
   import { browser } from "$app/environment";
-  import { invalidate } from "$app/navigation";
+  import { goto, invalidate } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
@@ -12,6 +12,27 @@
   let optimisticUpdatedAt = $state<string | null>(null);
   let errorMessage = $state<string | null>(null);
   let isIncrementing = $state(false);
+
+  // Edit modal state
+  let showEditModal = $state(false);
+  let editTitle = $state(data.counter.title);
+  let editDescription = $state(data.counter.description ?? "");
+  let editVisibility = $state<"public" | "private">(
+    data.counter.isPublic ? "public" : "private",
+  );
+  let editError = $state<string | null>(null);
+  let isSaving = $state(false);
+
+  // Delete confirmation state
+  let showDeleteConfirm = $state(false);
+  let isDeleting = $state(false);
+
+  // Member invitation state
+  let inviteUsername = $state("");
+  let inviteRole = $state<"viewer" | "editor" | "admin">("viewer");
+  let inviteError = $state<string | null>(null);
+  let inviteSuccess = $state<string | null>(null);
+  let isInviting = $state(false);
 
   const displayCount = $derived(optimisticCount ?? data.counter.count);
   const displayUpdatedAt = $derived(
@@ -29,7 +50,6 @@
       if (!response.ok) {
         const body = await response.json();
 
-        // Handle rate limiting
         if (response.status === 429) {
           const retryAfter = body.retryAfterSeconds ?? 60;
           rateLimit.setLimit(`/c/${data.counter.id}`, retryAfter);
@@ -50,6 +70,104 @@
       errorMessage = "Network error. Please try again.";
     } finally {
       isIncrementing = false;
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (isSaving) return;
+    isSaving = true;
+    editError = null;
+
+    try {
+      const response = await fetch(`/c/${data.counter.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDescription,
+          visibility: editVisibility,
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json();
+        editError = body.error ?? "Failed to update counter.";
+        return;
+      }
+
+      showEditModal = false;
+      invalidate(`counter:${data.counter.id}`);
+    } catch {
+      editError = "Network error. Please try again.";
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function handleDelete() {
+    if (isDeleting) return;
+    isDeleting = true;
+
+    try {
+      const response = await fetch(`/c/${data.counter.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const body = await response.json();
+        errorMessage = body.error ?? "Failed to delete counter.";
+        showDeleteConfirm = false;
+        return;
+      }
+
+      await goto("/");
+    } catch {
+      errorMessage = "Network error. Please try again.";
+    } finally {
+      isDeleting = false;
+      showDeleteConfirm = false;
+    }
+  }
+
+  async function handleInvite() {
+    if (isInviting || !inviteUsername.trim()) return;
+    isInviting = true;
+    inviteError = null;
+    inviteSuccess = null;
+
+    try {
+      const response = await fetch(`/c/${data.counter.id}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: inviteUsername, role: inviteRole }),
+      });
+
+      if (!response.ok) {
+        const body = await response.json();
+        inviteError = body.error ?? "Failed to invite user.";
+        return;
+      }
+
+      inviteSuccess = `Invited ${inviteUsername} as ${inviteRole}`;
+      inviteUsername = "";
+      invalidate(`counter:${data.counter.id}`);
+    } catch {
+      inviteError = "Network error. Please try again.";
+    } finally {
+      isInviting = false;
+    }
+  }
+
+  async function handleRemoveMember(userId: string) {
+    try {
+      const response = await fetch(`/c/${data.counter.id}/members/${userId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        invalidate(`counter:${data.counter.id}`);
+      }
+    } catch {
+      // silently fail
     }
   }
 
@@ -77,14 +195,54 @@
 
 <div class="space-y-8">
   <header class="space-y-2">
-    <p class="text-sm uppercase tracking-wide text-slate-500">
-      {data.counter.isPublic ? "Public counter" : "Private counter"}
-    </p>
-    <h1 class="text-4xl font-bold text-slate-900">{data.counter.title}</h1>
-    {#if data.counter.description}
-      <p class="text-lg text-slate-600">{data.counter.description}</p>
-    {/if}
-    <p class="text-sm text-slate-500">Shareable link: /c/{data.counter.id}</p>
+    <div class="flex items-start justify-between">
+      <div class="space-y-2">
+        <p class="text-sm uppercase tracking-wide text-slate-500">
+          {data.counter.isPublic ? "Public counter" : "Private counter"}
+          {#if data.isOwner}
+            <span
+              class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"
+              >Owner</span
+            >
+          {/if}
+        </p>
+        <h1 class="text-4xl font-bold text-slate-900">{data.counter.title}</h1>
+        {#if data.counter.description}
+          <p class="text-lg text-slate-600">{data.counter.description}</p>
+        {/if}
+        <p class="text-sm text-slate-500">
+          Shareable link: /c/{data.counter.id}
+        </p>
+      </div>
+
+      {#if data.canEdit || data.canDelete}
+        <div class="flex gap-2">
+          {#if data.canEdit}
+            <button
+              type="button"
+              onclick={() => {
+                editTitle = data.counter.title;
+                editDescription = data.counter.description ?? "";
+                editVisibility = data.counter.isPublic ? "public" : "private";
+                showEditModal = true;
+              }}
+              class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition"
+            >
+              Edit
+            </button>
+          {/if}
+          {#if data.canDelete}
+            <button
+              type="button"
+              onclick={() => (showDeleteConfirm = true)}
+              class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
+            >
+              Delete
+            </button>
+          {/if}
+        </div>
+      {/if}
+    </div>
   </header>
 
   <section class="grid gap-6 lg:grid-cols-[2fr,1fr]">
@@ -133,4 +291,209 @@
       {/if}
     </aside>
   </section>
+
+  <!-- Members Panel -->
+  {#if data.canManage}
+    <section class="bg-white rounded-lg shadow p-6 space-y-4">
+      <h2 class="text-lg font-semibold text-slate-900">Members</h2>
+
+      <!-- Invite form -->
+      <div class="flex gap-2 items-end">
+        <div class="flex-1">
+          <label
+            class="block text-sm font-medium text-slate-700 mb-1"
+            for="invite-username">Username</label
+          >
+          <input
+            id="invite-username"
+            type="text"
+            bind:value={inviteUsername}
+            placeholder="username"
+            class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label
+            class="block text-sm font-medium text-slate-700 mb-1"
+            for="invite-role">Role</label
+          >
+          <select
+            id="invite-role"
+            bind:value={inviteRole}
+            class="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="viewer">Viewer</option>
+            <option value="editor">Editor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <button
+          type="button"
+          onclick={handleInvite}
+          disabled={isInviting || !inviteUsername.trim()}
+          class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          Invite
+        </button>
+      </div>
+
+      {#if inviteError}
+        <p class="text-sm text-red-600">{inviteError}</p>
+      {/if}
+      {#if inviteSuccess}
+        <p class="text-sm text-green-600">{inviteSuccess}</p>
+      {/if}
+
+      <!-- Member list -->
+      {#if data.members.length > 0}
+        <ul class="divide-y divide-slate-200">
+          {#each data.members as member (member.id)}
+            <li class="flex items-center justify-between py-3">
+              <div class="flex items-center gap-3">
+                {#if member.image}
+                  <img src={member.image} alt="" class="w-8 h-8 rounded-full" />
+                {:else}
+                  <div
+                    class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600"
+                  >
+                    {(member.username ?? "?")[0]}
+                  </div>
+                {/if}
+                <div>
+                  <p class="text-sm font-medium text-slate-900">
+                    {member.username ?? member.name ?? "Unknown"}
+                  </p>
+                  <p class="text-xs text-slate-500 capitalize">{member.role}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onclick={() => handleRemoveMember(member.userId)}
+                class="text-sm text-red-600 hover:text-red-800"
+              >
+                Remove
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="text-sm text-slate-500">
+          No members yet. Invite someone above.
+        </p>
+      {/if}
+    </section>
+  {/if}
 </div>
+
+<!-- Edit Modal -->
+{#if showEditModal}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    role="dialog"
+  >
+    <div
+      class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4"
+    >
+      <h2 class="text-xl font-bold text-slate-900">Edit Counter</h2>
+
+      <div class="space-y-2">
+        <label
+          class="block text-sm font-semibold text-slate-700"
+          for="edit-title">Title</label
+        >
+        <input
+          id="edit-title"
+          type="text"
+          bind:value={editTitle}
+          class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+        />
+      </div>
+
+      <div class="space-y-2">
+        <label
+          class="block text-sm font-semibold text-slate-700"
+          for="edit-description">Description</label
+        >
+        <textarea
+          id="edit-description"
+          rows="3"
+          bind:value={editDescription}
+          class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+        ></textarea>
+      </div>
+
+      <div class="space-y-2">
+        <span class="block text-sm font-semibold text-slate-700"
+          >Visibility</span
+        >
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input type="radio" value="public" bind:group={editVisibility} />
+            Public
+          </label>
+          <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input type="radio" value="private" bind:group={editVisibility} />
+            Private
+          </label>
+        </div>
+      </div>
+
+      {#if editError}
+        <p class="text-sm text-red-600">{editError}</p>
+      {/if}
+
+      <div class="flex justify-end gap-3">
+        <button
+          type="button"
+          onclick={() => (showEditModal = false)}
+          class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onclick={handleSaveEdit}
+          disabled={isSaving}
+          class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          {isSaving ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Delete Confirmation -->
+{#if showDeleteConfirm}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    role="dialog"
+  >
+    <div
+      class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6 space-y-4"
+    >
+      <h2 class="text-xl font-bold text-slate-900">Delete Counter?</h2>
+      <p class="text-slate-600">
+        This action cannot be undone. The counter and its history will be
+        permanently deleted.
+      </p>
+      <div class="flex justify-end gap-3">
+        <button
+          type="button"
+          onclick={() => (showDeleteConfirm = false)}
+          class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onclick={handleDelete}
+          disabled={isDeleting}
+          class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+        >
+          {isDeleting ? "Deleting..." : "Delete"}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

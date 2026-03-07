@@ -5,7 +5,7 @@ import { emitCounterCreated } from "$lib/utils/socket";
 import { createCounterSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
   const validation = await parseAndValidateBody(
     request,
     createCounterSchema,
@@ -18,10 +18,13 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const { title, description, visibility } = validation.data;
 
+  const session = await locals.auth();
+
   const counter = await createCounter({
     title,
     description,
     isPublic: visibility === "public",
+    ownerId: session?.user?.id ?? null,
   });
 
   emitCounterCreated(counter.id);

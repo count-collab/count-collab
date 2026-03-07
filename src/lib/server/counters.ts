@@ -8,6 +8,7 @@ import type {
 } from "$lib/db/schema";
 import {
   counterHistory as counterHistoryTable,
+  counterMembers,
   counters as countersTable,
 } from "$lib/db/schema";
 import { logger } from "$lib/server/logger";
@@ -16,6 +17,7 @@ type CreateCounterInput = {
   title: string;
   description?: string | null;
   isPublic: boolean;
+  ownerId?: string | null;
 };
 
 export async function createCounter(
@@ -26,6 +28,7 @@ export async function createCounter(
     description: input.description?.trim() || null,
     count: 0,
     isPublic: input.isPublic ? 1 : 0,
+    ownerId: input.ownerId ?? null,
   };
 
   const [counter] = await db
@@ -131,5 +134,104 @@ export async function getCounterHistory(
     // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
     .where(eq(counterHistoryTable.counterId, counterId as any))
     .orderBy(desc(counterHistoryTable.changedAt))
+    .limit(limit);
+}
+
+type UpdateCounterInput = {
+  title?: string;
+  description?: string;
+  isPublic?: boolean;
+};
+
+export async function updateCounter(
+  counterId: string,
+  input: UpdateCounterInput,
+): Promise<Counter | null> {
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+
+  if (input.title !== undefined) set.title = input.title.trim();
+  if (input.description !== undefined)
+    set.description = input.description.trim() || null;
+  if (input.isPublic !== undefined) set.isPublic = input.isPublic ? 1 : 0;
+
+  const [updated] = await db
+    .update(countersTable)
+    .set(set)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+    .where(eq(countersTable.id, counterId as any))
+    .returning();
+
+  if (updated) {
+    logger.info("Counter updated", { id: counterId });
+  }
+
+  return updated ?? null;
+}
+
+export async function deleteCounter(counterId: string): Promise<boolean> {
+  const result = await db
+    .delete(countersTable)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+    .where(eq(countersTable.id, counterId as any))
+    .returning();
+
+  if (result.length > 0) {
+    logger.info("Counter deleted", { id: counterId });
+  }
+
+  return result.length > 0;
+}
+
+/**
+ * Get all counters owned by or shared with a user.
+ */
+export async function getUserCounters(userId: string): Promise<Counter[]> {
+  const owned = await db
+    .select()
+    .from(countersTable)
+    .where(eq(countersTable.ownerId, userId))
+    .orderBy(desc(countersTable.updatedAt));
+
+  const shared = await db
+    .select({
+      id: countersTable.id,
+      title: countersTable.title,
+      description: countersTable.description,
+      count: countersTable.count,
+      isPublic: countersTable.isPublic,
+      ownerId: countersTable.ownerId,
+      createdAt: countersTable.createdAt,
+      updatedAt: countersTable.updatedAt,
+    })
+    .from(counterMembers)
+    .innerJoin(countersTable, eq(counterMembers.counterId, countersTable.id))
+    .where(eq(counterMembers.userId, userId))
+    .orderBy(desc(countersTable.updatedAt));
+
+  // Deduplicate (owner could also be a member)
+  const seen = new Set(owned.map((c) => c.id));
+  return [...owned, ...shared.filter((c) => !seen.has(c.id))];
+}
+
+/**
+ * List all counters (for admin dashboard).
+ */
+export async function listAllCounters(
+  limit = 50,
+  query?: string,
+): Promise<Counter[]> {
+  const searchQuery = query?.trim();
+  const whereClause = searchQuery
+    ? or(
+        ilike(countersTable.title, `%${searchQuery}%`),
+        ilike(countersTable.description, `%${searchQuery}%`),
+      )
+    : undefined;
+
+  return await db
+    .select()
+    .from(countersTable)
+    .where(whereClause)
+    .orderBy(desc(countersTable.updatedAt))
     .limit(limit);
 }

@@ -1,6 +1,9 @@
+import { sequence } from "@sveltejs/kit/hooks";
 import type { Handle } from "@sveltejs/kit";
+import { redirect } from "@sveltejs/kit";
 import { verifyDatabaseConnection } from "$lib/db";
 import { logger } from "$lib/server/logger";
+import { authHandle } from "$lib/server/auth";
 import {
   checkRateLimit,
   getClientIp,
@@ -33,7 +36,7 @@ function isWriteRoute(pathname: string): string | null {
   return null;
 }
 
-export const handle: Handle = async ({ event, resolve }) => {
+const appHandle: Handle = async ({ event, resolve }) => {
   if (!dbInitialized) {
     await initializeDatabase();
   }
@@ -133,3 +136,31 @@ export const handle: Handle = async ({ event, resolve }) => {
     throw err;
   }
 };
+
+const USERNAME_SKIP_PREFIXES = [
+  "/setup",
+  "/api/auth",
+  "/_app",
+  "/favicon",
+  "/health",
+];
+
+const usernameGuard: Handle = async ({ event, resolve }) => {
+  const session = await event.locals.auth();
+
+  if (session?.user) {
+    // Redirect authenticated users without a username to /setup
+    const needsSetup = !session.user.username;
+    const isSkipped = USERNAME_SKIP_PREFIXES.some((p) =>
+      event.url.pathname.startsWith(p),
+    );
+
+    if (needsSetup && !isSkipped) {
+      throw redirect(303, "/setup");
+    }
+  }
+
+  return resolve(event);
+};
+
+export const handle: Handle = sequence(authHandle, appHandle, usernameGuard);
