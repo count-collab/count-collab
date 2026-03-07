@@ -2,9 +2,10 @@
  * Seed roles and permissions into the database.
  * Run: bun run db:seed-roles
  */
-import { db } from "../src/lib/db";
-import { roles, permissions, rolePermissions } from "../src/lib/db/schema";
+
 import { eq } from "drizzle-orm";
+import { db } from "../src/lib/db";
+import { permissions, rolePermissions, roles } from "../src/lib/db/schema";
 
 const ROLES = [
   {

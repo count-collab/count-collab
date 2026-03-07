@@ -1,6 +1,6 @@
 import { error, json } from "@sveltejs/kit";
 import { hasPermission } from "$lib/server/permissions";
-import { updateUserRole, deleteUser } from "$lib/server/users";
+import { deleteUser, updateUserRole } from "$lib/server/users";
 import type { RequestHandler } from "./$types";
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {

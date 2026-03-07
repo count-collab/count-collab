@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "$lib/db";
-import { counterMembers, users, type CounterMember } from "$lib/db/schema";
+import { type CounterMember, counterMembers, users } from "$lib/db/schema";
 import { logger } from "$lib/server/logger";
 
 type MemberWithUser = CounterMember & {

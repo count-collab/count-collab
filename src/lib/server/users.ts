@@ -1,6 +1,6 @@
-import { eq, desc, ilike, or, sql } from "drizzle-orm";
+import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "$lib/db";
-import { users, roles, counters } from "$lib/db/schema";
+import { counters, roles, users } from "$lib/db/schema";
 
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");

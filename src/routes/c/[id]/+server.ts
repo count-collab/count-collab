@@ -1,12 +1,12 @@
 import { error, json } from "@sveltejs/kit";
+import { canDeleteCounter, canEditCounter } from "$lib/server/authorize";
 import {
+  deleteCounter,
   incrementCounter,
   updateCounter,
-  deleteCounter,
 } from "$lib/server/counters";
-import { canEditCounter, canDeleteCounter } from "$lib/server/authorize";
-import { parseAndValidateBody } from "$lib/server/request";
 import { logger } from "$lib/server/logger";
+import { parseAndValidateBody } from "$lib/server/request";
 import { emitCounterUpdate } from "$lib/utils/socket";
 import { counterIdSchema, updateCounterSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";

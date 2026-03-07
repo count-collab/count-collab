@@ -1,13 +1,13 @@
 import { error } from "@sveltejs/kit";
-import { getCounter, getCounterHistory } from "$lib/server/counters";
 import {
-  canEditCounter,
   canDeleteCounter,
+  canEditCounter,
   canManageMembers,
   canViewPrivateCounter,
 } from "$lib/server/authorize";
-import { getCounterMembers } from "$lib/server/members";
+import { getCounter, getCounterHistory } from "$lib/server/counters";
 import { logger } from "$lib/server/logger";
+import { getCounterMembers } from "$lib/server/members";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { PageServerLoad } from "./$types";
 

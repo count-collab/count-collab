@@ -1,6 +1,6 @@
-import { eq, and } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "$lib/db";
-import { counters, counterMembers } from "$lib/db/schema";
+import { counterMembers, counters } from "$lib/db/schema";
 import { hasPermission } from "$lib/server/permissions";
 
 /**

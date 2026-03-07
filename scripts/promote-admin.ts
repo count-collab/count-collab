@@ -2,9 +2,10 @@
  * Promote a user to admin by email.
  * Run: bun run scripts/promote-admin.ts --email user@example.com
  */
-import { db } from "../src/lib/db";
-import { users, roles } from "../src/lib/db/schema";
+
 import { eq } from "drizzle-orm";
+import { db } from "../src/lib/db";
+import { roles, users } from "../src/lib/db/schema";
 
 const args = process.argv.slice(2);
 const emailIdx = args.indexOf("--email");

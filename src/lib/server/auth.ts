@@ -1,11 +1,11 @@
-import { SvelteKitAuth } from "@auth/sveltekit";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { SvelteKitAuth } from "@auth/sveltekit";
 import Discord from "@auth/sveltekit/providers/discord";
 import Google from "@auth/sveltekit/providers/google";
 import Twitch from "@auth/sveltekit/providers/twitch";
+import { eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { accounts, sessions, users, verificationTokens } from "$lib/db/schema";
-import { eq } from "drizzle-orm";
 
 // Type assertion needed: drizzle-orm 0.29.x columns lack metadata fields
 // (isAutoincrement, isPrimaryKey, etc.) that @auth/drizzle-adapter 1.x expects.

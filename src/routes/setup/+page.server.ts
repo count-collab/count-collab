@@ -1,5 +1,5 @@
-import { redirect, fail } from "@sveltejs/kit";
-import { setUsername, isUsernameAvailable } from "$lib/server/users";
+import { fail, redirect } from "@sveltejs/kit";
+import { isUsernameAvailable, setUsername } from "$lib/server/users";
 import { usernameSchema } from "$lib/utils/validation";
 import type { Actions, PageServerLoad } from "./$types";
 

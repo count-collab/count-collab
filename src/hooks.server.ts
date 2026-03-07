@@ -1,9 +1,9 @@
-import { sequence } from "@sveltejs/kit/hooks";
 import type { Handle } from "@sveltejs/kit";
 import { redirect } from "@sveltejs/kit";
+import { sequence } from "@sveltejs/kit/hooks";
 import { verifyDatabaseConnection } from "$lib/db";
-import { logger } from "$lib/server/logger";
 import { authHandle } from "$lib/server/auth";
+import { logger } from "$lib/server/logger";
 import {
   checkRateLimit,
   getClientIp,
