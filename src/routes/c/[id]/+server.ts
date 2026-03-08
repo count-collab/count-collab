@@ -6,6 +6,7 @@ import {
   updateCounter,
 } from "$lib/server/counters";
 import { logger } from "$lib/server/logger";
+import { RATE_LIMIT_CONFIG } from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
 import { emitCounterUpdate } from "$lib/utils/socket";
 import { counterIdSchema, updateCounterSchema } from "$lib/utils/validation";
@@ -31,9 +32,14 @@ export const POST: RequestHandler = async ({ params }) => {
 
   emitCounterUpdate(counter.id, counter.count, counter.updatedAt);
 
+  const cooldownSeconds = Math.ceil(
+    RATE_LIMIT_CONFIG["/c/[id]"].windowMs / 1000,
+  );
+
   return json({
     count: counter.count,
     updatedAt: counter.updatedAt,
+    cooldownSeconds,
   });
 };
 
