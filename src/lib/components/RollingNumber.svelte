@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { cubicOut } from "svelte/easing";
   import { flip } from "svelte/animate";
+  import { cubicOut } from "svelte/easing";
 
   const { value }: { value: number } = $props();
 

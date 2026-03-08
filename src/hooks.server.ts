@@ -4,13 +4,13 @@ import { sequence } from "@sveltejs/kit/hooks";
 import { verifyDatabaseConnection } from "$lib/db";
 import { authHandle } from "$lib/server/auth";
 import { logger } from "$lib/server/logger";
+import { getUserRole } from "$lib/server/permissions";
 import {
   checkRateLimit,
   getClientIp,
   RATE_LIMIT_CONFIG,
   trackCounterIncrement,
 } from "$lib/server/ratelimit";
-import { getUserRole } from "$lib/server/permissions";
 
 let dbInitialized = false;
 
