@@ -4,6 +4,7 @@
 
   const { children, data } = $props();
   const session = $derived(data.session);
+  const isAdmin = $derived(data.isAdmin);
 </script>
 
 <div
@@ -36,6 +37,12 @@
             class="text-slate-700 hover:text-slate-900 transition"
             >My Counters</a
           >
+          {#if isAdmin}
+            <a
+              href="/admin"
+              class="text-slate-700 hover:text-slate-900 transition">Admin</a
+            >
+          {/if}
           <div
             class="flex items-center gap-2 ml-2 pl-4 border-l border-slate-200"
           >
