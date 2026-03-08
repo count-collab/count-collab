@@ -37,87 +37,15 @@ function isWriteRoute(pathname: string): string | null {
   return null;
 }
 
-const appHandle: Handle = async ({ event, resolve }) => {
-  if (!dbInitialized) {
-    await initializeDatabase();
-  }
-
+const loggingHandle: Handle = async ({ event, resolve }) => {
   const start = performance.now();
-  const { method, url } = event.request;
-  const route = event.route.id ?? url;
+  const { method } = event.request;
+  const route = event.route.id ?? event.request.url;
 
   logger.info(`--> ${method} ${event.url.pathname}`, {
     route,
     query: event.url.search || undefined,
   });
-
-  // Check rate limiting for write operations
-  if (method === "POST") {
-    const writeRoute = isWriteRoute(event.url.pathname);
-    if (writeRoute) {
-      // Skip rate limiting for admin users
-      let isAdmin = false;
-      if (writeRoute === "/c/[id]") {
-        const session = await event.locals.auth();
-        if (session?.user?.id) {
-          const role = await getUserRole(session.user.id);
-          isAdmin = role === "admin";
-        }
-      }
-
-      if (!isAdmin) {
-        const clientIp = getClientIp(event.request);
-        const config =
-          RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];
-
-        if (config) {
-          const rateLimitCheck = checkRateLimit(clientIp, writeRoute, config);
-
-          if (rateLimitCheck) {
-            logger.warn("Rate limit exceeded, returning 429", {
-              ip: clientIp,
-              route: writeRoute,
-              retryAfter: rateLimitCheck.retryAfter,
-            });
-
-            const response = new Response(
-              JSON.stringify({
-                error: "Too many requests",
-                retryAfterSeconds: rateLimitCheck.retryAfter,
-              }),
-              {
-                status: 429,
-                headers: {
-                  "Content-Type": "application/json",
-                  "Retry-After": String(rateLimitCheck.retryAfter),
-                },
-              },
-            );
-
-            const duration = (performance.now() - start).toFixed(2);
-            logger.warn(
-              `<-- ${method} ${event.url.pathname} 429 (rate limited)`,
-              {
-                route,
-                durationMs: duration,
-                ip: clientIp,
-              },
-            );
-
-            return response;
-          }
-
-          // Track counter increments for abuse detection
-          if (writeRoute === "/c/[id]") {
-            const match = event.url.pathname.match(/^\/c\/([a-f0-9-]+)$/);
-            if (match) {
-              trackCounterIncrement(clientIp, match[1]);
-            }
-          }
-        }
-      }
-    }
-  }
 
   try {
     const response = await resolve(event);
@@ -150,6 +78,70 @@ const appHandle: Handle = async ({ event, resolve }) => {
   }
 };
 
+const appHandle: Handle = async ({ event, resolve }) => {
+  if (!dbInitialized) {
+    await initializeDatabase();
+  }
+
+  // Check rate limiting for write operations
+  if (event.request.method === "POST") {
+    const writeRoute = isWriteRoute(event.url.pathname);
+    if (writeRoute) {
+      // Skip rate limiting for admin users
+      let isAdmin = false;
+      if (writeRoute === "/c/[id]") {
+        const session = await event.locals.auth();
+        if (session?.user?.id) {
+          const role = await getUserRole(session.user.id);
+          isAdmin = role === "admin";
+        }
+      }
+
+      if (!isAdmin) {
+        const clientIp = getClientIp(event.request);
+        const config =
+          RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];
+
+        if (config) {
+          const rateLimitCheck = checkRateLimit(clientIp, writeRoute, config);
+
+          if (rateLimitCheck) {
+            logger.warn("Rate limit exceeded, returning 429", {
+              ip: clientIp,
+              route: writeRoute,
+              retryAfter: rateLimitCheck.retryAfter,
+            });
+
+            return new Response(
+              JSON.stringify({
+                error: "Too many requests",
+                retryAfterSeconds: rateLimitCheck.retryAfter,
+              }),
+              {
+                status: 429,
+                headers: {
+                  "Content-Type": "application/json",
+                  "Retry-After": String(rateLimitCheck.retryAfter),
+                },
+              },
+            );
+          }
+
+          // Track counter increments for abuse detection
+          if (writeRoute === "/c/[id]") {
+            const match = event.url.pathname.match(/^\/c\/([a-f0-9-]+)$/);
+            if (match) {
+              trackCounterIncrement(clientIp, match[1]);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return resolve(event);
+};
+
 const USERNAME_SKIP_PREFIXES = [
   "/setup",
   "/api/auth",
@@ -176,4 +168,9 @@ const usernameGuard: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-export const handle: Handle = sequence(authHandle, appHandle, usernameGuard);
+export const handle: Handle = sequence(
+  loggingHandle,
+  authHandle,
+  appHandle,
+  usernameGuard,
+);
