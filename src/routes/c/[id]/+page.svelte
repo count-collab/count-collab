@@ -214,6 +214,7 @@
 
     const unsubscribe = onCounterUpdated((payload) => {
       if (payload.counterId !== data.counter.id) return;
+      if (isIncrementing) return;
 
       invalidate(`counter:${data.counter.id}`).then(() => {
         optimisticCount = null;
