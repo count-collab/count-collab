@@ -6,13 +6,14 @@ import {
   updateCounter,
 } from "$lib/server/counters";
 import { logger } from "$lib/server/logger";
+import { getUserRole } from "$lib/server/permissions";
 import { RATE_LIMIT_CONFIG } from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
 import { emitCounterUpdate } from "$lib/utils/socket";
 import { counterIdSchema, updateCounterSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ params }) => {
+export const POST: RequestHandler = async ({ params, locals }) => {
   // Validate UUID format
   const idValidation = counterIdSchema.safeParse(params.id);
 
@@ -32,9 +33,15 @@ export const POST: RequestHandler = async ({ params }) => {
 
   emitCounterUpdate(counter.id, counter.count, counter.updatedAt);
 
-  const cooldownSeconds = Math.ceil(
-    RATE_LIMIT_CONFIG["/c/[id]"].windowMs / 1000,
-  );
+  const session = await locals.auth();
+  let cooldownSeconds = Math.ceil(RATE_LIMIT_CONFIG["/c/[id]"].windowMs / 1000);
+
+  if (session?.user?.id) {
+    const role = await getUserRole(session.user.id);
+    if (role === "admin") {
+      cooldownSeconds = 0;
+    }
+  }
 
   return json({
     count: counter.count,

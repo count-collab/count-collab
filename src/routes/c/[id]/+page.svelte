@@ -2,6 +2,7 @@
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
   import type { PageData } from "./$types";
@@ -91,8 +92,12 @@
       } = await response.json();
       optimisticCount = result.count;
       optimisticUpdatedAt = result.updatedAt;
-      rateLimit.setLimit(`/c/${data.counter.id}`, result.cooldownSeconds);
-      invalidate(`counter:${data.counter.id}`);
+      if (result.cooldownSeconds > 0) {
+        rateLimit.setLimit(`/c/${data.counter.id}`, result.cooldownSeconds);
+      }
+      await invalidate(`counter:${data.counter.id}`);
+      optimisticCount = null;
+      optimisticUpdatedAt = null;
     } catch {
       errorMessage = "Network error. Please try again.";
     } finally {
@@ -310,7 +315,7 @@
     class="flex-1 flex flex-col items-center justify-center py-6 select-none"
   >
     <p class="text-8xl sm:text-9xl font-extrabold tabular-nums text-blue-600">
-      {displayCount}
+      <RollingNumber value={displayCount} />
     </p>
 
     <button
