@@ -1,5 +1,7 @@
 <script lang="ts">
+  import CounterCard from "$lib/components/CounterCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import Pagination from "$lib/components/Pagination.svelte";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -33,43 +35,15 @@
       </a>
     </div>
   {:else}
-    <div class="grid gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
       {#each data.counters as counter (counter.id)}
-        <a
-          href={`/c/${counter.id}`}
-          class="block bg-white border border-slate-200 rounded-lg p-4 hover:border-blue-400 transition shadow-sm"
-        >
-          <div class="flex justify-between items-start">
-            <div>
-              <h3 class="font-semibold text-slate-900">{counter.title}</h3>
-              {#if counter.description}
-                <p class="text-sm text-slate-600 mt-1">{counter.description}</p>
-              {/if}
-              <div class="flex gap-2 mt-2">
-                <span
-                  class="text-xs px-2 py-0.5 rounded-full {counter.isPublic
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-slate-100 text-slate-600'}"
-                >
-                  {counter.isPublic ? "Public" : "Private"}
-                </span>
-                {#if counter.ownerId}
-                  <span
-                    class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"
-                    >Owned</span
-                  >
-                {:else}
-                  <span
-                    class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600"
-                    >Shared</span
-                  >
-                {/if}
-              </div>
-            </div>
-            <div class="text-3xl font-bold text-blue-600">{counter.count}</div>
-          </div>
-        </a>
+        <CounterCard {counter} showBadges />
       {/each}
     </div>
+    <Pagination
+      page={data.page}
+      totalPages={data.totalPages}
+      baseUrl="/my-counters"
+    />
   {/if}
 </div>

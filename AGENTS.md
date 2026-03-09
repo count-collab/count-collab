@@ -134,5 +134,5 @@ bun lint
 4. Svelte check
 
 ```bash
-bun check
+bun svelte-check
 ```

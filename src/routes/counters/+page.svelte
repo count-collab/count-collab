@@ -2,7 +2,9 @@
   import { untrack } from "svelte";
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
+  import CounterCard from "$lib/components/CounterCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import Pagination from "$lib/components/Pagination.svelte";
   import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
   import type { PageData } from "./$types";
 
@@ -28,12 +30,10 @@
     if (nextQuery === previousQuery) return;
 
     const timeoutId = setTimeout(() => {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams();
 
       if (nextQuery) {
         params.set("q", nextQuery);
-      } else {
-        params.delete("q");
       }
 
       const queryString = params.toString();
@@ -115,25 +115,16 @@
       </div>
     {/if}
   {:else}
-    <div class="grid gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
       {#each data.counters as counter (counter.id)}
-        <a
-          href={`/c/${counter.id}`}
-          class="block rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-blue-400"
-        >
-          <div class="flex items-start justify-between">
-            <div>
-              <h2 class="text-lg font-semibold text-slate-900">
-                {counter.title}
-              </h2>
-              {#if counter.description}
-                <p class="text-sm text-slate-600">{counter.description}</p>
-              {/if}
-            </div>
-            <div class="text-3xl font-bold text-blue-600">{counter.count}</div>
-          </div>
-        </a>
+        <CounterCard {counter} />
       {/each}
     </div>
+    <Pagination
+      page={data.page}
+      totalPages={data.totalPages}
+      baseUrl="/counters"
+      extraParams={data.query ? { q: data.query } : {}}
+    />
   {/if}
 </div>

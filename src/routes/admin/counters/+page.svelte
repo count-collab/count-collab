@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import Pagination from "$lib/components/Pagination.svelte";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -88,3 +89,10 @@
     </tbody>
   </table>
 </div>
+
+<Pagination
+  page={data.page}
+  totalPages={data.totalPages}
+  baseUrl="/admin/counters"
+  extraParams={data.query ? { q: data.query } : {}}
+/>

@@ -1,4 +1,4 @@
-import { desc, eq, ilike, or, sql } from "drizzle-orm";
+import { count as countFn, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "$lib/db";
 import { counters, roles, users } from "$lib/db/schema";
 
@@ -22,35 +22,38 @@ type UserWithRole = {
 export async function listUsers(
   limit = 50,
   query?: string,
-): Promise<UserWithRole[]> {
+  offset = 0,
+): Promise<{ items: UserWithRole[]; total: number }> {
   const searchQuery = query?.trim();
-  const baseQuery = db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      image: users.image,
-      username: users.username,
-      roleName: roles.name,
-      roleId: users.roleId,
-    })
-    .from(users)
-    .leftJoin(roles, eq(users.roleId, roles.id));
-
-  if (searchQuery) {
-    return baseQuery
-      .where(
-        or(
-          ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
-          ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
-          ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
-        ),
+  const whereClause = searchQuery
+    ? or(
+        ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
       )
-      .orderBy(desc(users.id))
-      .limit(limit);
-  }
+    : undefined;
 
-  return baseQuery.orderBy(desc(users.id)).limit(limit);
+  const [items, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        image: users.image,
+        username: users.username,
+        roleName: roles.name,
+        roleId: users.roleId,
+      })
+      .from(users)
+      .leftJoin(roles, eq(users.roleId, roles.id))
+      .where(whereClause)
+      .orderBy(desc(users.id))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: countFn() }).from(users).where(whereClause),
+  ]);
+
+  return { items, total: Number(total) };
 }
 
 /**

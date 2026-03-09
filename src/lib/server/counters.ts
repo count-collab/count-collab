@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
   Counter,
@@ -52,7 +52,8 @@ export async function createCounter(
 export async function listPublicCounters(
   limit = 12,
   query?: string,
-): Promise<Counter[]> {
+  offset = 0,
+): Promise<{ items: Counter[]; total: number }> {
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
@@ -67,12 +68,18 @@ export async function listPublicCounters(
       )
     : eq(countersTable.isPublic, 1);
 
-  return await db
-    .select()
-    .from(countersTable)
-    .where(whereClause)
-    .orderBy(desc(countersTable.count), desc(countersTable.updatedAt))
-    .limit(limit);
+  const [items, [{ total }]] = await Promise.all([
+    db
+      .select()
+      .from(countersTable)
+      .where(whereClause)
+      .orderBy(desc(countersTable.count), desc(countersTable.updatedAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: countFn() }).from(countersTable).where(whereClause),
+  ]);
+
+  return { items, total: Number(total) };
 }
 
 export async function getCounter(counterId: string): Promise<Counter | null> {
@@ -192,7 +199,11 @@ export async function deleteCounter(counterId: string): Promise<boolean> {
 /**
  * Get all counters owned by or shared with a user.
  */
-export async function getUserCounters(userId: string): Promise<Counter[]> {
+export async function getUserCounters(
+  userId: string,
+  limit?: number,
+  offset = 0,
+): Promise<{ items: Counter[]; total: number }> {
   const owned = await db
     .select()
     .from(countersTable)
@@ -217,7 +228,13 @@ export async function getUserCounters(userId: string): Promise<Counter[]> {
 
   // Deduplicate (owner could also be a member)
   const seen = new Set(owned.map((c) => c.id));
-  return [...owned, ...shared.filter((c) => !seen.has(c.id))];
+  const all = [...owned, ...shared.filter((c) => !seen.has(c.id))];
+  const total = all.length;
+
+  if (limit !== undefined) {
+    return { items: all.slice(offset, offset + limit), total };
+  }
+  return { items: all, total };
 }
 
 /**
@@ -226,7 +243,8 @@ export async function getUserCounters(userId: string): Promise<Counter[]> {
 export async function listAllCounters(
   limit = 50,
   query?: string,
-): Promise<Counter[]> {
+  offset = 0,
+): Promise<{ items: Counter[]; total: number }> {
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
@@ -235,10 +253,16 @@ export async function listAllCounters(
       )
     : undefined;
 
-  return await db
-    .select()
-    .from(countersTable)
-    .where(whereClause)
-    .orderBy(desc(countersTable.updatedAt))
-    .limit(limit);
+  const [items, [{ total }]] = await Promise.all([
+    db
+      .select()
+      .from(countersTable)
+      .where(whereClause)
+      .orderBy(desc(countersTable.updatedAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: countFn() }).from(countersTable).where(whereClause),
+  ]);
+
+  return { items, total: Number(total) };
 }
