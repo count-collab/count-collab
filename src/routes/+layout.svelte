@@ -1,6 +1,7 @@
 <script lang="ts">
   import { signOut } from "@auth/sveltekit/client";
   import { addIcons } from "ionicons";
+  import { defineCustomElement } from "ionicons/components/ion-icon.js";
   import {
     addCircleOutline,
     addOutline,
@@ -22,7 +23,6 @@
     shieldOutline,
     trashOutline,
   } from "ionicons/icons";
-  import { defineCustomElements } from "ionicons/loader";
   import { browser } from "$app/environment";
   import "../app.css";
 
@@ -48,7 +48,7 @@
       "logo-discord": logoDiscord,
       "logo-twitch": logoTwitch,
     });
-    defineCustomElements(window);
+    defineCustomElement();
   }
 
   const { children, data } = $props();
