@@ -6,7 +6,11 @@
 
   const { data }: { data: PageData } = $props();
 
-  let searchQuery = $state(data.query ?? "");
+  const initialQuery = $derived(data.query ?? "");
+  let searchQuery = $state("");
+  $effect(() => {
+    searchQuery = initialQuery;
+  });
 
   async function handleRoleChange(userId: string, roleId: number) {
     await fetch(`/admin/users/${userId}`, {

@@ -5,7 +5,11 @@
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
 
-  let username = $state(form?.username ?? "");
+  const initialUsername = $derived(form?.username ?? "");
+  let username = $state("");
+  $effect(() => {
+    username = initialUsername;
+  });
   let checking = $state(false);
   let available = $state<boolean | null>(null);
   let checkTimeout: ReturnType<typeof setTimeout>;

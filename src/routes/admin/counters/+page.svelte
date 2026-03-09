@@ -6,7 +6,11 @@
 
   const { data }: { data: PageData } = $props();
 
-  let searchQuery = $state(data.query ?? "");
+  const initialQuery = $derived(data.query ?? "");
+  let searchQuery = $state("");
+  $effect(() => {
+    searchQuery = initialQuery;
+  });
 
   async function handleDelete(counterId: string) {
     if (!confirm("Are you sure you want to delete this counter?")) return;
