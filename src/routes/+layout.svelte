@@ -1,29 +1,29 @@
 <script lang="ts">
   import { signOut } from "@auth/sveltekit/client";
-  import { browser } from "$app/environment";
   import { addIcons } from "ionicons";
-  import { defineCustomElements } from "ionicons/loader";
   import {
-    addOutline,
-    closeOutline,
-    menuOutline,
-    homeOutline,
-    gridOutline,
     addCircleOutline,
-    listOutline,
-    shieldOutline,
-    logOutOutline,
-    logInOutline,
-    shareSocialOutline,
-    createOutline,
-    trashOutline,
-    ellipsisVertical,
-    copyOutline,
+    addOutline,
     checkmarkOutline,
-    logoGoogle,
+    closeOutline,
+    copyOutline,
+    createOutline,
+    ellipsisVertical,
+    gridOutline,
+    homeOutline,
+    listOutline,
+    logInOutline,
+    logOutOutline,
     logoDiscord,
+    logoGoogle,
     logoTwitch,
+    menuOutline,
+    shareSocialOutline,
+    shieldOutline,
+    trashOutline,
   } from "ionicons/icons";
+  import { defineCustomElements } from "ionicons/loader";
+  import { browser } from "$app/environment";
   import "../app.css";
 
   if (browser) {
