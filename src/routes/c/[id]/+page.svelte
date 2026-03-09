@@ -30,6 +30,9 @@
   let showShareModal = $state(false);
   let copySuccess = $state(false);
 
+  // Actions dropdown state
+  let showActionsMenu = $state(false);
+
   const shareUrl = $derived(
     browser
       ? `${window.location.origin}/c/${data.counter.id}`
@@ -234,79 +237,148 @@
 
 <div class="flex flex-col min-h-[calc(100vh-8rem)]">
   <!-- Header bar -->
-  <header class="flex items-center justify-between pb-4">
-    <div class="min-w-0">
-      <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold text-slate-900 truncate">
+  <header class="pb-4">
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0 flex-1">
+        <h1 class="text-xl font-bold text-slate-900 break-words">
           {data.counter.title}
         </h1>
-        <span
-          class="shrink-0 text-xs px-2 py-0.5 rounded-full {data.counter
-            .isPublic
-            ? 'bg-emerald-100 text-emerald-700'
-            : 'bg-slate-100 text-slate-600'}"
-        >
-          {data.counter.isPublic ? "Public" : "Private"}
-        </span>
-        {#if data.isOwner}
-          <span
-            class="shrink-0 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"
-            >Owner</span
-          >
+        {#if data.counter.description}
+          <p class="text-sm text-slate-500 mt-0.5 break-words">
+            {data.counter.description}
+          </p>
         {/if}
       </div>
-      {#if data.counter.description}
-        <p class="text-sm text-slate-500 mt-0.5 truncate">
-          {data.counter.description}
-        </p>
+
+      <!-- Desktop action buttons -->
+      <div class="hidden sm:flex gap-2 shrink-0 ml-4">
+        {#if data.canManage}
+          <button
+            type="button"
+            onclick={() => (showShareModal = true)}
+            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+          >
+            <ion-icon name="share-social-outline" style="font-size: 16px;"
+            ></ion-icon>
+            Share
+          </button>
+        {/if}
+        {#if data.canEdit}
+          <button
+            type="button"
+            onclick={() => {
+              editTitle = data.counter.title;
+              editDescription = data.counter.description ?? "";
+              editVisibility = data.counter.isPublic ? "public" : "private";
+              showEditModal = true;
+            }}
+            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+          >
+            <ion-icon name="create-outline" style="font-size: 16px;"></ion-icon>
+            Edit
+          </button>
+        {/if}
+        {#if data.canDelete}
+          <button
+            type="button"
+            onclick={() => (showDeleteConfirm = true)}
+            class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition inline-flex items-center gap-1.5"
+          >
+            <ion-icon name="trash-outline" style="font-size: 16px;"></ion-icon>
+            Delete
+          </button>
+        {/if}
+      </div>
+
+      <!-- Mobile actions dropdown -->
+      {#if data.canManage || data.canEdit || data.canDelete}
+        <div class="relative sm:hidden shrink-0">
+          <button
+            type="button"
+            onclick={() => (showActionsMenu = !showActionsMenu)}
+            class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 transition"
+            aria-label="Counter actions"
+          >
+            <ion-icon name="ellipsis-vertical" style="font-size: 20px;"
+            ></ion-icon>
+          </button>
+          {#if showActionsMenu}
+            <!-- Backdrop to close menu -->
+            <button
+              type="button"
+              class="fixed inset-0 z-40"
+              aria-label="Close menu"
+              onclick={() => (showActionsMenu = false)}
+            ></button>
+            <div
+              class="absolute right-0 top-full mt-1 z-50 w-44 bg-white rounded-lg shadow-lg border border-slate-200 py-1"
+            >
+              {#if data.canManage}
+                <button
+                  type="button"
+                  onclick={() => {
+                    showActionsMenu = false;
+                    showShareModal = true;
+                  }}
+                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <ion-icon name="share-social-outline" style="font-size: 16px;"
+                  ></ion-icon>
+                  Share
+                </button>
+              {/if}
+              {#if data.canEdit}
+                <button
+                  type="button"
+                  onclick={() => {
+                    showActionsMenu = false;
+                    editTitle = data.counter.title;
+                    editDescription = data.counter.description ?? "";
+                    editVisibility = data.counter.isPublic
+                      ? "public"
+                      : "private";
+                    showEditModal = true;
+                  }}
+                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <ion-icon name="create-outline" style="font-size: 16px;"
+                  ></ion-icon>
+                  Edit
+                </button>
+              {/if}
+              {#if data.canDelete}
+                <button
+                  type="button"
+                  onclick={() => {
+                    showActionsMenu = false;
+                    showDeleteConfirm = true;
+                  }}
+                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <ion-icon name="trash-outline" style="font-size: 16px;"
+                  ></ion-icon>
+                  Delete
+                </button>
+              {/if}
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
 
-    <div class="flex gap-2 shrink-0 ml-4">
-      {#if data.canManage}
-        <button
-          type="button"
-          onclick={() => (showShareModal = true)}
-          class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+    <!-- Tags row -->
+    <div class="flex flex-wrap items-center gap-2 mt-2">
+      <span
+        class="text-xs px-2 py-0.5 rounded-full {data.counter.isPublic
+          ? 'bg-emerald-100 text-emerald-700'
+          : 'bg-slate-100 text-slate-600'}"
+      >
+        {data.counter.isPublic ? "Public" : "Private"}
+      </span>
+      {#if data.isOwner}
+        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"
+          >Owner</span
         >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-            />
-          </svg>
-          Share
-        </button>
-      {/if}
-      {#if data.canEdit}
-        <button
-          type="button"
-          onclick={() => {
-            editTitle = data.counter.title;
-            editDescription = data.counter.description ?? "";
-            editVisibility = data.counter.isPublic ? "public" : "private";
-            showEditModal = true;
-          }}
-          class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition"
-        >
-          Edit
-        </button>
-      {/if}
-      {#if data.canDelete}
-        <button
-          type="button"
-          onclick={() => (showDeleteConfirm = true)}
-          class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition"
-        >
-          Delete
-        </button>
       {/if}
     </div>
   </header>
@@ -382,19 +454,7 @@
           class="text-slate-400 hover:text-slate-600"
           aria-label="Close"
         >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
+          <ion-icon name="close-outline" style="font-size: 20px;"></ion-icon>
         </button>
       </div>
 
@@ -413,34 +473,14 @@
             class="shrink-0 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
           >
             {#if copySuccess}
-              <svg
-                class="w-4 h-4 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+              <ion-icon
+                name="checkmark-outline"
+                style="font-size: 16px;"
+                class="text-green-600"
+              ></ion-icon>
               Copied
             {:else}
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                />
-              </svg>
+              <ion-icon name="copy-outline" style="font-size: 16px;"></ion-icon>
               Copy
             {/if}
           </button>

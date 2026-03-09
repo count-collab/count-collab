@@ -21,21 +21,21 @@
     {
       id: "google",
       name: "Google",
-      icon: "🔵",
+      icon: "logo-google",
       bg: "bg-white border border-slate-300 hover:bg-slate-50",
       text: "text-slate-900",
     },
     {
       id: "discord",
       name: "Discord",
-      icon: "💬",
+      icon: "logo-discord",
       bg: "bg-[#5865F2] hover:bg-[#4752C4]",
       text: "text-white",
     },
     {
       id: "twitch",
       name: "Twitch",
-      icon: "🎮",
+      icon: "logo-twitch",
       bg: "bg-[#9146FF] hover:bg-[#7B2FFF]",
       text: "text-white",
     },
@@ -69,7 +69,7 @@
         onclick={() => signIn(provider.id, { callbackUrl: "/my-counters" })}
         class="w-full flex items-center justify-center gap-3 rounded-lg px-5 py-3 font-semibold transition {provider.bg} {provider.text}"
       >
-        <span class="text-xl">{provider.icon}</span>
+        <ion-icon name={provider.icon} style="font-size: 22px;"></ion-icon>
         Continue with {provider.name}
       </button>
     {/each}

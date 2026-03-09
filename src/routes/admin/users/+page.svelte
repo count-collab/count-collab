@@ -42,8 +42,8 @@
   />
 </form>
 
-<div class="bg-white rounded-lg shadow overflow-hidden">
-  <table class="w-full text-sm">
+<div class="bg-white rounded-lg shadow overflow-x-auto">
+  <table class="w-full text-sm min-w-[600px]">
     <thead class="bg-slate-50 border-b border-slate-200">
       <tr>
         <th class="text-left px-4 py-3 font-semibold text-slate-700">User</th>

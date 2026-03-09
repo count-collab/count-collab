@@ -33,8 +33,8 @@
   />
 </form>
 
-<div class="bg-white rounded-lg shadow overflow-hidden">
-  <table class="w-full text-sm">
+<div class="bg-white rounded-lg shadow overflow-x-auto">
+  <table class="w-full text-sm min-w-[600px]">
     <thead class="bg-slate-50 border-b border-slate-200">
       <tr>
         <th class="text-left px-4 py-3 font-semibold text-slate-700">Title</th>
@@ -71,7 +71,7 @@
           </td>
           <td class="px-4 py-3 text-slate-600">{counter.ownerId ?? "System"}</td
           >
-          <td class="px-4 py-3 text-right">
+          <td class="px-4 py-3 text-right whitespace-nowrap">
             <a
               href="/c/{counter.id}"
               class="text-slate-600 hover:text-slate-800 text-sm mr-3">View</a

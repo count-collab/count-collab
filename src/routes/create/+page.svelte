@@ -54,7 +54,7 @@
   path="/create"
 />
 
-<div class="max-w-2xl mx-auto space-y-8">
+<div class="sm:max-w-2xl sm:mx-auto space-y-8">
   <header class="space-y-2">
     <h1 class="text-3xl font-bold text-slate-900">Create a counter</h1>
     <p class="text-slate-600">
@@ -64,7 +64,7 @@
 
   <form
     onsubmit={handleSubmit}
-    class="space-y-6 bg-white rounded-lg shadow p-6"
+    class="space-y-6 sm:bg-white sm:rounded-lg sm:shadow sm:p-6"
   >
     <div class="space-y-2">
       <label class="block text-sm font-semibold text-slate-700" for="title"
