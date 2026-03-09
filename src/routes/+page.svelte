@@ -68,9 +68,16 @@
             View all &rarr;
           </a>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          {#each data.userCounters.slice(0, 6) as counter (counter.id)}
-            <CounterCard {counter} showBadges />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {#each data.userCounters.slice(0, 6) as counter, i (counter.id)}
+            <div
+              class={data.userCounters.slice(0, 6).length % 2 === 1 &&
+              i === data.userCounters.slice(0, 6).length - 1
+                ? "sm:col-span-2"
+                : ""}
+            >
+              <CounterCard {counter} showBadges />
+            </div>
           {/each}
         </div>
       </section>
@@ -78,9 +85,16 @@
       <section>
         <h2 class="text-2xl font-bold text-slate-900 mb-4">Popular Counters</h2>
         {#if data.popularCounters.length > 0}
-          <div class="grid grid-cols-2 gap-3">
-            {#each data.popularCounters.slice(0, 6) as counter (counter.id)}
-              <CounterCard {counter} />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {#each data.popularCounters.slice(0, 6) as counter, i (counter.id)}
+              <div
+                class={data.popularCounters.slice(0, 6).length % 2 === 1 &&
+                i === data.popularCounters.slice(0, 6).length - 1
+                  ? "sm:col-span-2"
+                  : ""}
+              >
+                <CounterCard {counter} />
+              </div>
             {/each}
           </div>
         {:else}
