@@ -156,6 +156,74 @@ export const counterMembers = pgTable(
   }),
 );
 
+// ── Dashboards ──────────────────────────────────────────────────
+
+export const dashboards = pgTable("dashboards", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  isPublic: integer("is_public").default(0).notNull(), // 1 for public, 0 for private
+  isMain: integer("is_main").default(0).notNull(), // 1 for main dashboard, 0 for regular
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+// ── Dashboard Counters (junction) ───────────────────────────────
+
+export const dashboardCounters = pgTable(
+  "dashboard_counters",
+  {
+    id: serial("id").primaryKey(),
+    dashboardId: uuid("dashboard_id")
+      .notNull()
+      .references(() => dashboards.id, { onDelete: "cascade" }),
+    counterId: uuid("counter_id")
+      .notNull()
+      .references(() => counters.id, { onDelete: "cascade" }),
+    addedAt: timestamp("added_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (dc) => ({
+    uniqueEntry: uniqueIndex("dashboard_counters_dashboard_counter_idx").on(
+      dc.dashboardId,
+      dc.counterId,
+    ),
+  }),
+);
+
+// ── Dashboard Members ───────────────────────────────────────────
+
+export const dashboardMembers = pgTable(
+  "dashboard_members",
+  {
+    id: serial("id").primaryKey(),
+    dashboardId: uuid("dashboard_id")
+      .notNull()
+      .references(() => dashboards.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("viewer"), // "viewer" | "editor" | "admin"
+    invitedAt: timestamp("invited_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (dm) => ({
+    uniqueMember: uniqueIndex("dashboard_members_dashboard_user_idx").on(
+      dm.dashboardId,
+      dm.userId,
+    ),
+  }),
+);
+
 // ── Type exports ────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -171,3 +239,10 @@ export type NewCounterHistory = typeof counterHistory.$inferInsert;
 
 export type CounterMember = typeof counterMembers.$inferSelect;
 export type NewCounterMember = typeof counterMembers.$inferInsert;
+
+export type Dashboard = typeof dashboards.$inferSelect;
+export type NewDashboard = typeof dashboards.$inferInsert;
+export type DashboardCounter = typeof dashboardCounters.$inferSelect;
+export type NewDashboardCounter = typeof dashboardCounters.$inferInsert;
+export type DashboardMember = typeof dashboardMembers.$inferSelect;
+export type NewDashboardMember = typeof dashboardMembers.$inferInsert;

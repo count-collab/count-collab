@@ -6,6 +6,10 @@ import {
   canViewPrivateCounter,
 } from "$lib/server/authorize";
 import { getCounter, getCounterHistory } from "$lib/server/counters";
+import {
+  getUserDashboards,
+  getUserDashboardsForCounter,
+} from "$lib/server/dashboards";
 import { logger } from "$lib/server/logger";
 import { getCounterMembers } from "$lib/server/members";
 import { counterIdSchema } from "$lib/utils/validation";
@@ -47,6 +51,12 @@ export const load: PageServerLoad = async ({ params, depends, locals }) => {
   const isOwner = userId ? counter.ownerId === userId : false;
   const members = canManage ? await getCounterMembers(counter.id) : [];
 
+  // Load user's dashboards for the "Add to Dashboard" modal
+  const userDashboards = userId ? (await getUserDashboards(userId)).items : [];
+  const dashboardIdsWithCounter = userId
+    ? await getUserDashboardsForCounter(userId, counter.id)
+    : [];
+
   depends(`counter:${params.id}`);
 
   return {
@@ -57,6 +67,8 @@ export const load: PageServerLoad = async ({ params, depends, locals }) => {
     canManage,
     isOwner,
     members,
+    userDashboards,
+    dashboardIdsWithCounter,
     title: `${counter.title} | Count Collab`,
     description:
       counter.description ||

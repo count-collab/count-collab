@@ -8,6 +8,13 @@
       "when": 1772230905286,
       "tag": "0000_spooky_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1773177571010,
+      "tag": "0001_clear_lionheart",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
+  import AddToDashboardModal from "$lib/components/AddToDashboardModal.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { onCounterUpdated } from "$lib/stores/counters";
@@ -28,6 +29,9 @@
 
   // Share modal state
   let showShareModal = $state(false);
+
+  // Dashboard modal state
+  let showDashboardModal = $state(false);
   let copySuccess = $state(false);
 
   // Actions dropdown state
@@ -252,6 +256,16 @@
 
       <!-- Desktop action buttons -->
       <div class="hidden sm:flex gap-2 shrink-0 ml-4">
+        {#if data.userDashboards.length > 0}
+          <button
+            type="button"
+            onclick={() => (showDashboardModal = true)}
+            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+          >
+            <ion-icon name="grid-outline" style="font-size: 16px;"></ion-icon>
+            Add to dashboard
+          </button>
+        {/if}
         {#if data.canManage}
           <button
             type="button"
@@ -291,7 +305,7 @@
       </div>
 
       <!-- Mobile actions dropdown -->
-      {#if data.canManage || data.canEdit || data.canDelete}
+      {#if data.canManage || data.canEdit || data.canDelete || data.userDashboards.length > 0}
         <div class="relative sm:hidden shrink-0">
           <button
             type="button"
@@ -313,6 +327,20 @@
             <div
               class="absolute right-0 top-full mt-1 z-50 w-44 bg-white rounded-lg shadow-lg border border-slate-200 py-1"
             >
+              {#if data.userDashboards.length > 0}
+                <button
+                  type="button"
+                  onclick={() => {
+                    showActionsMenu = false;
+                    showDashboardModal = true;
+                  }}
+                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <ion-icon name="grid-outline" style="font-size: 16px;"
+                  ></ion-icon>
+                  Add to dashboard
+                </button>
+              {/if}
               {#if data.canManage}
                 <button
                   type="button"
@@ -707,4 +735,14 @@
       </div>
     </div>
   </div>
+{/if}
+
+<!-- Add to Dashboard Modal -->
+{#if showDashboardModal}
+  <AddToDashboardModal
+    counterId={data.counter.id}
+    dashboards={data.userDashboards}
+    dashboardIdsWithCounter={data.dashboardIdsWithCounter}
+    onclose={() => (showDashboardModal = false)}
+  />
 {/if}

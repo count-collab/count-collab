@@ -114,6 +114,11 @@
             class="text-slate-700 hover:text-slate-900 transition"
             >My Counters</a
           >
+          <a
+            href="/dashboards"
+            class="text-slate-700 hover:text-slate-900 transition"
+            >Dashboards</a
+          >
           {#if isAdmin}
             <a
               href="/admin"
@@ -192,6 +197,14 @@
             >
               <ion-icon name="list-outline" style="font-size: 18px;"></ion-icon>
               <span>My Counters</span>
+            </a>
+            <a
+              href="/dashboards"
+              onclick={() => (mobileMenuOpen = false)}
+              class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-50 transition"
+            >
+              <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
+              <span>Dashboards</span>
             </a>
             {#if isAdmin}
               <a

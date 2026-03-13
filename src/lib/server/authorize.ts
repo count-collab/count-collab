@@ -1,6 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "$lib/db";
-import { counterMembers, counters } from "$lib/db/schema";
+import {
+  counterMembers,
+  counters,
+  dashboardMembers,
+  dashboards,
+} from "$lib/db/schema";
 import { hasPermission } from "$lib/server/permissions";
 
 /**
@@ -100,4 +105,105 @@ export async function canViewPrivateCounter(
   if (memberRole) return true;
 
   return hasPermission(userId, "counter:edit_any");
+}
+
+// ── Dashboard authorization ─────────────────────────────────────
+
+/**
+ * Get the dashboard-level role for a user (from dashboard_members table).
+ */
+async function getDashboardMemberRole(
+  userId: string,
+  dashboardId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ role: dashboardMembers.role })
+    .from(dashboardMembers)
+    .where(
+      and(
+        // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+        eq(dashboardMembers.dashboardId, dashboardId as any),
+        eq(dashboardMembers.userId, userId),
+      ),
+    );
+  return row?.role ?? null;
+}
+
+/**
+ * Check if a user is the owner of a dashboard.
+ */
+async function isDashboardOwner(
+  userId: string,
+  dashboardId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ ownerId: dashboards.ownerId })
+    .from(dashboards)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    .where(eq(dashboards.id, dashboardId as any));
+  return row?.ownerId === userId;
+}
+
+/**
+ * Check if a user can view a private dashboard.
+ * Allowed if: owner, any member, or global dashboard:edit_any permission.
+ */
+export async function canViewPrivateDashboard(
+  userId: string,
+  dashboardId: string,
+): Promise<boolean> {
+  if (await isDashboardOwner(userId, dashboardId)) return true;
+
+  const memberRole = await getDashboardMemberRole(userId, dashboardId);
+  if (memberRole) return true;
+
+  return hasPermission(userId, "dashboard:edit_any");
+}
+
+/**
+ * Check if a user can edit a dashboard.
+ * Allowed if: owner, member with editor/admin role, or global dashboard:edit_any permission.
+ */
+export async function canEditDashboard(
+  userId: string,
+  dashboardId: string,
+): Promise<boolean> {
+  if (await isDashboardOwner(userId, dashboardId)) return true;
+
+  const memberRole = await getDashboardMemberRole(userId, dashboardId);
+  if (memberRole === "editor" || memberRole === "admin") return true;
+
+  return hasPermission(userId, "dashboard:edit_any");
+}
+
+/**
+ * Check if a user can delete a dashboard.
+ * Allowed if: owner, member with admin role, or global dashboard:delete_any permission.
+ */
+export async function canDeleteDashboard(
+  userId: string,
+  dashboardId: string,
+): Promise<boolean> {
+  if (await isDashboardOwner(userId, dashboardId)) return true;
+
+  const memberRole = await getDashboardMemberRole(userId, dashboardId);
+  if (memberRole === "admin") return true;
+
+  return hasPermission(userId, "dashboard:delete_any");
+}
+
+/**
+ * Check if a user can manage members of a dashboard.
+ * Allowed if: owner, member with admin role, or global dashboard:edit_any permission.
+ */
+export async function canManageDashboardMembers(
+  userId: string,
+  dashboardId: string,
+): Promise<boolean> {
+  if (await isDashboardOwner(userId, dashboardId)) return true;
+
+  const memberRole = await getDashboardMemberRole(userId, dashboardId);
+  if (memberRole === "admin") return true;
+
+  return hasPermission(userId, "dashboard:edit_any");
 }
