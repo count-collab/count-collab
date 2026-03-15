@@ -1,0 +1,36 @@
+name: E2E Tests
+description: Build the application and run Playwright end-to-end tests
+
+runs:
+  using: composite
+
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+
+    - name: Install dependencies
+      run: bun install --frozen-lockfile
+      shell: bash
+
+    - name: Build application
+      run: bun run build
+      shell: bash
+
+    - name: Push database schema
+      run: bunx drizzle-kit push:pg
+      shell: bash
+
+    - name: Install Playwright browsers
+      run: bunx playwright install chromium --with-deps
+      shell: bash
+
+    - name: Run E2E tests
+      run: bun run test:e2e
+      shell: bash
+      env:
+        CI: "true"
