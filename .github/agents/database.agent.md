@@ -1,6 +1,6 @@
 ---
 description: "Use when working with database schema, Drizzle ORM queries, migrations, seed scripts, or PostgreSQL. Handles schema changes in src/lib/db/schema.ts, migration generation, query building in src/lib/server/, and database connection management."
-tools: [read, edit, search, execute, agent]
+tools: [read, edit, search, execute, agent, todo]
 agents: ["*"]
 ---
 

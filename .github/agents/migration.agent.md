@@ -1,6 +1,6 @@
 ---
 description: "Use when planning or executing database migrations, handling schema version changes, writing reversible migrations, managing migration history, or coordinating schema changes with production data safety."
-tools: [read, edit, search, execute, agent]
+tools: [read, edit, search, execute, agent, todo]
 agents: ["*"]
 ---
 

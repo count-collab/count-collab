@@ -1,6 +1,6 @@
 ---
 description: "Use when writing, running, or debugging unit tests. Covers Vitest setup, component testing with @testing-library/svelte, server logic mocking, Zod schema tests, store tests, and test file conventions."
-tools: [read, edit, search, execute, agent]
+tools: [read, edit, search, execute, agent, todo]
 agents: ["*"]
 ---
 

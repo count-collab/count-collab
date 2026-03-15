@@ -1,6 +1,6 @@
 ---
 description: "Use when working with Socket.IO, real-time counter updates, WebSocket events, client subscriptions, or live data synchronization. Covers server emitters, client stores, and connection lifecycle."
-tools: [read, edit, search, execute, agent]
+tools: [read, edit, search, execute, agent, todo]
 agents: ["*"]
 ---
 

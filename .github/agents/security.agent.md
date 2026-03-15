@@ -1,6 +1,6 @@
 ---
 description: "Use when reviewing or implementing security measures: rate limiting, CSRF protection, input sanitization, OWASP checks, XSS prevention, SQL injection prevention, authentication hardening, or security headers."
-tools: [read, edit, search, execute, agent]
+tools: [read, edit, search, execute, agent, todo]
 agents: ["*"]
 ---
 

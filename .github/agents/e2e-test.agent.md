@@ -1,6 +1,6 @@
 ---
 description: "Use when writing, running, or debugging end-to-end tests with Playwright. Covers browser testing, user flow tests, auth flow mocking, counter CRUD flows, real-time update assertions, accessibility checks, and CI integration."
-tools: [read, edit, search, execute, agent, playwright/*]
+tools: [read, edit, search, execute, agent, playwright/*, todo]
 agents: ["*"]
 ---
 

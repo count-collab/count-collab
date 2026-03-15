@@ -1,6 +1,6 @@
 ---
 description: "Use when working with authentication, OAuth providers, sessions, role-based access control (RBAC), permissions, counter member authorization, or the Auth.js/SvelteKit Auth integration."
-tools: [read, edit, search, execute, agent]
+tools: [read, edit, search, execute, agent, todo]
 agents: ["*"]
 ---
 

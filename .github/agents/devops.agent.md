@@ -1,6 +1,6 @@
 ---
 description: "Use when working with Docker, docker-compose, Dockerfile, GitHub Actions CI/CD, deployment configuration, build optimization, or production infrastructure setup."
-tools: [read, edit, search, execute, agent, github/*, docker/*]
+tools: [read, edit, search, execute, agent, github/*, docker/*, todo]
 agents: ["*"]
 ---
 

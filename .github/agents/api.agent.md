@@ -1,6 +1,6 @@
 ---
 description: "Use when creating or modifying API endpoints, server load functions, form actions, request validation with Zod, or server-side route handlers. Covers +server.ts, +page.server.ts, and API response patterns."
-tools: [read, edit, search, execute, agent]
+tools: [read, edit, search, execute, agent, todo]
 agents: ["*"]
 ---
 
