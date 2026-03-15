@@ -1,13 +1,5 @@
 name: E2E Tests
-description: Build the application and run Playwright end-to-end tests
-
-inputs:
-  database-url:
-    description: PostgreSQL connection string for the test database
-    required: true
-  auth-secret:
-    description: Auth.js secret key
-    required: true
+description: Build the application and run Playwright end-to-end tests against a self-managed Postgres container
 
 runs:
   using: composite
@@ -21,6 +13,33 @@ runs:
     - name: Setup Bun
       uses: oven-sh/setup-bun@v1
 
+    - name: Start Postgres
+      run: |
+        # Clean up any leftover container from a previous run
+        docker rm -f e2e-postgres 2>/dev/null || true
+
+        docker run -d \
+          --name e2e-postgres \
+          -e POSTGRES_USER=test \
+          -e POSTGRES_PASSWORD=test \
+          -e POSTGRES_DB=count_collab_test \
+          -p 5433:5432 \
+          postgres:16-alpine
+
+        echo "Waiting for Postgres to be ready..."
+        for i in $(seq 1 30); do
+          if docker exec e2e-postgres pg_isready -U test -d count_collab_test >/dev/null 2>&1; then
+            echo "Postgres is ready (attempt $i)"
+            exit 0
+          fi
+          echo "Waiting... ($i/30)"
+          sleep 1
+        done
+        echo "Postgres failed to start"
+        docker logs e2e-postgres
+        exit 1
+      shell: bash
+
     - name: Install dependencies
       run: bun install --frozen-lockfile
       shell: bash
@@ -29,27 +48,13 @@ runs:
       run: bun run build
       shell: bash
       env:
-        DATABASE_URL: ${{ inputs.database-url }}
-
-    - name: Wait for Postgres
-      run: |
-        for i in $(seq 1 30); do
-          if pg_isready -h localhost -p 5433 2>/dev/null || nc -z localhost 5433 2>/dev/null; then
-            echo "Postgres is ready"
-            exit 0
-          fi
-          echo "Waiting for Postgres... ($i/30)"
-          sleep 1
-        done
-        echo "Postgres failed to start"
-        exit 1
-      shell: bash
+        DATABASE_URL: postgresql://test:test@localhost:5433/count_collab_test
 
     - name: Push database schema
       run: bunx drizzle-kit push:pg
       shell: bash
       env:
-        DATABASE_URL: ${{ inputs.database-url }}
+        DATABASE_URL: postgresql://test:test@localhost:5433/count_collab_test
 
     - name: Install Playwright browsers
       run: bunx playwright install chromium --with-deps
@@ -60,5 +65,10 @@ runs:
       shell: bash
       env:
         CI: "true"
-        DATABASE_URL: ${{ inputs.database-url }}
-        AUTH_SECRET: ${{ inputs.auth-secret }}
+        DATABASE_URL: postgresql://test:test@localhost:5433/count_collab_test
+        AUTH_SECRET: ci-test-secret
+
+    - name: Stop Postgres
+      if: always()
+      run: docker rm -f e2e-postgres 2>/dev/null || true
+      shell: bash
