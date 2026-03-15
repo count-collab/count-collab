@@ -14,17 +14,14 @@ runs:
       uses: oven-sh/setup-bun@v2
 
     - name: Start Postgres via docker-compose
-      id: postgres
       run: docker compose -f docker-compose.e2e.yml --project-name e2e up -d
       shell: bash
 
     - name: Check Postgres status via docker-compose
-      id: postgres
       run: docker compose -f docker-compose.e2e.yml ps
       shell: bash
 
-    - name: docker compose ps
-      id: postgres
+    - name: docker compose
       run: docker compose ps
       shell: bash
 
