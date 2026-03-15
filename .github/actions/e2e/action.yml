@@ -13,36 +13,9 @@ runs:
     - name: Setup Bun
       uses: oven-sh/setup-bun@v1
 
-    - name: Start Postgres
+    - name: Start Postgres via docker-compose
       id: postgres
-      run: |
-        # Clean up any leftover container from a previous run
-        docker rm -f e2e-postgres 2>/dev/null || true
-
-        docker run -d \
-          --name e2e-postgres \
-          -e POSTGRES_USER=test \
-          -e POSTGRES_PASSWORD=test \
-          -e POSTGRES_DB=count_collab_test \
-          postgres:16-alpine
-
-        # Get the container's IP on the Docker bridge network (works in DinD)
-        PG_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' e2e-postgres)
-        echo "Postgres container IP: $PG_IP"
-        echo "pg_url=postgresql://test:test@${PG_IP}:5432/count_collab_test" >> "$GITHUB_OUTPUT"
-
-        echo "Waiting for Postgres to accept connections..."
-        for i in $(seq 1 30); do
-          if docker exec e2e-postgres pg_isready -U test -d count_collab_test >/dev/null 2>&1; then
-            echo "Postgres is ready (attempt $i)"
-            exit 0
-          fi
-          echo "Waiting for Postgres init... ($i/30)"
-          sleep 2
-        done
-        echo "Postgres failed to start — container logs:"
-        docker logs e2e-postgres
-        exit 1
+      run: docker compose up -d
       shell: bash
 
     - name: Install dependencies
@@ -53,13 +26,13 @@ runs:
       run: bun run build
       shell: bash
       env:
-        DATABASE_URL: ${{ steps.postgres.outputs.pg_url }}
+        DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
 
     - name: Push database schema
       run: bunx drizzle-kit push:pg
       shell: bash
       env:
-        DATABASE_URL: ${{ steps.postgres.outputs.pg_url }}
+        DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
 
     - name: Install Playwright browsers
       run: bunx playwright install chromium --with-deps
@@ -70,7 +43,7 @@ runs:
       shell: bash
       env:
         CI: "true"
-        DATABASE_URL: ${{ steps.postgres.outputs.pg_url }}
+        DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
         AUTH_SECRET: ci-test-secret
 
     - name: Stop Postgres
