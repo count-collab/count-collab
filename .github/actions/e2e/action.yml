@@ -18,6 +18,16 @@ runs:
       run: docker compose -f docker-compose.e2e.yml --project-name e2e up -d
       shell: bash
 
+    - name: Check Postgres status via docker-compose
+      id: postgres
+      run: docker compose -f docker-compose.e2e.yml ps
+      shell: bash
+
+    - name: docker compose ps
+      id: postgres
+      run: docker compose ps
+      shell: bash
+
     - name: Install dependencies
       run: bun install --frozen-lockfile
       shell: bash
