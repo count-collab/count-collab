@@ -36,6 +36,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/e2e
+        with:
+          database-url: ${{ env.DATABASE_URL }}
+          auth-secret: ${{ env.AUTH_SECRET }}
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4

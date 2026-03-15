@@ -1,6 +1,14 @@
 name: E2E Tests
 description: Build the application and run Playwright end-to-end tests
 
+inputs:
+  database-url:
+    description: PostgreSQL connection string for the test database
+    required: true
+  auth-secret:
+    description: Auth.js secret key
+    required: true
+
 runs:
   using: composite
 
@@ -20,6 +28,8 @@ runs:
     - name: Build application
       run: bun run build
       shell: bash
+      env:
+        DATABASE_URL: ${{ inputs.database-url }}
 
     - name: Wait for Postgres
       run: |
@@ -38,6 +48,8 @@ runs:
     - name: Push database schema
       run: bunx drizzle-kit push:pg
       shell: bash
+      env:
+        DATABASE_URL: ${{ inputs.database-url }}
 
     - name: Install Playwright browsers
       run: bunx playwright install chromium --with-deps
@@ -48,3 +60,5 @@ runs:
       shell: bash
       env:
         CI: "true"
+        DATABASE_URL: ${{ inputs.database-url }}
+        AUTH_SECRET: ${{ inputs.auth-secret }}
