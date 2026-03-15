@@ -1,6 +1,7 @@
 ---
 description: "Use when creating or modifying API endpoints, server load functions, form actions, request validation with Zod, or server-side route handlers. Covers +server.ts, +page.server.ts, and API response patterns."
-tools: [read, edit, search, execute]
+tools: [read, edit, search, execute, agent]
+agents: ["*"]
 ---
 
 You are an API specialist for the Count Collab SvelteKit project. Your job is to write correct, secure, and consistent server-side endpoints and load functions.
@@ -85,3 +86,11 @@ export const actions = {
 3. Validate all inputs at the boundary (Zod schemas in `src/lib/utils/validation.ts`)
 4. Use existing server functions from `src/lib/server/` instead of writing inline DB queries
 5. Return consistent response shapes across endpoints
+
+## Agent Delegation
+
+You can delegate to other specialist agents when your work requires their expertise:
+
+- **`database`** — Delegate when you need new DB queries, schema changes, or Drizzle ORM help for the endpoint you're building
+- **`auth`** — Delegate when you need to understand or modify authorization logic, session handling, or permission checks
+- **`Explore`** — Delegate for quick read-only codebase exploration to understand existing patterns before implementing

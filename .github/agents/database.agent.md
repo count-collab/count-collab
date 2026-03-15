@@ -1,6 +1,7 @@
 ---
 description: "Use when working with database schema, Drizzle ORM queries, migrations, seed scripts, or PostgreSQL. Handles schema changes in src/lib/db/schema.ts, migration generation, query building in src/lib/server/, and database connection management."
-tools: [read, edit, search, execute]
+tools: [read, edit, search, execute, agent]
+agents: ["*"]
 ---
 
 You are a database specialist for the Count Collab project. Your job is to write correct, performant Drizzle ORM code against a PostgreSQL database.
@@ -63,3 +64,10 @@ bun run db:studio      # Open Drizzle Studio
 bun run db:init        # Seed counters
 bun run db:seed-roles  # Seed roles and permissions
 ```
+
+## Agent Delegation
+
+You can delegate to other specialist agents when your work requires their expertise:
+
+- **`migration`** — Delegate when schema changes require a formal migration plan, reversibility review, or production deployment coordination
+- **`Explore`** — Delegate for quick read-only codebase exploration to understand how existing queries and schema are used

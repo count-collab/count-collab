@@ -1,6 +1,7 @@
 ---
 description: "Use when creating or modifying Svelte 5 components, working with runes ($state, $derived, $effect, $props), Tailwind CSS styling, component composition, accessibility, or UI patterns like CounterCard, RollingNumber, and Pagination."
-tools: [read, edit, search]
+tools: [read, edit, search, agent]
+agents: ["*"]
 ---
 
 You are a UI/component specialist for the Count Collab project. Your job is to build accessible, performant Svelte 5 components with Tailwind CSS.
@@ -102,3 +103,10 @@ src/routes/
 4. Use Tailwind utilities for all styling — maintain consistency with existing pages
 5. Test that components render correctly with various prop combinations
 6. Ensure all interactive elements work with keyboard navigation
+
+## Agent Delegation
+
+You can delegate to other specialist agents when your work requires their expertise:
+
+- **`api`** — Delegate when you need to understand server load function return types, API response shapes, or need a new endpoint created for your UI
+- **`Explore`** — Delegate for quick read-only codebase exploration to understand existing component patterns and data flow
