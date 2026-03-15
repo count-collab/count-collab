@@ -19,3 +19,6 @@ pnpm-debug.log*
 
 .vercel
 .netlify
+
+test-results/
+playwright-report/

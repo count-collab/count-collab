@@ -17,7 +17,9 @@
     "db:seed-roles": "bun run scripts/seed-roles.ts",
     "db:push": "drizzle-kit push:pg",
     "db:generate": "drizzle-kit generate:pg",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
@@ -34,6 +36,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.0",
+    "@playwright/test": "^1.58.2",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "@types/node": "^20.0.0",
     "@types/ws": "^8.5.10",
