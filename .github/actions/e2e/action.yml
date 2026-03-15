@@ -15,7 +15,7 @@ runs:
 
     - name: Start Postgres via docker-compose
       id: postgres
-      run: docker compose -f docker-compose.e2e.yml up -d
+      run: docker compose -f docker-compose.e2e.yml --project-name e2e up -d
       shell: bash
 
     - name: Install dependencies
