@@ -15,7 +15,7 @@ runs:
 
     - name: Start Postgres via docker-compose
       id: postgres
-      run: docker compose up -d
+      run: docker compose up -d --file docker-compose.e2e.yml
       shell: bash
 
     - name: Install dependencies
@@ -26,13 +26,13 @@ runs:
       run: bun run build
       shell: bash
       env:
-        DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
+        DATABASE_URL: postgresql://user:password@localhost:5433/count_collab
 
     - name: Push database schema
       run: bunx drizzle-kit push:pg --config drizzle.config.ts
       shell: bash
       env:
-        DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
+        DATABASE_URL: postgresql://user:password@localhost:5433/count_collab
 
     - name: Install Playwright browsers
       run: bunx playwright install chromium --with-deps
@@ -43,7 +43,7 @@ runs:
       shell: bash
       env:
         CI: "true"
-        DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
+        DATABASE_URL: postgresql://user:password@localhost:5433/count_collab
         AUTH_SECRET: ci-test-secret
 
     - name: Stop Postgres
