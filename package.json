@@ -15,9 +15,9 @@
     "format": "prettier --plugin-search-dir . --write .",
     "db:init": "bun run scripts/seed-counters.ts",
     "db:seed-roles": "bun run scripts/seed-roles.ts",
-    "db:push": "drizzle-kit push:pg",
-    "db:generate": "drizzle-kit generate:pg",
-    "db:studio": "drizzle-kit studio",
+    "db:push": "drizzle-kit push:pg --config drizzle.config.ts",
+    "db:generate": "drizzle-kit generate:pg --config drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config drizzle.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

@@ -29,7 +29,7 @@ runs:
         DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
 
     - name: Push database schema
-      run: bunx drizzle-kit push:pg
+      run: bunx drizzle-kit push:pg --config drizzle.config.ts
       shell: bash
       env:
         DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
