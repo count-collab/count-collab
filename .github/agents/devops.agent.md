@@ -72,9 +72,49 @@ bun test                 # Unit tests
 The `github/*` MCP tools provide GitHub API access. Use them to:
 
 - **Create and manage PRs** for deployment branches
-- **Check CI workflow status** and review action run results
 - **Manage issues** for tracking deployment tasks
 - **List branches** and check merge status
+
+## GitHub Actions Workflows (`gh` CLI)
+
+The MCP GitHub tools do **not** cover GitHub Actions workflows. Use `gh` CLI in the terminal instead:
+
+```bash
+# List recent workflow runs
+gh run list --limit 10
+
+# View a specific run's details
+gh run view <run-id>
+
+# View a specific run's logs
+gh run view <run-id> --log
+
+# View failed step logs only
+gh run view <run-id> --log-failed
+
+# Watch a run in progress
+gh run watch <run-id>
+
+# Re-run a failed workflow
+gh run rerun <run-id>
+
+# Re-run only failed jobs
+gh run rerun <run-id> --failed
+
+# Trigger a workflow manually (workflow_dispatch)
+gh workflow run <workflow-file> --ref <branch>
+
+# List workflows
+gh workflow list
+
+# View workflow definition
+gh workflow view <workflow-name>
+
+# Download run artifacts
+gh run download <run-id>
+```
+
+Always use `gh` CLI for workflow inspection, triggering, and debugging — it has full GitHub Actions API coverage.
 
 ## MCP: Docker
 
