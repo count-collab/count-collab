@@ -1,0 +1,19 @@
+services:
+  db-e2e:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: count_collab
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_e2e:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d count_collab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data_e2e:

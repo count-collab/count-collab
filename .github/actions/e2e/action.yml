@@ -6,48 +6,19 @@ runs:
 
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: 22
 
     - name: Setup Bun
-      uses: oven-sh/setup-bun@v1
+      uses: oven-sh/setup-bun@v2
 
-    - name: Start Postgres
-      run: |
-        # Clean up any leftover container from a previous run
-        docker rm -f e2e-postgres 2>/dev/null || true
+    - name: Start Postgres via docker-compose
+      run: docker compose -f docker-compose.e2e.yml --project-name e2e up -d --wait
+      shell: bash
 
-        docker run -d \
-          --name e2e-postgres \
-          -e POSTGRES_USER=test \
-          -e POSTGRES_PASSWORD=test \
-          -e POSTGRES_DB=count_collab_test \
-          -p 5433:5432 \
-          postgres:16-alpine
-
-        echo "Waiting for Postgres to accept connections..."
-        for i in $(seq 1 30); do
-          if docker exec e2e-postgres pg_isready -U test -d count_collab_test >/dev/null 2>&1; then
-            # Postgres is ready inside container, verify host port mapping
-            if bash -c 'echo > /dev/tcp/localhost/5433' 2>/dev/null; then
-              echo "Postgres is ready and reachable on localhost:5433 (attempt $i)"
-              exit 0
-            else
-              echo "Postgres ready inside container but port 5433 not yet reachable from host ($i/30)"
-            fi
-          else
-            echo "Waiting for Postgres init... ($i/30)"
-          fi
-          sleep 2
-        done
-        echo "Postgres failed to become reachable — container logs:"
-        docker logs e2e-postgres
-        echo "--- Docker port mapping ---"
-        docker port e2e-postgres
-        echo "--- Listening ports on host ---"
-        ss -tlnp | grep 5433 || echo "Port 5433 not found in ss output"
-        exit 1
+    - name: Check Postgres status
+      run: docker compose -f docker-compose.e2e.yml --project-name e2e ps
       shell: bash
 
     - name: Install dependencies
@@ -58,13 +29,13 @@ runs:
       run: bun run build
       shell: bash
       env:
-        DATABASE_URL: postgresql://test:test@localhost:5433/count_collab_test
+        DATABASE_URL: postgresql://user:password@0.0.0.0:5433/count_collab
 
     - name: Push database schema
-      run: bunx drizzle-kit push:pg
+      run: bunx drizzle-kit push:pg --config drizzle.config.ts
       shell: bash
       env:
-        DATABASE_URL: postgresql://test:test@localhost:5433/count_collab_test
+        DATABASE_URL: postgresql://user:password@0.0.0.0:5433/count_collab
 
     - name: Install Playwright browsers
       run: bunx playwright install chromium --with-deps
@@ -75,10 +46,10 @@ runs:
       shell: bash
       env:
         CI: "true"
-        DATABASE_URL: postgresql://test:test@localhost:5433/count_collab_test
+        DATABASE_URL: postgresql://user:password@0.0.0.0:5433/count_collab
         AUTH_SECRET: ci-test-secret
 
     - name: Stop Postgres
       if: always()
-      run: docker rm -f e2e-postgres 2>/dev/null || true
+      run: docker compose -f docker-compose.e2e.yml --project-name e2e down 2>/dev/null || true
       shell: bash
