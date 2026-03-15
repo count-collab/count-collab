@@ -21,6 +21,20 @@ runs:
       run: bun run build
       shell: bash
 
+    - name: Wait for Postgres
+      run: |
+        for i in $(seq 1 30); do
+          if pg_isready -h localhost -p 5433 2>/dev/null || nc -z localhost 5433 2>/dev/null; then
+            echo "Postgres is ready"
+            exit 0
+          fi
+          echo "Waiting for Postgres... ($i/30)"
+          sleep 1
+        done
+        echo "Postgres failed to start"
+        exit 1
+      shell: bash
+
     - name: Push database schema
       run: bunx drizzle-kit push:pg
       shell: bash

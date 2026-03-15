@@ -22,7 +22,7 @@ jobs:
           POSTGRES_PASSWORD: test
           POSTGRES_DB: count_collab_test
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U test -d count_collab_test"
           --health-interval 10s
@@ -30,7 +30,7 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/count_collab_test
+      DATABASE_URL: postgresql://test:test@localhost:5433/count_collab_test
       AUTH_SECRET: ci-test-secret
 
     steps:
