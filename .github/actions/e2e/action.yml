@@ -18,28 +18,35 @@ runs:
         # Clean up any leftover container from a previous run
         docker rm -f e2e-postgres 2>/dev/null || true
 
-        # Use --network host so Postgres is directly on localhost
-        # Use -c port=5433 to avoid conflicting with any existing Postgres on 5432
         docker run -d \
           --name e2e-postgres \
-          --network host \
           -e POSTGRES_USER=test \
           -e POSTGRES_PASSWORD=test \
           -e POSTGRES_DB=count_collab_test \
-          postgres:16-alpine \
-          -c port=5433
+          -p 5433:5432 \
+          postgres:16-alpine
 
-        echo "Waiting for Postgres to be ready on localhost:5433..."
+        echo "Waiting for Postgres to accept connections..."
         for i in $(seq 1 30); do
-          if nc -z localhost 5433 2>/dev/null; then
-            echo "Postgres is ready (attempt $i)"
-            exit 0
+          if docker exec e2e-postgres pg_isready -U test -d count_collab_test >/dev/null 2>&1; then
+            # Postgres is ready inside container, verify host port mapping
+            if bash -c 'echo > /dev/tcp/localhost/5433' 2>/dev/null; then
+              echo "Postgres is ready and reachable on localhost:5433 (attempt $i)"
+              exit 0
+            else
+              echo "Postgres ready inside container but port 5433 not yet reachable from host ($i/30)"
+            fi
+          else
+            echo "Waiting for Postgres init... ($i/30)"
           fi
-          echo "Waiting... ($i/30)"
-          sleep 1
+          sleep 2
         done
-        echo "Postgres failed to start — container logs:"
+        echo "Postgres failed to become reachable — container logs:"
         docker logs e2e-postgres
+        echo "--- Docker port mapping ---"
+        docker port e2e-postgres
+        echo "--- Listening ports on host ---"
+        ss -tlnp | grep 5433 || echo "Port 5433 not found in ss output"
         exit 1
       shell: bash
 
