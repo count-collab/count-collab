@@ -24,7 +24,10 @@ export const POST: RequestHandler = async ({ params, locals }) => {
     throw error(400, "Invalid counter ID format");
   }
 
-  const counter = await incrementCounter(params.id, 1);
+  const session = await locals.auth();
+  const userId = session?.user?.id;
+
+  const counter = await incrementCounter(params.id, 1, userId);
 
   if (!counter) {
     logger.warn("Increment failed: counter not found", { id: params.id });
@@ -33,11 +36,10 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
   emitCounterUpdate(counter.id, counter.count, counter.updatedAt);
 
-  const session = await locals.auth();
   let cooldownSeconds = Math.ceil(RATE_LIMIT_CONFIG["/c/[id]"].windowMs / 1000);
 
-  if (session?.user?.id) {
-    const role = await getUserRole(session.user.id);
+  if (userId) {
+    const role = await getUserRole(userId);
     if (role === "admin") {
       cooldownSeconds = 0;
     }

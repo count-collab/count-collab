@@ -1,6 +1,6 @@
 import { sveltekit } from "@sveltejs/kit/vite";
 import type { ViteDevServer } from "vite";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 function socketIOPlugin() {
   return {
@@ -17,11 +17,18 @@ function socketIOPlugin() {
 
 export default defineConfig({
   plugins: [sveltekit(), socketIOPlugin()],
+  resolve: {
+    conditions: process.env.VITEST ? ["browser"] : [],
+  },
   server: {
     hmr: {
       protocol: "ws",
       host: "localhost",
       port: 5174,
     },
+  },
+  test: {
+    include: ["src/**/*.test.ts"],
+    environment: "jsdom",
   },
 });
