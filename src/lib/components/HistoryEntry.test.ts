@@ -21,13 +21,13 @@ describe("HistoryEntry", () => {
         expect(text).toContain("alice");
     });
 
-    it('shows "Anonymous" when username is null', () => {
+    it('shows "Someone" when username is null', () => {
         const text = getText({
             username: null,
             newValue: 2,
             changedAt: new Date(),
         });
-        expect(text).toContain("Anonymous");
+        expect(text).toContain("Someone");
     });
 
     it("shows the new value", () => {
@@ -82,7 +82,7 @@ describe("HistoryEntry", () => {
 
         const midnight = new Date(2026, 2, 19, 0, 0, 0);
         const text = getText({ username: null, newValue: 1, changedAt: midnight });
-        expect(text).toContain("Anonymous");
+        expect(text).toContain("Someone");
         expect(text).toContain("@ 00:00");
 
         vi.useRealTimers();

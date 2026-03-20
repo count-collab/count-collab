@@ -15,7 +15,7 @@
   const dateStr = $derived(
     `${date.getDate()}.${date.getMonth() + 1}.${String(date.getFullYear()).slice(2)}`,
   );
-  const displayName = $derived(username ?? "Anonymous");
+  const displayName = $derived(username ?? "Someone");
 </script>
 
 <li class="text-xs text-slate-400">
