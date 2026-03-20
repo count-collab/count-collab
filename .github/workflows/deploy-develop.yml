@@ -1,0 +1,156 @@
+name: Test, Build, and Deploy to Develop
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  test-and-build:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/test-and-build
+
+  docker-build:
+    runs-on: self-hosted
+    needs: test-and-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: NeptuUn
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: ghcr.io/count-collab/count-collab-dev:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    runs-on: self-hosted
+    needs: docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+
+            # Function to URL-encode credentials
+            urlencode() {
+              python3 -c "import urllib.parse; print(urllib.parse.quote('''$1''', safe=''))"
+            }
+
+            DEPLOY_DIR="$HOME/count-collab-dev"
+            mkdir -p "$DEPLOY_DIR"
+
+            # Login to GHCR and pull latest image
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u NeptuUn --password-stdin
+            docker pull ghcr.io/count-collab/count-collab-dev:latest
+
+            # Generate .env file with URL-encoded credentials
+            ENCODED_USER=$(urlencode "${{ secrets.POSTGRES_USER_DEV }}")
+            ENCODED_PASSWORD=$(urlencode "${{ secrets.POSTGRES_PASSWORD_DEV }}")
+            cat > "$DEPLOY_DIR/.env" <<EOF
+            DATABASE_URL=postgresql://${ENCODED_USER}:${ENCODED_PASSWORD}@db:5432/${{ secrets.POSTGRES_DB_DEV }}
+            NODE_ENV=production
+            AUTH_SECRET=${{ secrets.AUTH_SECRET_DEV }}
+            AUTH_GOOGLE_ID=${{ secrets.AUTH_GOOGLE_ID_DEV }}
+            AUTH_GOOGLE_SECRET=${{ secrets.AUTH_GOOGLE_SECRET_DEV }}
+            AUTH_DISCORD_ID=${{ secrets.AUTH_DISCORD_ID_DEV }}
+            AUTH_DISCORD_SECRET=${{ secrets.AUTH_DISCORD_SECRET_DEV }}
+            AUTH_TWITCH_ID=${{ secrets.AUTH_TWITCH_ID_DEV }}
+            AUTH_TWITCH_SECRET=${{ secrets.AUTH_TWITCH_SECRET_DEV }}
+            EOF
+
+            # Generate compose.yaml
+            cat > "$DEPLOY_DIR/compose.yaml" <<EOF
+            services:
+              migrations:
+                image: ghcr.io/count-collab/count-collab-dev:latest
+                container_name: count-collab-dev-migrations
+                env_file:
+                  - .env
+                depends_on:
+                  db:
+                    condition: service_healthy
+                networks:
+                  - count-collab-dev
+                command: bun run db:push
+                profiles:
+                  - ""
+
+              count-collab:
+                image: ghcr.io/count-collab/count-collab-dev:latest
+                container_name: count-collab-dev
+                restart: unless-stopped
+                ports:
+                  - "8000:3000"
+                env_file:
+                  - .env
+                depends_on:
+                  migrations:
+                    condition: service_completed_successfully
+                networks:
+                  - count-collab-dev
+
+              db:
+                image: postgres:16-alpine
+                container_name: count-collab-dev-db
+                restart: unless-stopped
+                environment:
+                  POSTGRES_USER: ${{ secrets.POSTGRES_USER_DEV }}
+                  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_DEV }}
+                  POSTGRES_DB: ${{ secrets.POSTGRES_DB_DEV }}
+                volumes:
+                  - postgres_dat_dev:/var/lib/postgresql/data
+                healthcheck:
+                  test: ["CMD-SHELL", "pg_isready -U ${{ secrets.POSTGRES_USER_DEV }} -d ${{ secrets.POSTGRES_DB_DEV }}"]
+                  interval: 10s
+                  timeout: 5s
+                  retries: 5
+                networks:
+                  - count-collab-dev
+
+            volumes:
+              postgres_data_dev:
+                driver: local
+
+            networks:
+              count-collab-dev:
+                driver: bridge
+            EOF
+
+            cd "$DEPLOY_DIR"
+
+            # Check if database container is already running
+            if docker ps --format '{{.Names}}' | grep -q '^count-collab-dev-db$'; then
+              echo "Database already running, running migrations and restarting app..."
+              docker compose run --rm migrations
+              docker compose up -d count-collab-dev
+            else
+              echo "Starting full stack (database + migrations + app)..."
+              docker compose up -d
+            fi
+
+            # Wait for services to be healthy
+            echo "Waiting for services to be healthy..."
+            sleep 5
+            docker compose ps
