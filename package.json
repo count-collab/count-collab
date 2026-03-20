@@ -18,6 +18,8 @@
     "db:push": "drizzle-kit push:pg",
     "db:generate": "drizzle-kit generate:pg",
     "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },
@@ -38,17 +40,21 @@
     "@biomejs/biome": "^2.4.0",
     "@playwright/test": "^1.58.2",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/svelte": "^5.3.1",
     "@types/node": "^20.0.0",
     "@types/ws": "^8.5.10",
     "autoprefixer": "^10.4.0",
     "drizzle-kit": "^0.20.0",
+    "jsdom": "^29.0.0",
     "postcss": "^8.4.0",
     "prettier": "^3.0.0",
     "prettier-plugin-svelte": "^3.0.0",
     "svelte-check": "^4.0.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.0.0",
-    "vite": "^5.0.0"
+    "vite": "^5.0.0",
+    "vitest": "^4.1.0"
   },
   "engines": {
     "node": ">=20.0.0",

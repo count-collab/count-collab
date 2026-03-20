@@ -126,6 +126,9 @@ export const counterHistory = pgTable("counter_history", {
     .references(() => counters.id, { onDelete: "cascade" }),
   previousValue: integer("previous_value").notNull(),
   newValue: integer("new_value").notNull(),
+  changedBy: text("changed_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
   changedAt: timestamp("changed_at", { withTimezone: true })
     .defaultNow()
     .notNull(),

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
+  import HistoryEntry from "$lib/components/HistoryEntry.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { onCounterUpdated } from "$lib/stores/counters";
@@ -424,12 +425,11 @@
       </h2>
       <ol class="flex flex-wrap gap-x-4 gap-y-1">
         {#each data.history as entry (entry.id)}
-          <li class="text-xs text-slate-400">
-            {entry.previousValue} &rarr; {entry.newValue}
-            <span class="text-slate-300">
-              {new Date(entry.changedAt).toLocaleTimeString()}
-            </span>
-          </li>
+          <HistoryEntry
+            username={entry.username}
+            newValue={entry.newValue}
+            changedAt={entry.changedAt}
+          />
         {/each}
       </ol>
     </footer>

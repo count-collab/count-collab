@@ -2,7 +2,6 @@ import { and, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
   Counter,
-  CounterHistory,
   NewCounter,
   NewCounterHistory,
 } from "$lib/db/schema";
@@ -10,6 +9,7 @@ import {
   counterHistory as counterHistoryTable,
   counterMembers,
   counters as countersTable,
+  users,
 } from "$lib/db/schema";
 import { logger } from "$lib/server/logger";
 
@@ -57,15 +57,15 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-        eq(countersTable.isPublic, 1),
-        or(
-          ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-          ilike(
-            countersTable.description,
-            `%${escapeLikePattern(searchQuery)}%`,
-          ),
+      eq(countersTable.isPublic, 1),
+      or(
+        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(
+          countersTable.description,
+          `%${escapeLikePattern(searchQuery)}%`,
         ),
-      )
+      ),
+    )
     : eq(countersTable.isPublic, 1);
 
   const [items, [{ total }]] = await Promise.all([
@@ -94,6 +94,7 @@ export async function getCounter(counterId: string): Promise<Counter | null> {
 export async function incrementCounter(
   counterId: string,
   delta = 1,
+  userId?: string,
 ): Promise<Counter | null> {
   // Use transaction to ensure atomic increment
   return await db.transaction(async (tx) => {
@@ -114,6 +115,7 @@ export async function incrementCounter(
       counterId: counter.id,
       previousValue: counter.count,
       newValue: nextValue,
+      changedBy: userId ?? null,
     };
 
     await tx.insert(counterHistoryTable).values(historyEntry);
@@ -138,17 +140,37 @@ export async function incrementCounter(
   });
 }
 
+export type CounterHistoryWithUser = {
+  id: number;
+  counterId: string;
+  previousValue: number;
+  newValue: number;
+  changedBy: string | null;
+  changedAt: Date;
+  username: string | null;
+};
+
 export async function getCounterHistory(
   counterId: string,
   limit = 10,
-): Promise<CounterHistory[]> {
-  return await db
-    .select()
+): Promise<CounterHistoryWithUser[]> {
+  const rows = await db
+    .select({
+      id: counterHistoryTable.id,
+      counterId: counterHistoryTable.counterId,
+      previousValue: counterHistoryTable.previousValue,
+      newValue: counterHistoryTable.newValue,
+      changedBy: counterHistoryTable.changedBy,
+      changedAt: counterHistoryTable.changedAt,
+      username: users.username,
+    })
     .from(counterHistoryTable)
+    .leftJoin(users, eq(counterHistoryTable.changedBy, users.id))
     // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
     .where(eq(counterHistoryTable.counterId, counterId as any))
     .orderBy(desc(counterHistoryTable.changedAt))
     .limit(limit);
+  return rows;
 }
 
 type UpdateCounterInput = {
@@ -248,9 +270,9 @@ export async function listAllCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
-      )
+      ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+      ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
+    )
     : undefined;
 
   const [items, [{ total }]] = await Promise.all([

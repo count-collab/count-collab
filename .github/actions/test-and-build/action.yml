@@ -24,6 +24,10 @@ runs:
       run: biome ci
       shell: bash
 
+    - name: Test
+      run: bun run test
+      shell: bash
+
     - name: Prepare Svelte
       run: bunx svelte-kit sync
       shell: bash
