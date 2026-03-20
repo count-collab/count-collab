@@ -23,6 +23,7 @@ git remote get-url origin
 ```
 
 Parse the remote URL to extract `owner` and `repo`:
+
 - HTTPS: `https://github.com/<owner>/<repo>.git` → owner, repo
 - SSH: `git@github.com:<owner>/<repo>.git` → owner, repo
 
@@ -45,6 +46,7 @@ git log origin/<target-branch>..HEAD --oneline --no-merges
 ### 4. Check for Existing PR
 
 Use `mcp_github_list_pull_requests` to check if a PR already exists for the current branch against the target:
+
 - Filter by `head` matching the current branch name
 - If a PR exists → go to **Update PR** flow (step 7)
 - If no PR exists → go to **Create PR** flow (step 5)
@@ -68,6 +70,7 @@ Ask the user:
 #### 5c. Generate PR Title
 
 Derive the title from the branch name using conventional commit format:
+
 - `feat/add-user-auth` → `feat: add user auth`
 - `fix/socket-reconnection` → `fix: socket reconnection`
 - `refactor/extract-counter-logic` → `refactor: extract counter logic`
@@ -115,6 +118,7 @@ Allow the user to request changes to the title, body, or status before proceedin
 #### 5f. Create the PR
 
 Only after user confirmation, use `mcp_github_create_pull_request` with:
+
 - `owner`, `repo` from step 1
 - `title` from step 5c
 - `body` from step 5d
@@ -129,6 +133,7 @@ Report the PR URL back to the user.
 #### 6a. Show Current PR State
 
 Fetch the existing PR details using `mcp_github_pull_request_read` and display:
+
 - Title
 - Status (draft/ready)
 - Body (summary)
@@ -137,6 +142,7 @@ Fetch the existing PR details using `mcp_github_pull_request_read` and display:
 #### 6b. Ask What to Update
 
 Ask the user what they want to change:
+
 - **Title**: Update the PR title
 - **Body**: Regenerate or edit the body (e.g., append new commits)
 - **Status**: Convert draft → ready for review (or vice versa)

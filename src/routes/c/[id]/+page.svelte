@@ -1,6 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
+  import Fireworks from "$lib/components/Fireworks.svelte";
   import HistoryEntry from "$lib/components/HistoryEntry.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
@@ -14,6 +15,7 @@
   let optimisticUpdatedAt = $state<string | null>(null);
   let errorMessage = $state<string | null>(null);
   let isIncrementing = $state(false);
+  let fireworkTrigger = $state(0);
 
   // Edit modal state
   let showEditModal = $state(false);
@@ -96,6 +98,7 @@
       } = await response.json();
       optimisticCount = result.count;
       optimisticUpdatedAt = result.updatedAt;
+      fireworkTrigger++;
       if (result.cooldownSeconds > 0) {
         rateLimit.setLimit(`/c/${data.counter.id}`, result.cooldownSeconds);
       }
@@ -220,6 +223,7 @@
       if (payload.counterId !== data.counter.id) return;
       if (isIncrementing) return;
 
+      fireworkTrigger++;
       invalidate(`counter:${data.counter.id}`).then(() => {
         optimisticCount = null;
         optimisticUpdatedAt = null;
@@ -386,8 +390,9 @@
 
   <!-- Counter — centered focal point -->
   <section
-    class="flex-1 flex flex-col items-center justify-center py-6 select-none"
+    class="relative flex-1 flex flex-col items-center justify-center py-6 select-none"
   >
+    <Fireworks trigger={fireworkTrigger} />
     <p class="text-8xl sm:text-9xl font-extrabold tabular-nums text-blue-600">
       <RollingNumber value={displayCount} />
     </p>

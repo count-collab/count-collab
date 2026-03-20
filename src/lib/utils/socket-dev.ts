@@ -31,6 +31,10 @@ export function initializeSocket(httpServer: HTTPServer): Server {
     });
   });
 
+  // Expose globally so SSR route handlers (which run in a separate
+  // Vite module graph) can reach the same instance via getIO().
+  globalThis.__socketIO = io;
+
   return io;
 }
 
