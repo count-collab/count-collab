@@ -43,7 +43,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
 
     steps:
-      - name: Deploy to production
+      - name: Deploy to develop
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -144,7 +144,7 @@ jobs:
             if docker ps --format '{{.Names}}' | grep -q '^count-collab-dev-db$'; then
               echo "Database already running, running migrations and restarting app..."
               docker compose run --rm migrations
-              docker compose up -d count-collab-dev
+              docker compose up -d count-collab
             else
               echo "Starting full stack (database + migrations + app)..."
               docker compose up -d
