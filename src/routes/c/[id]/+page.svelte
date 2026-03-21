@@ -238,6 +238,7 @@
   title={data.title}
   description={data.description}
   path="/c/{data.counter.id}"
+  image="/api/og/{data.counter.id}"
 />
 
 <div class="flex flex-col min-h-[calc(100vh-8rem)]">
