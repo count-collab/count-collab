@@ -67,46 +67,67 @@ For every feature or change, follow this sequence:
 
 ### 1. Understand
 
-- Read the relevant files to understand the current state
-- Use `Explore` agent for quick codebase reconnaissance if needed
+- Use `runSubagent(agentName: "Explore", prompt: "...")` for fast codebase reconnaissance
+- Or read the relevant files directly yourself to understand the current state
 - Identify which parts of the stack are affected (DB, API, UI, auth, realtime)
 
 ### 2. Plan
 
-- Break the work into ordered subtasks
-- Identify which specialist agents are needed
-- Determine dependencies between subtasks (e.g., schema before API, API before UI)
+- Use the todo list to break the work into ordered subtasks
+- Identify which specialist agents are needed for each subtask
+- Determine dependencies (e.g., schema before API, API before UI)
+- Each todo item should map to one `runSubagent` call
 
-### 3. Implement (delegate in order)
+### 3. Implement (delegate in dependency order)
 
-- **Schema changes** → delegate to `database` agent
-- **Migrations** → delegate to `migration` agent
-- **Server logic / API** → delegate to `api` agent
-- **Auth / permissions** → delegate to `auth` agent
-- **Real-time events** → delegate to `realtime` agent
-- **UI components** → delegate to `ui` agent
-- For cross-cutting concerns, handle them yourself or delegate to `security`
+Call `runSubagent` for each subtask sequentially, passing results forward:
+
+1. **Schema changes** → `runSubagent(agentName: "database", prompt: "...")`
+2. **Migrations** → `runSubagent(agentName: "migration", prompt: "...")`
+3. **Server logic / API** → `runSubagent(agentName: "api", prompt: "...")`
+4. **Auth / permissions** → `runSubagent(agentName: "auth", prompt: "...")`
+5. **Real-time events** → `runSubagent(agentName: "realtime", prompt: "...")`
+6. **UI components** → `runSubagent(agentName: "ui", prompt: "...")`
+7. **Security concerns** → `runSubagent(agentName: "security", prompt: "...")`
+
+**After each `runSubagent` returns**, read its result and include a summary of what was done in the next agent's prompt. This chains context across agents.
 
 ### 4. Test (always delegate after implementation)
 
-- Delegate to `unit-test` agent: "Write unit tests for [the changes just made]"
-- Delegate to `e2e-test` agent: "Write E2E tests for [the user flows affected]"
-- Run the test suite to verify everything passes
+```
+runSubagent(agentName: "unit-test", prompt: "Write unit tests for ...
+  Files changed: <list of files from implementation phase>
+  Summary of changes: <what the previous agents did>
+  ...")
+```
+
+```
+runSubagent(agentName: "e2e-test", prompt: "Write E2E tests for ...
+  User flows affected: <list>
+  ...")
+```
 
 ### 5. Validate
 
-- Run `bun run test` to confirm all tests pass
-- Run `bun lint:ci` and `bun svelte-check` for lint and type checks
-- Run `bun format` to ensure consistent formatting
-- Fix any issues found (delegate back to specialists if needed)
+Run these commands yourself (do NOT delegate validation):
+
+```bash
+bun test           # All tests pass
+bun lint:ci        # Strict lint
+bun svelte-check   # TypeScript checks
+bun format         # Format code
+```
+
+If issues are found, delegate fixes back to the appropriate specialist — include the error output in the prompt.
 
 ## Delegation Guidelines
 
-- **Be specific** when delegating: include file paths, function names, and expected behavior
-- **Provide context**: tell the specialist what was already done by previous agents
-- **Chain results**: pass the output/changes from one agent as context to the next
-- **Don't micro-manage**: trust specialists with implementation details within their domain
-- **Always test**: never skip the testing phase, even for small changes
+- **Self-contained prompts**: subagents have NO memory of your conversation — include everything
+- **Include file paths**: always tell the agent which files to read and modify
+- **Chain results**: summarize each agent's changes in the next agent's prompt
+- **One task per call**: each `runSubagent` should have a single, focused task
+- **Trust specialists**: give them the task and constraints, not step-by-step instructions
+- **Always test**: never skip testing, even for small changes
 
 ## Constraints
 
@@ -114,3 +135,4 @@ For every feature or change, follow this sequence:
 - Follow the project's existing patterns (check existing code before creating new patterns)
 - Ensure all changes align with `AGENTS.md` project standards
 - DO NOT skip testing — always delegate to `unit-test` and `e2e-test` after implementation
+- DO NOT do specialist work yourself when an agent exists for it — always delegate via `runSubagent`
