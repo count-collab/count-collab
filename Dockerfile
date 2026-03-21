@@ -29,7 +29,21 @@ RUN bun run build
 # Expose port
 EXPOSE 3000
 
-# Start application
+# Runtime environment
 ENV NODE_ENV=production
 ENV LOG_LEVEL=info
+
+# Proxy / TLS termination — adapter-node reads these at runtime.
+# A reverse proxy (nginx, Caddy, ALB, etc.) MUST terminate TLS and
+# forward the original client info via standard headers.
+ENV PROTOCOL_HEADER=X-Forwarded-Proto
+ENV HOST_HEADER=X-Forwarded-Host
+ENV ADDRESS_HEADER=X-Forwarded-For
+ENV XFF_DEPTH=1
+
+# Required at runtime (no defaults — server.js validates on startup):
+#   DATABASE_URL        – Postgres connection string
+#   ALLOWED_ORIGINS     – Comma-separated list of allowed CORS origins
+#   AUTH_SECRET          – Session encryption key for Auth.js
+
 CMD ["node", "server.js"]

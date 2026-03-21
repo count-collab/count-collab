@@ -20,12 +20,12 @@ Protect write endpoints from abuse and enforce predictable request limits under 
 
 ### 3) CORS and transport security
 
-- [ ] Enforce explicit `ALLOWED_ORIGINS` in production (no wildcard fallback).
-- [ ] Add startup validation to fail fast when required security env vars are missing.
-- [ ] Confirm TLS termination and `X-Forwarded-*` handling at edge/proxy.
+- [x] Enforce explicit `ALLOWED_ORIGINS` in production (no wildcard fallback).
+- [x] Add startup validation to fail fast when required security env vars are missing.
+- [x] Confirm TLS termination and `X-Forwarded-*` handling at edge/proxy.
 
 ## Done Criteria
 
-- [ ] Sustained abuse traffic no longer degrades normal user write latency.
-- [ ] Invalid/malicious requests are rejected early and logged with request context.
-- [ ] Security settings are environment-driven and documented.
+- [x] Sustained abuse traffic no longer degrades normal user write latency.
+- [x] Invalid/malicious requests are rejected early and logged with request context.
+- [x] Security settings are environment-driven and documented.
