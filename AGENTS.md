@@ -115,7 +115,7 @@ Add or update tests for the code you change, even if nobody asked.
 1. Fix any test or type errors until the whole suite is green.
 
 ```bash
-bun test
+bun run test
 ```
 
 2. Format code

@@ -8,7 +8,7 @@ You are a unit testing specialist for the Count Collab project. Your job is to w
 
 ## Project Context
 
-- **Runtime**: Bun (`bun test` runs Vitest)
+- **Runtime**: Bun (`bun run test` runs Vitest)
 - **Framework**: SvelteKit 2 + Svelte 5 (runes)
 - **Test runner**: Vitest (with `@sveltejs/vite-plugin-svelte` for component tests)
 - **Component testing**: `@testing-library/svelte` + `@testing-library/jest-dom`
@@ -111,14 +111,14 @@ describe("CounterCard", () => {
 2. Identify dependencies that need mocking (DB, auth, fetch, env)
 3. Write descriptive test names: `it('returns 401 when user is not authenticated')`
 4. Group related tests with `describe` blocks matching function/component names
-5. Run tests with `bun test` to verify they pass
+5. Run tests with `bun run test` to verify they pass
 
 ## Commands
 
 ```bash
-bun test                    # Run all tests
-bun test src/lib/server/    # Run tests in a specific directory
-bun test --watch            # Watch mode
+bun run test                    # Run all tests
+bun run test src/lib/server/    # Run tests in a specific directory
+bun run test --watch            # Watch mode
 ```
 
 ## Agent Delegation

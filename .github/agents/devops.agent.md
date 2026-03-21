@@ -55,7 +55,7 @@ You are a DevOps specialist for the Count Collab project. Your job is to maintai
 ```bash
 bun run svelte-check     # TypeScript type checking
 bun run lint:ci          # Biome strict lint (biome ci)
-bun test                 # Unit tests
+bun run test                 # Unit tests
 ```
 
 ## Constraints

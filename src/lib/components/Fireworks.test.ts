@@ -8,9 +8,9 @@ vi.mock("$app/environment", () => ({ browser: true }));
 // jsdom lacks ResizeObserver
 beforeAll(() => {
   globalThis.ResizeObserver ??= class {
-    observe() { }
-    unobserve() { }
-    disconnect() { }
+    observe() {}
+    unobserve() {}
+    disconnect() {}
   } as unknown as typeof ResizeObserver;
 });
 
