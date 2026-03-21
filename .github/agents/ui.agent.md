@@ -1,6 +1,6 @@
 ---
 description: "Use when creating or modifying Svelte 5 components, working with runes ($state, $derived, $effect, $props), Tailwind CSS styling, component composition, accessibility, or UI patterns like CounterCard, RollingNumber, and Pagination."
-tools: [read, edit, search, agent, todo]
+tools: [read, edit, search, agent, playwright/*, todo]
 agents: ["*"]
 ---
 

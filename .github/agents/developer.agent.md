@@ -1,6 +1,6 @@
 ---
 description: "Primary orchestrator agent for implementing features, fixing bugs, and coordinating work across specialists. Delegates database work, API design, UI components, auth, real-time, and testing to the appropriate specialist agents."
-tools: [read, edit, search, execute, agent, todo]
+tools: [read, edit, search, execute, agent, playwright/*, todo]
 agents: ["*"]
 ---
 

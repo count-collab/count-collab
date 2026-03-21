@@ -55,3 +55,35 @@ Seed the database with 50 test counters. Useful for local development and testin
 ```bash
 bun run db:init
 ```
+
+## Visual Debugging with Copilot
+
+GitHub Copilot can navigate your running local app, take screenshots, inspect DOM elements, and check console/network errors using the Playwright MCP server configured in `.vscode/mcp.json`.
+
+### Setup
+
+Install Chromium browser binaries (one-time):
+
+```bash
+bun run playwright:install
+```
+
+### Usage
+
+Start the dev server, then ask Copilot to inspect pages:
+
+- "Navigate to the counter page and take a screenshot"
+- "Check the create form for accessibility issues"
+- "What errors are showing in the console on /counters?"
+- "Click through the counter creation flow and verify it works"
+
+### Agents with Browser Access
+
+| Agent       | Purpose                                                                |
+| ----------- | ---------------------------------------------------------------------- |
+| `debug`     | Interactive visual debugging — navigate, screenshot, inspect, diagnose |
+| `developer` | Can browse the app during feature implementation                       |
+| `ui`        | Can verify component rendering visually                                |
+| `e2e-test`  | Writes and runs automated Playwright tests                             |
+
+Use the `debug` agent (`@debug`) for focused visual debugging sessions.
