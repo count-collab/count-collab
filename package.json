@@ -4,7 +4,7 @@
   "description": "Count Collab - Shared counts that everyone can use",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "node scripts/generate-build-info.js && vite dev",
     "build": "node scripts/generate-build-info.js && svelte-kit sync && vite build",
     "preview": "vite preview",
     "svelte-prepare": "svelte-kit sync",
