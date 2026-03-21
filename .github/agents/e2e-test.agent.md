@@ -128,6 +128,10 @@ test("real-time update across tabs", async ({ browser }) => {
 4. Write assertions that verify user-visible outcomes, not internal state
 5. Run with `bunx playwright test` and check the HTML report for failures
 
+## Screenshots
+
+When using `browser_take_screenshot`, always save screenshots into the `screenshots/` directory (which is in `.gitignore`). Use descriptive filenames like `screenshots/e2e-counter-flow.png`. Only save screenshots to a different location if the user explicitly requests it.
+
 ## MCP: Playwright
 
 The `playwright/*` MCP tools provide browser automation without writing test code first. Use them to:

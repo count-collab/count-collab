@@ -104,6 +104,10 @@ After investigating, provide a clear summary:
 4. Note the current count, then use a second browser context or API call to increment
 5. Check if the count updates
 
+## Screenshots
+
+When using `browser_take_screenshot`, always save screenshots into the `screenshots/` directory (which is in `.gitignore`). Use descriptive filenames like `screenshots/debug-counter-page.png`. Only save screenshots to a different location if the user explicitly requests it.
+
 ## Constraints
 
 - Always navigate using `http://localhost:5173` (dev) unless told otherwise
