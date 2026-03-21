@@ -33,7 +33,8 @@ async function initializeDatabase() {
 
 function isWriteRoute(pathname: string): string | null {
   if (pathname === "/create") return "/create";
-  if (pathname.match(/^\/c\/[a-f0-9-]+$/)) return "/c/[id]";
+  if (pathname.match(/^\/api\/counters\/[a-f0-9-]+$/))
+    return "/api/counters/[id]";
   return null;
 }
 
@@ -89,7 +90,7 @@ const appHandle: Handle = async ({ event, resolve }) => {
     if (writeRoute) {
       // Skip rate limiting for admin users
       let isAdmin = false;
-      if (writeRoute === "/c/[id]") {
+      if (writeRoute === "/api/counters/[id]") {
         const session = await event.locals.auth();
         if (session?.user?.id) {
           const role = await getUserRole(session.user.id);
@@ -128,8 +129,10 @@ const appHandle: Handle = async ({ event, resolve }) => {
           }
 
           // Track counter increments for abuse detection
-          if (writeRoute === "/c/[id]") {
-            const match = event.url.pathname.match(/^\/c\/([a-f0-9-]+)$/);
+          if (writeRoute === "/api/counters/[id]") {
+            const match = event.url.pathname.match(
+              /^\/api\/counters\/([a-f0-9-]+)$/,
+            );
             if (match) {
               trackCounterIncrement(clientIp, match[1]);
             }

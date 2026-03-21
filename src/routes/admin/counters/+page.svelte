@@ -14,7 +14,7 @@
 
   async function handleDelete(counterId: string) {
     if (!confirm("Are you sure you want to delete this counter?")) return;
-    await fetch(`/c/${counterId}`, { method: "DELETE" });
+    await fetch(`/api/counters/${counterId}`, { method: "DELETE" });
     invalidateAll();
   }
 </script>
