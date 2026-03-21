@@ -66,7 +66,7 @@
 
   <section
     bind:this={heroEl}
-    class="full-bleed text-center min-h-[calc(100vh-250px)] flex flex-col items-center justify-center px-4 -mt-8 pb-20"
+    class="full-bleed text-center min-h-[calc(100vh-250px)] flex flex-col items-center justify-center px-4 -mt-8 pt-16 pb-20"
   >
     <div
       class="flex flex-col items-center"
