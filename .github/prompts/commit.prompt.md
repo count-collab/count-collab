@@ -40,20 +40,22 @@ bun svelte-check
 
 If `bun format` or `bun fix` modified files, re-run `bun run lint`, `bun lint:ci` and `bun svelte-check` to confirm everything is clean.
 
-### 2. Review Changes
+### 2. Identify and Stage Chat Changes
+
+Use the `get_changed_files` tool to retrieve the list of files modified during this chat session. This ensures only the changes made in the current conversation are committed, avoiding accidental inclusion of unrelated work.
+
+1. **Get chat-changed files:** Call `get_changed_files` to get the files you touched in this session.
+2. **Cross-reference with git status:** Run `git status --short` to see the full working tree state. Identify which of the chat-changed files have actual uncommitted modifications (modified, added, or deleted).
+3. **Stage only chat-changed files:**
 
 ```bash
-git diff --stat
-git diff --staged --stat
+git add <file1> <file2> ...
 ```
 
-Show the user a summary of changed files. If nothing is staged, stage all changes:
+Only stage the files returned by `get_changed_files` that also appear in `git status`. Do **not** use `git add -A` — that risks staging unrelated changes from outside this session.
 
-```bash
-git add -A
-```
-
-Then confirm with the user which files to include. If some files should be excluded, unstage them.
+4. **Show the user a summary** of what will be staged vs. what is being left out. If there are unstaged files from outside this chat, mention them so the user is aware.
+5. **Confirm with the user** which files to include. If some files should be excluded, unstage them with `git restore --staged <file>`.
 
 ### 3. Generate Commit Message
 
