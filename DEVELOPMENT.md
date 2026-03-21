@@ -14,7 +14,7 @@
 
 ### Git Pre-commit Hook
 
-A pre-commit hook is configured to automatically run `bun run fix` before each commit. This ensures code formatting and linting standards are enforced.
+A pre-commit hook is configured to automatically run `bun run fix` and `bun run lint` before each commit. This ensures code formatting and linting standards are enforced. If `bun run lint` fails, the commit is aborted and you must fix lint issues first.
 
 The hook is located at `.githooks/pre-commit` and is automatically configured via `core.hooksPath` in your git config. If the hook fails, the commit will be aborted and you'll need to fix the issues before trying again.
 

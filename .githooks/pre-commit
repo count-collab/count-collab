@@ -6,8 +6,10 @@ set -e
 echo "Running 'bun run fix' before commit..."
 bun run fix
 
+echo "Running 'bun run lint' before commit..."
+bun run lint
 if [ $? -ne 0 ]; then
-    echo "❌ 'bun run fix' failed. Commit aborted."
+    echo "❌ 'bun run lint' failed. Fix lint issues before committing."
     exit 1
 fi
 
