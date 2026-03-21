@@ -107,6 +107,10 @@ runSubagent(agentName: "e2e-test", prompt: "Write E2E tests for ...
   ...")
 ```
 
+## Screenshots
+
+When using `browser_take_screenshot` (directly or via delegated agents), always save screenshots into the `screenshots/` directory (which is in `.gitignore`). Use descriptive filenames like `screenshots/debug-feature-name.png`. Only save screenshots to a different location if the user explicitly requests it.
+
 ### 5. Validate
 
 Run these commands yourself (do NOT delegate validation):
