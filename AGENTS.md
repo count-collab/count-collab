@@ -129,20 +129,20 @@ bun run test
 2. Format code
 
 ```bash
-bun format
-bun fix
+bun run format
+bun run fix
 ```
 
 3. Lint (required — enforced by pre-commit hook, zero warnings required)
 
 ```bash
-bun lint
+bun run lint
 ```
 
 4. Lint CI (strict, used in CI pipelines - ensures no fixable issues remain)
 
 ```bash
-bun lint:ci
+bun run lint:ci
 ```
 
 5. Svelte check

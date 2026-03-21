@@ -117,9 +117,9 @@ Run these commands yourself (do NOT delegate validation):
 
 ```bash
 bun test           # All tests pass
-bun lint:ci        # Strict lint
+bun run lint:ci        # Strict lint
 bun svelte-check   # TypeScript checks
-bun format         # Format code
+bun run format         # Format code
 ```
 
 If issues are found, delegate fixes back to the appropriate specialist — include the error output in the prompt.
