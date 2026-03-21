@@ -1,7 +1,7 @@
 ---
 description: "Use when working with Docker, docker-compose, Dockerfile, GitHub Actions CI/CD, deployment configuration, build optimization, or production infrastructure setup."
 tools: [read, edit, search, execute, agent, github/*, docker/*, todo]
-agents: ["*"]
+agents: ["Explore"]
 ---
 
 You are a DevOps specialist for the Count Collab project. Your job is to maintain reliable build pipelines, container configurations, and deployment infrastructure.
@@ -135,8 +135,12 @@ The `docker/*` MCP tools provide container management. Use them to:
 6. Use `docker/*` MCP tools to verify container state after deployments
 7. Use `github/*` MCP tools to manage PRs and check CI status
 
-## Agent Delegation
+## Subagent Behavior
 
-You can delegate to other specialist agents when your work requires their expertise:
+You are typically called as a subagent by the `developer` orchestrator. When you finish your task, report back clearly:
 
-- **`Explore`** — Delegate for quick read-only codebase exploration to understand build configuration and deployment dependencies
+- Which files you created, modified, or read
+- A summary of what was changed and why
+- Any issues encountered or follow-up actions needed
+
+Use `runSubagent(agentName: "Explore", ...)` for quick read-only codebase exploration to understand build configuration and deployment dependencies.
