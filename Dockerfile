@@ -14,6 +14,12 @@ COPY package.json bun.lock ./
 # Install dependencies
 RUN bun install --frozen-lockfile
 
+# Build info args (passed from CI where git is available)
+ARG BUILD_COMMIT=unknown
+ARG BUILD_BRANCH=unknown
+ENV BUILD_COMMIT=$BUILD_COMMIT
+ENV BUILD_BRANCH=$BUILD_BRANCH
+
 # Copy application code
 COPY . .
 
