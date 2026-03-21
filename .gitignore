@@ -8,6 +8,9 @@ dist
 .env
 .env.*
 
+# Generated build info
+src/lib/server/build-info.generated.ts
+
 .DS_Store
 
 npm-debug.log*
