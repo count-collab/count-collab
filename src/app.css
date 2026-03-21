@@ -14,3 +14,17 @@ body {
 body {
   @apply text-slate-900 bg-white;
 }
+
+@keyframes fab-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-fab-in {
+  animation: fab-in 0.2s ease-out;
+}
