@@ -271,6 +271,9 @@
       class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-slate-600"
     >
       <p>&copy; 2026 Count Collab. Shared counts for everyone.</p>
+      <p class="mt-1 text-xs text-slate-400">
+        v{data.buildInfo.version} · {data.buildInfo.commit}
+      </p>
     </div>
   </footer>
 </div>
