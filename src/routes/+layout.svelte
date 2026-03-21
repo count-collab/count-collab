@@ -24,6 +24,8 @@
     trashOutline,
   } from "ionicons/icons";
   import { browser } from "$app/environment";
+  import { page } from "$app/state";
+  import CreateFab from "$lib/components/CreateFab.svelte";
   import "../app.css";
 
   if (browser) {
@@ -56,6 +58,12 @@
   const isAdmin = $derived(data.isAdmin);
 
   let mobileMenuOpen = $state(false);
+
+  const hideFabRoutes = ["/create", "/login", "/setup"];
+  const showFab = $derived(
+    !hideFabRoutes.some((r) => page.url.pathname.startsWith(r)) &&
+      !page.url.pathname.startsWith("/c/"),
+  );
 </script>
 
 <div
@@ -251,6 +259,10 @@
   <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
     {@render children()}
   </main>
+
+  {#if showFab}
+    <CreateFab />
+  {/if}
 
   <footer class="bg-white border-t border-slate-200 mt-12 py-8">
     <div
