@@ -12,7 +12,91 @@ body {
 }
 
 body {
-  @apply text-slate-900 bg-white;
+  @apply text-slate-900 bg-slate-50;
+}
+
+.full-bleed {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
+
+@keyframes hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.hero-stagger {
+  animation: hero-enter 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes orb-drift-1 {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(30px, 20px);
+  }
+  50% {
+    transform: translate(-10px, 40px);
+  }
+  75% {
+    transform: translate(20px, -10px);
+  }
+}
+@keyframes orb-drift-2 {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(-25px, 15px);
+  }
+  50% {
+    transform: translate(15px, -20px);
+  }
+  75% {
+    transform: translate(-10px, 30px);
+  }
+}
+.animate-orb-drift-1 {
+  animation: orb-drift-1 20s ease-in-out infinite;
+}
+.animate-orb-drift-2 {
+  animation: orb-drift-2 25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fab-in,
+  .hero-stagger,
+  .animate-orb-drift-1,
+  .animate-orb-drift-2 {
+    animation: none;
+  }
 }
 
 @keyframes fab-in {
