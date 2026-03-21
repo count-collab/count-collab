@@ -5,19 +5,32 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const packageJson = JSON.parse(readFileSync("./package.json", "utf-8"));
 
-let commit = "unknown";
-let branch = "unknown";
+let commit = process.env.BUILD_COMMIT || "unknown";
+let branch = process.env.BUILD_BRANCH || "unknown";
 
-try {
-  commit = execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
-  branch = execSync("git rev-parse --abbrev-ref HEAD", {
-    encoding: "utf-8",
-  }).trim();
-} catch (error) {
-  console.warn(
-    "Git information not available:",
-    error instanceof Error ? error.message : String(error),
-  );
+if (commit === "unknown" || branch === "unknown") {
+  try {
+    if (commit === "unknown") {
+      commit = execSync("git rev-parse --short HEAD", {
+        encoding: "utf-8",
+      }).trim();
+    }
+    if (branch === "unknown") {
+      branch = execSync("git rev-parse --abbrev-ref HEAD", {
+        encoding: "utf-8",
+      }).trim();
+    }
+  } catch (error) {
+    console.warn(
+      "Git information not available:",
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
+// Truncate full SHA to short hash
+if (commit.length > 12) {
+  commit = commit.slice(0, 7);
 }
 
 const buildInfo = {
