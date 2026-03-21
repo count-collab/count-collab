@@ -2,6 +2,10 @@
   import { goto } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import { rateLimit } from "$lib/stores/ratelimit";
+  import type { PageProps } from "./$types";
+
+  let { data }: PageProps = $props();
+  const isLoggedIn = $derived(!!data.session?.user);
 
   let title = $state("");
   let description = $state("");
@@ -104,10 +108,13 @@
           <input type="radio" value="public" bind:group={visibility} />
           Public
         </label>
-        <label class="flex items-center gap-2 text-sm text-slate-700">
-          <input type="radio" value="private" bind:group={visibility} />
+        <label class="flex items-center gap-2 text-sm" class:text-slate-700={isLoggedIn} class:text-slate-400={!isLoggedIn}>
+          <input type="radio" value="private" bind:group={visibility} disabled={!isLoggedIn} />
           Private (shareable link)
         </label>
+        {#if !isLoggedIn}
+          <p class="text-xs text-slate-500">Sign in to create private counters.</p>
+        {/if}
       </div>
     </div>
 

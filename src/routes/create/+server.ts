@@ -19,11 +19,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const { title, description, visibility } = validation.data;
 
   const session = await locals.auth();
+  const isAuthenticated = !!session?.user?.id;
 
   const counter = await createCounter({
     title,
     description,
-    isPublic: visibility === "public",
+    isPublic: isAuthenticated ? visibility === "public" : true,
     ownerId: session?.user?.id ?? null,
   });
 
