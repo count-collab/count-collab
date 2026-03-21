@@ -30,5 +30,11 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     environment: "jsdom",
+    alias: {
+      "$lib/server/build-info.generated": new URL(
+        "./src/lib/server/__mocks__/build-info.generated.ts",
+        import.meta.url,
+      ).pathname,
+    },
   },
 });
