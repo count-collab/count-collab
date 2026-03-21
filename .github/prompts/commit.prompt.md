@@ -12,7 +12,7 @@ Stage and commit the current changes using [Conventional Commits](https://www.co
 
 ### 1. Run Pre-Commit Checks
 
-Run these checks sequentially. If any fail, fix the issues before proceeding.
+Run these checks sequentially. If any fail, fix the issues before proceeding. All lint warnings must be resolved — zero warnings allowed.
 
 ```bash
 bun run test
@@ -27,6 +27,10 @@ bun fix
 ```
 
 ```bash
+bun run lint
+```
+
+```bash
 bun lint:ci
 ```
 
@@ -34,7 +38,7 @@ bun lint:ci
 bun svelte-check
 ```
 
-If `bun format` or `bun fix` modified files, re-run `bun lint:ci` and `bun svelte-check` to confirm everything is clean.
+If `bun format` or `bun fix` modified files, re-run `bun run lint`, `bun lint:ci` and `bun svelte-check` to confirm everything is clean.
 
 ### 2. Review Changes
 

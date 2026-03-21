@@ -112,7 +112,7 @@ Add or update tests for the code you change, even if nobody asked.
 
 ## Building and Testing before committing
 
-A pre-commit hook (`.githooks/pre-commit`) automatically runs `bun run fix` and `bun run lint` before each commit. If linting fails, the commit is aborted. Configure the hook with:
+A pre-commit hook (`.githooks/pre-commit`) automatically runs `bun run fix` and `bun run lint` before each commit. If linting fails (including warnings), the commit is aborted. All lint warnings must be resolved before committing. Configure the hook with:
 
 ```bash
 git config core.hooksPath .githooks
@@ -133,7 +133,7 @@ bun format
 bun fix
 ```
 
-3. Lint (required — enforced by pre-commit hook)
+3. Lint (required — enforced by pre-commit hook, zero warnings required)
 
 ```bash
 bun lint
