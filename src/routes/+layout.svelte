@@ -67,7 +67,7 @@
 </script>
 
 <div
-  class="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100"
+  class="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100 overflow-x-hidden"
 >
   <nav
     class="sticky top-0 z-20 relative bg-white/90 backdrop-blur shadow-sm border-b border-slate-200"
