@@ -1,7 +1,13 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
   "files": {
-    "includes": ["**", "!build", "!.svelte-kit", "!node_modules"]
+    "includes": [
+      "**",
+      "!build",
+      "!.svelte-kit",
+      "!node_modules",
+      "!playwright-report"
+    ]
   },
   "linter": {
     "enabled": true,
@@ -10,7 +16,9 @@
       "suspicious": {
         "noUnknownAtRules": {
           "options": {
-            "ignore": ["tailwind"]
+            "ignore": [
+              "tailwind"
+            ]
           }
         }
       }
@@ -26,7 +34,11 @@
   },
   "overrides": [
     {
-      "includes": ["**/*.svelte", "**/*.astro", "**/*.vue"],
+      "includes": [
+        "**/*.svelte",
+        "**/*.astro",
+        "**/*.vue"
+      ],
       "linter": {
         "rules": {
           "style": {
