@@ -1,3 +1,4 @@
+import { buildInfo } from "$lib/server/build-info.generated";
 import { hasPermission } from "$lib/server/permissions";
 import type { LayoutServerLoad } from "./$types";
 
@@ -12,5 +13,9 @@ export const load: LayoutServerLoad = async ({ locals }) => {
   return {
     session,
     isAdmin,
+    buildInfo: {
+      version: buildInfo.version,
+      commit: buildInfo.commit,
+    },
   };
 };
