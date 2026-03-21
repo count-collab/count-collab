@@ -107,45 +107,46 @@ describe("POST /create", () => {
                 ownerId: "user-456",
             }),
         );
-
-        it("allows anonymous users to create public counters", async () => {
-            mockCreateCounter.mockResolvedValue({ id: "test-id" });
-
-            const request = makeRequest({
-                title: "Anonymous Public Counter",
-                description: "",
-                visibility: "public",
-            });
-
-            await POST({
-                request,
-                locals: makeLocals(null),
-            } as any);
-
-            expect(mockCreateCounter).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    isPublic: true,
-                    ownerId: null,
-                }),
-            );
-        });
-
-        it("returns 201 with the counter id", async () => {
-            mockCreateCounter.mockResolvedValue({ id: "new-counter-id" });
-
-            const request = makeRequest({
-                title: "My Counter",
-                description: "",
-                visibility: "public",
-            });
-
-            const response = await POST({
-                request,
-                locals: makeLocals(null),
-            } as any);
-
-            expect(response.status).toBe(201);
-            const body = await response.json();
-            expect(body.id).toBe("new-counter-id");
-        });
     });
+
+    it("allows anonymous users to create public counters", async () => {
+        mockCreateCounter.mockResolvedValue({ id: "test-id" });
+
+        const request = makeRequest({
+            title: "Anonymous Public Counter",
+            description: "",
+            visibility: "public",
+        });
+
+        await POST({
+            request,
+            locals: makeLocals(null),
+        } as any);
+
+        expect(mockCreateCounter).toHaveBeenCalledWith(
+            expect.objectContaining({
+                isPublic: true,
+                ownerId: null,
+            }),
+        );
+    });
+
+    it("returns 201 with the counter id", async () => {
+        mockCreateCounter.mockResolvedValue({ id: "new-counter-id" });
+
+        const request = makeRequest({
+            title: "My Counter",
+            description: "",
+            visibility: "public",
+        });
+
+        const response = await POST({
+            request,
+            locals: makeLocals(null),
+        } as any);
+
+        expect(response.status).toBe(201);
+        const body = await response.json();
+        expect(body.id).toBe("new-counter-id");
+    });
+});
