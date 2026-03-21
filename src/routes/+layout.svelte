@@ -67,7 +67,7 @@
 </script>
 
 <div
-  class="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100"
+  class="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100"
 >
   <nav
     class="sticky top-0 z-20 relative bg-white/90 backdrop-blur shadow-sm border-b border-slate-200"
@@ -75,8 +75,10 @@
     <div
       class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between"
     >
-      <h1 class="text-2xl font-bold text-slate-900">
-        <a href="/">Count Collab</a>
+      <h1 class="text-2xl font-bold">
+        <a href="/" class="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+          Count Collab
+        </a>
       </h1>
 
       <!-- Mobile: hamburger + create button -->
@@ -110,7 +112,7 @@
         >
         <a
           href="/counters"
-          class="text-slate-700 hover:text-slate-900 transition">Browser</a
+          class="text-slate-700 hover:text-slate-900 transition">Browse</a
         >
         <a href="/create" class="text-slate-700 hover:text-slate-900 transition"
           >Create</a
@@ -152,7 +154,7 @@
         {:else}
           <a
             href="/login"
-            class="ml-2 px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            class="ml-2 px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg shadow-sm shadow-blue-600/20 hover:bg-blue-700 hover:shadow-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
           >
             Sign in
           </a>
@@ -180,7 +182,7 @@
             class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-50 transition"
           >
             <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
-            <span>Browser</span>
+            <span>Browse</span>
           </a>
           <a
             href="/create"
