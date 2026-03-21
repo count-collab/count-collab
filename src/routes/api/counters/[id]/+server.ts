@@ -36,7 +36,9 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
   emitCounterUpdate(counter.id, counter.count, counter.updatedAt);
 
-  let cooldownSeconds = Math.ceil(RATE_LIMIT_CONFIG["/c/[id]"].windowMs / 1000);
+  let cooldownSeconds = Math.ceil(
+    RATE_LIMIT_CONFIG["/api/counters/[id]"].windowMs / 1000,
+  );
 
   if (userId) {
     const role = await getUserRole(userId);

@@ -24,9 +24,9 @@ export const RATE_LIMIT_CONFIG = {
     windowMs: 60 * 1000, // 1 minute window
     maxRequests: 5,
   },
-  "/c/[id]": {
+  "/api/counters/[id]": {
     windowMs: 5 * 1000,
-    maxRequests: 1, // 1 increment per minute
+    maxRequests: 1, // 1 increment per 5 seconds
   },
 };
 

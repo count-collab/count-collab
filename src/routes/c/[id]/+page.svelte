@@ -76,14 +76,14 @@
     errorMessage = null;
 
     try {
-      const response = await fetch(`/c/${data.counter.id}`, { method: "POST" });
+      const response = await fetch(`/api/counters/${data.counter.id}`, { method: "POST" });
 
       if (!response.ok) {
         const body = await response.json();
 
         if (response.status === 429) {
           const retryAfter = body.retryAfterSeconds ?? 5;
-          rateLimit.setLimit(`/c/${data.counter.id}`, retryAfter);
+          rateLimit.setLimit(`/api/counters/${data.counter.id}`, retryAfter);
           return;
         }
 
@@ -118,7 +118,7 @@
     editError = null;
 
     try {
-      const response = await fetch(`/c/${data.counter.id}`, {
+      const response = await fetch(`/api/counters/${data.counter.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -148,7 +148,7 @@
     isDeleting = true;
 
     try {
-      const response = await fetch(`/c/${data.counter.id}`, {
+      const response = await fetch(`/api/counters/${data.counter.id}`, {
         method: "DELETE",
       });
 
