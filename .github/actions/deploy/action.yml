@@ -1,0 +1,185 @@
+name: Deploy via SSH
+description: Deploy the application to a remote server via SSH using Docker Compose
+
+inputs:
+  deploy-host:
+    description: SSH host
+    required: true
+  deploy-port:
+    description: SSH port
+    required: true
+  deploy-user:
+    description: SSH username
+    required: true
+  deploy-ssh-key:
+    description: SSH private key
+    required: true
+  ghcr-pat:
+    description: GHCR personal access token
+    required: true
+  docker-image:
+    description: "Full Docker image tag (e.g. ghcr.io/count-collab/count-collab:latest)"
+    required: true
+  deploy-dir:
+    description: "Remote deployment directory path (e.g. $HOME/count-collab)"
+    required: true
+  container-name:
+    description: "Base container name (e.g. count-collab)"
+    required: true
+  app-port:
+    description: "Port mapping (e.g. 80:3000)"
+    required: true
+  compose-filename:
+    description: Name of the generated compose file
+    required: true
+    default: compose.yaml
+  postgres-user:
+    description: PostgreSQL username
+    required: true
+  postgres-password:
+    description: PostgreSQL password
+    required: true
+  postgres-db:
+    description: PostgreSQL database name
+    required: true
+  auth-secret:
+    description: Auth.js secret key
+    required: true
+  auth-google-id:
+    description: Google OAuth client ID
+    required: true
+  auth-google-secret:
+    description: Google OAuth client secret
+    required: true
+  auth-discord-id:
+    description: Discord OAuth client ID
+    required: true
+  auth-discord-secret:
+    description: Discord OAuth client secret
+    required: true
+  auth-twitch-id:
+    description: Twitch OAuth client ID
+    required: true
+  auth-twitch-secret:
+    description: Twitch OAuth client secret
+    required: true
+  volume-name:
+    description: "Name of the Docker volume for PostgreSQL data (e.g. postgres_data)"
+    required: true
+    default: postgres_data
+
+runs:
+  using: composite
+
+  steps:
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ inputs.deploy-host }}
+        port: ${{ inputs.deploy-port }}
+        username: ${{ inputs.deploy-user }}
+        key: ${{ inputs.deploy-ssh-key }}
+        script: |
+          set -e
+
+          # Function to URL-encode credentials
+          urlencode() {
+            python3 -c "import urllib.parse; print(urllib.parse.quote('''$1''', safe=''))"
+          }
+
+          DEPLOY_DIR="${{ inputs.deploy-dir }}"
+          mkdir -p "$DEPLOY_DIR"
+
+          # Login to GHCR and pull latest image
+          echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u NeptuUn --password-stdin
+          docker pull ${{ inputs.docker-image }}
+
+          # Generate .env file with URL-encoded credentials
+          ENCODED_USER=$(urlencode "${{ inputs.postgres-user }}")
+          ENCODED_PASSWORD=$(urlencode "${{ inputs.postgres-password }}")
+          cat > "$DEPLOY_DIR/.env" <<EOF
+          DATABASE_URL=postgresql://${ENCODED_USER}:${ENCODED_PASSWORD}@db:5432/${{ inputs.postgres-db }}
+          NODE_ENV=production
+          AUTH_SECRET=${{ inputs.auth-secret }}
+          AUTH_GOOGLE_ID=${{ inputs.auth-google-id }}
+          AUTH_GOOGLE_SECRET=${{ inputs.auth-google-secret }}
+          AUTH_DISCORD_ID=${{ inputs.auth-discord-id }}
+          AUTH_DISCORD_SECRET=${{ inputs.auth-discord-secret }}
+          AUTH_TWITCH_ID=${{ inputs.auth-twitch-id }}
+          AUTH_TWITCH_SECRET=${{ inputs.auth-twitch-secret }}
+          EOF
+
+          # Generate compose file
+          cat > "$DEPLOY_DIR/${{ inputs.compose-filename }}" <<EOF
+          services:
+            migrations:
+              image: ${{ inputs.docker-image }}
+              container_name: ${{ inputs.container-name }}-migrations
+              env_file:
+                - .env
+              depends_on:
+                db:
+                  condition: service_healthy
+              networks:
+                - ${{ inputs.container-name }}
+              command: bun run db:push
+              profiles:
+                - ""
+
+            count-collab:
+              image: ${{ inputs.docker-image }}
+              container_name: ${{ inputs.container-name }}
+              restart: unless-stopped
+              ports:
+                - "${{ inputs.app-port }}"
+              env_file:
+                - .env
+              depends_on:
+                migrations:
+                  condition: service_completed_successfully
+              networks:
+                - ${{ inputs.container-name }}
+
+            db:
+              image: postgres:16-alpine
+              container_name: ${{ inputs.container-name }}-db
+              restart: unless-stopped
+              environment:
+                POSTGRES_USER: ${{ inputs.postgres-user }}
+                POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
+                POSTGRES_DB: ${{ inputs.postgres-db }}
+              volumes:
+                - ${{ inputs.volume-name }}:/var/lib/postgresql/data
+              healthcheck:
+                test: ["CMD-SHELL", "pg_isready -U ${{ inputs.postgres-user }} -d ${{ inputs.postgres-db }}"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+              networks:
+                - ${{ inputs.container-name }}
+
+          volumes:
+            ${{ inputs.volume-name }}:
+              driver: local
+
+          networks:
+            ${{ inputs.container-name }}:
+              driver: bridge
+          EOF
+
+          cd "$DEPLOY_DIR"
+
+          # Check if database container is already running
+          if docker ps --format '{{.Names}}' | grep -q '^${{ inputs.container-name }}-db$'; then
+            echo "Database already running, running migrations and restarting app..."
+            docker compose run --rm migrations
+            docker compose up -d count-collab
+          else
+            echo "Starting full stack (database + migrations + app)..."
+            docker compose up -d
+          fi
+
+          # Wait for services to be healthy
+          echo "Waiting for services to be healthy..."
+          sleep 5
+          docker compose ps
