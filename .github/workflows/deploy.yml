@@ -62,114 +62,27 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-      - name: Deploy to production
-        uses: appleboy/ssh-action@v1
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/deploy
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          port: ${{ secrets.DEPLOY_PORT }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            set -e
-
-            # Function to URL-encode credentials
-            urlencode() {
-              python3 -c "import urllib.parse; print(urllib.parse.quote('''$1''', safe=''))"
-            }
-
-            DEPLOY_DIR="$HOME/count-collab"
-            mkdir -p "$DEPLOY_DIR"
-
-            # Login to GHCR and pull latest image
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u NeptuUn --password-stdin
-            docker pull ghcr.io/count-collab/count-collab:latest
-
-            # Generate .env file with URL-encoded credentials
-            ENCODED_USER=$(urlencode "${{ secrets.POSTGRES_USER }}")
-            ENCODED_PASSWORD=$(urlencode "${{ secrets.POSTGRES_PASSWORD }}")
-            cat > "$DEPLOY_DIR/.env" <<EOF
-            DATABASE_URL=postgresql://${ENCODED_USER}:${ENCODED_PASSWORD}@db:5432/${{ secrets.POSTGRES_DB }}
-            NODE_ENV=production
-            AUTH_SECRET=${{ secrets.AUTH_SECRET }}
-            AUTH_GOOGLE_ID=${{ secrets.AUTH_GOOGLE_ID }}
-            AUTH_GOOGLE_SECRET=${{ secrets.AUTH_GOOGLE_SECRET }}
-            AUTH_DISCORD_ID=${{ secrets.AUTH_DISCORD_ID }}
-            AUTH_DISCORD_SECRET=${{ secrets.AUTH_DISCORD_SECRET }}
-            AUTH_TWITCH_ID=${{ secrets.AUTH_TWITCH_ID }}
-            AUTH_TWITCH_SECRET=${{ secrets.AUTH_TWITCH_SECRET }}
-            EOF
-
-            # Generate docker-compose.yml
-            cat > "$DEPLOY_DIR/docker-compose.yml" <<EOF
-            services:
-              migrations:
-                image: ghcr.io/count-collab/count-collab:latest
-                container_name: count-collab-migrations
-                env_file:
-                  - .env
-                depends_on:
-                  db:
-                    condition: service_healthy
-                networks:
-                  - count-collab
-                command: bun run db:push
-                profiles:
-                  - ""
-
-              count-collab:
-                image: ghcr.io/count-collab/count-collab:latest
-                container_name: count-collab
-                restart: unless-stopped
-                ports:
-                  - "80:3000"
-                env_file:
-                  - .env
-                depends_on:
-                  migrations:
-                    condition: service_completed_successfully
-                networks:
-                  - count-collab
-
-              db:
-                image: postgres:16-alpine
-                container_name: count-collab-db
-                restart: unless-stopped
-                environment:
-                  POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
-                  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-                  POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-                volumes:
-                  - postgres_data:/var/lib/postgresql/data
-                healthcheck:
-                  test: ["CMD-SHELL", "pg_isready -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }}"]
-                  interval: 10s
-                  timeout: 5s
-                  retries: 5
-                networks:
-                  - count-collab
-
-            volumes:
-              postgres_data:
-                driver: local
-
-            networks:
-              count-collab:
-                driver: bridge
-            EOF
-
-            cd "$DEPLOY_DIR"
-
-            # Check if database container is already running
-            if docker ps --format '{{.Names}}' | grep -q '^count-collab-db$'; then
-              echo "Database already running, running migrations and restarting app..."
-              docker compose run --rm migrations
-              docker compose up -d count-collab
-            else
-              echo "Starting full stack (database + migrations + app)..."
-              docker compose up -d
-            fi
-
-            # Wait for services to be healthy
-            echo "Waiting for services to be healthy..."
-            sleep 5
-            docker compose ps
+          deploy-host: ${{ secrets.DEPLOY_HOST }}
+          deploy-port: ${{ secrets.DEPLOY_PORT }}
+          deploy-user: ${{ secrets.DEPLOY_USER }}
+          deploy-ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
+          ghcr-pat: ${{ secrets.GHCR_PAT }}
+          docker-image: ghcr.io/count-collab/count-collab:latest
+          deploy-dir: $HOME/count-collab
+          container-name: count-collab
+          app-port: "80:3000"
+          compose-filename: docker-compose.yml
+          volume-name: postgres_data
+          postgres-user: ${{ secrets.POSTGRES_USER }}
+          postgres-password: ${{ secrets.POSTGRES_PASSWORD }}
+          postgres-db: ${{ secrets.POSTGRES_DB }}
+          auth-secret: ${{ secrets.AUTH_SECRET }}
+          auth-google-id: ${{ secrets.AUTH_GOOGLE_ID }}
+          auth-google-secret: ${{ secrets.AUTH_GOOGLE_SECRET }}
+          auth-discord-id: ${{ secrets.AUTH_DISCORD_ID }}
+          auth-discord-secret: ${{ secrets.AUTH_DISCORD_SECRET }}
+          auth-twitch-id: ${{ secrets.AUTH_TWITCH_ID }}
+          auth-twitch-secret: ${{ secrets.AUTH_TWITCH_SECRET }}
