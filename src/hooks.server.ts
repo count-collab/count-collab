@@ -38,6 +38,16 @@ function isWriteRoute(pathname: string): string | null {
   return null;
 }
 
+const noindex = process.env.NOINDEX === "true";
+
+const noindexHandle: Handle = async ({ event, resolve }) => {
+  const response = await resolve(event);
+  if (noindex) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  return response;
+};
+
 const loggingHandle: Handle = async ({ event, resolve }) => {
   const start = performance.now();
   const { method } = event.request;
@@ -172,6 +182,7 @@ const usernameGuard: Handle = async ({ event, resolve }) => {
 };
 
 export const handle: Handle = sequence(
+  noindexHandle,
   loggingHandle,
   authHandle,
   appHandle,
