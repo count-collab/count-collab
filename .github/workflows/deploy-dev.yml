@@ -56,7 +56,8 @@ jobs:
           deploy-port: ${{ secrets.DEPLOY_PORT }}
           deploy-user: ${{ secrets.DEPLOY_USER }}
           deploy-ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
-          ghcr-pat: ${{ secrets.GHCR_PAT }}
+          ghcr-username: ${{ github.actor }}
+          ghcr-pat: ${{ secrets.GITHUB_TOKEN }}
           docker-image: ghcr.io/count-collab/count-collab:develop
           deploy-dir: $HOME/count-collab-dev
           container-name: count-collab-dev

@@ -14,6 +14,9 @@ inputs:
   deploy-ssh-key:
     description: SSH private key
     required: true
+  ghcr-username:
+    description: GHCR username for docker login
+    required: true
   ghcr-pat:
     description: GHCR personal access token
     required: true
@@ -91,7 +94,7 @@ runs:
           mkdir -p "$DEPLOY_DIR"
 
           # Login to GHCR and pull latest image
-          echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u NeptuUn --password-stdin
+          echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u ${{ inputs.ghcr-username }} --password-stdin
 
           # Save previous image digest for rollback
           PREVIOUS_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ inputs.docker-image }} 2>/dev/null || echo "")
