@@ -20,7 +20,7 @@
   </span>
   <span class="font-semibold text-slate-900 truncate">{counter.title}</span>
   {#if counter.description}
-    <span class="text-sm text-slate-500 mt-0.5 line-clamp-2"
+    <span class="text-sm text-slate-500 mt-0.5 truncate"
       >{counter.description}</span
     >
   {/if}
