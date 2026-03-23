@@ -329,7 +329,10 @@ export async function getCounterSparkline(
 
   const [counterRows, rows] = await Promise.all([
     db
-      .select({ createdAt: countersTable.createdAt })
+      .select({
+        createdAt: countersTable.createdAt,
+        count: countersTable.count,
+      })
       .from(countersTable)
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
       .where(eq(countersTable.id, counterId as any)),
@@ -362,9 +365,8 @@ export async function getCounterSparkline(
     });
   }
 
-  // Add a "now" point carrying the last known value for the trailing edge
-  const lastValue = rawPoints[rawPoints.length - 1].value;
-  rawPoints.push({ value: lastValue, timestamp: now.toISOString() });
+  // Add a "now" point carrying the current counter value for the trailing edge
+  rawPoints.push({ value: counter.count, timestamp: now.toISOString() });
 
   // If sparse enough, return raw points directly — no bucketing needed
   if (rawPoints.length <= maxPoints) {
