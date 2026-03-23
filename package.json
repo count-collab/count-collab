@@ -14,6 +14,7 @@
     "fix": "biome check --write .",
     "format": "prettier --plugin-search-dir . --write .",
     "db:init": "bun run scripts/seed-counters.ts",
+    "db:delete-counters": "bun run scripts/delete-counters.ts",
     "db:seed-roles": "bun run scripts/seed-roles.ts",
     "db:push": "drizzle-kit push:pg",
     "db:generate": "drizzle-kit generate:pg",
