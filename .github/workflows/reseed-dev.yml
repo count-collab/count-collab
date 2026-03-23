@@ -1,0 +1,37 @@
+name: Reseed Database (DEV)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reseed:
+    name: Clear & Reseed Counters (DEV)
+    runs-on: self-hosted
+
+    steps:
+      - name: Reseed via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+
+            CONTAINER="count-collab-dev"
+
+            if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
+              echo "ERROR: Container ${CONTAINER} is not running"
+              exit 1
+            fi
+
+            echo "=== Deleting all counters and seed users ==="
+            docker exec "$CONTAINER" bun run db:delete-counters
+
+            echo ""
+            echo "=== Seeding counters ==="
+            docker exec "$CONTAINER" bun run db:init
+
+            echo ""
+            echo "Done — database has been reseeded."
