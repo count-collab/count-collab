@@ -58,14 +58,31 @@ bun run lint:ci          # Biome strict lint (biome ci)
 bun run test                 # Unit tests
 ```
 
+## Deployment Rollback Strategy
+
+The deploy action (`.github/actions/deploy/action.yml`) implements health-check gated deployments with automatic rollback:
+
+1. **Previous image saved** — before pulling the new image, the current one is tagged as `-rollback`
+2. **Migrations run** — `db:push` applies schema changes (always backward-compatible per migration rules)
+3. **New app starts** — container has a Docker health check hitting `/health` on port 3000
+4. **Health polling** — deploy script polls container health for up to 90 seconds
+5. **Healthy** → deploy succeeds
+6. **Unhealthy/timeout** → container logs are dumped, previous image is restored, job fails
+
+**This works because all migrations follow expand-and-contract** (see `migration.agent.md`). The old app version always works against the new schema, making rollback safe at any point.
+
+If a migration is NOT backward-compatible, rollback will still execute but the old app may fail against the new schema. This is why expand-and-contract is mandatory.
+
 ## Constraints
 
 - DO NOT expose secrets in Dockerfiles, logs, or CI output
 - DO NOT use `latest` tags for base images — pin versions
 - DO NOT skip quality gates in CI pipelines
+- DO NOT deploy migrations that break the currently running app version (coordinate with migration agent)
 - ALWAYS use multi-stage Docker builds to minimize image size
 - ALWAYS set `NODE_ENV=production` in production containers
 - ALWAYS configure health checks in Docker and CI
+- ALWAYS verify health check passes before considering a deployment successful
 
 ## MCP: GitHub
 

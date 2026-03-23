@@ -92,6 +92,16 @@ runs:
 
           # Login to GHCR and pull latest image
           echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u NeptuUn --password-stdin
+
+          # Save previous image digest for rollback
+          PREVIOUS_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ inputs.docker-image }} 2>/dev/null || echo "")
+          if [ -n "$PREVIOUS_DIGEST" ]; then
+            docker tag ${{ inputs.docker-image }} ${{ inputs.docker-image }}-rollback
+            echo "Saved previous image as ${{ inputs.docker-image }}-rollback (digest: $PREVIOUS_DIGEST)"
+          else
+            echo "No previous image found, rollback will not be available"
+          fi
+
           docker pull ${{ inputs.docker-image }}
 
           # Generate .env file with URL-encoded credentials
@@ -137,6 +147,12 @@ runs:
               depends_on:
                 migrations:
                   condition: service_completed_successfully
+              healthcheck:
+                test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+                start_period: 15s
               networks:
                 - ${{ inputs.container-name }}
 
@@ -179,7 +195,43 @@ runs:
             docker compose up -d
           fi
 
-          # Wait for services to be healthy
-          echo "Waiting for services to be healthy..."
-          sleep 5
-          docker compose ps
+          # Wait for count-collab to become healthy
+          echo "Waiting for count-collab to become healthy..."
+          HEALTH_TIMEOUT=90
+          POLL_INTERVAL=5
+          ELAPSED=0
+
+          set +e
+          while [ $ELAPSED -lt $HEALTH_TIMEOUT ]; do
+            HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' ${{ inputs.container-name }} 2>/dev/null)
+            if [ "$HEALTH_STATUS" = "healthy" ]; then
+              echo "count-collab is healthy after ${ELAPSED}s"
+              docker compose ps
+              exit 0
+            fi
+            if [ "$HEALTH_STATUS" = "unhealthy" ]; then
+              echo "count-collab reported unhealthy after ${ELAPSED}s"
+              break
+            fi
+            echo "Health status: ${HEALTH_STATUS:-unknown} (${ELAPSED}s/${HEALTH_TIMEOUT}s)"
+            sleep $POLL_INTERVAL
+            ELAPSED=$((ELAPSED + POLL_INTERVAL))
+          done
+          set -e
+
+          # Health check failed — show logs and attempt rollback
+          echo "ERROR: count-collab failed to become healthy within ${HEALTH_TIMEOUT}s"
+          echo "=== Container logs ==="
+          docker compose logs count-collab --tail 50
+          echo "======================"
+
+          if docker image inspect ${{ inputs.docker-image }}-rollback >/dev/null 2>&1; then
+            echo "Rolling back to previous image (migrations are always backward-compatible)..."
+            docker tag ${{ inputs.docker-image }}-rollback ${{ inputs.docker-image }}
+            docker compose up -d count-collab
+            echo "Rollback complete — restarted with previous image"
+          else
+            echo "No rollback image available, cannot restore previous version"
+          fi
+
+          exit 1
