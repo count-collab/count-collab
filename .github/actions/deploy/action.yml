@@ -220,7 +220,7 @@ runs:
           set -e
 
           # Health check failed — show logs and attempt rollback
-          echo "ERROR: count-collab failed to become healthy within ${HEALTH_TIMEOUT}s"
+          echo "ERROR: count-collab failed to become healthy after ${ELAPSED}s (timeout: ${HEALTH_TIMEOUT}s)"
           echo "=== Container logs ==="
           docker compose logs count-collab --tail 50
           echo "======================"
