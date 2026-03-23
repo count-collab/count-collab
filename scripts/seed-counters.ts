@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import {
@@ -6,7 +6,75 @@ import {
   counters,
   type NewCounter,
   type NewCounterHistory,
+  type NewUser,
+  users,
 } from "../src/lib/db/schema";
+
+// Prefix to identify seed users for cleanup
+const SEED_EMAIL_DOMAIN = "seed.countcollab.local";
+
+const SEED_USERS: NewUser[] = [
+  {
+    name: "Alice Chen",
+    email: `alice@${SEED_EMAIL_DOMAIN}`,
+    username: "alice_chen",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=alice",
+  },
+  {
+    name: "Bob Martinez",
+    email: `bob@${SEED_EMAIL_DOMAIN}`,
+    username: "bob_martinez",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=bob",
+  },
+  {
+    name: "Charlie Okafor",
+    email: `charlie@${SEED_EMAIL_DOMAIN}`,
+    username: "charlie_o",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=charlie",
+  },
+  {
+    name: "Dana Kim",
+    email: `dana@${SEED_EMAIL_DOMAIN}`,
+    username: "dana_kim",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=dana",
+  },
+  {
+    name: "Eli Johansson",
+    email: `eli@${SEED_EMAIL_DOMAIN}`,
+    username: "eli_j",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=eli",
+  },
+  {
+    name: "Faye Nguyen",
+    email: `faye@${SEED_EMAIL_DOMAIN}`,
+    username: "faye_nguyen",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=faye",
+  },
+  {
+    name: "Gus Petrov",
+    email: `gus@${SEED_EMAIL_DOMAIN}`,
+    username: "gus_p",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=gus",
+  },
+  {
+    name: "Hana Tanaka",
+    email: `hana@${SEED_EMAIL_DOMAIN}`,
+    username: "hana_t",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=hana",
+  },
+  {
+    name: "Ivan Müller",
+    email: `ivan@${SEED_EMAIL_DOMAIN}`,
+    username: "ivan_m",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=ivan",
+  },
+  {
+    name: "Jess Okonkwo",
+    email: `jess@${SEED_EMAIL_DOMAIN}`,
+    username: "jess_oko",
+    image: "https://api.dicebear.com/9.x/avataaars/svg?seed=jess",
+  },
+];
 
 const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   // High-traffic popular counters
@@ -241,28 +309,59 @@ async function seedCounters() {
   const db = drizzle(queryClient);
 
   try {
-    // Delete old seed counters (those with no owner)
-    const deleted = await db
+    // ── Clean up previous seed data ────────────────────────────────
+    const deletedOld = await db
       .delete(counters)
       .where(eq(counters.ownerId, ""))
       .returning({ id: counters.id });
 
-    // Also delete counters that look like old seeds
-    const deletedNull = await db
+    const deletedLegacy = await db
       .delete(counters)
       .where(
         eq(counters.description, "Auto-generated counter for local testing"),
       )
       .returning({ id: counters.id });
 
+    // Delete previous seed users (cascades to their sessions/accounts)
+    const deletedUsers = await db
+      .delete(users)
+      .where(like(users.email, `%@${SEED_EMAIL_DOMAIN}`))
+      .returning({ id: users.id });
+
     console.info(
-      `Cleaned up ${deleted.length + deletedNull.length} old seed counters.`,
+      `Cleaned up ${deletedOld.length + deletedLegacy.length} old seed counters, ${deletedUsers.length} old seed users.`,
     );
 
-    const countersToCreate: NewCounter[] = SEED_COUNTERS.map((c) => ({
+    // ── Create mock users ──────────────────────────────────────────
+    const insertedUsers = await db
+      .insert(users)
+      .values(SEED_USERS)
+      .returning({ id: users.id });
+
+    const userIds = insertedUsers.map((u) => u.id);
+    console.info(`Created ${userIds.length} mock users.`);
+
+    function randomUserId(): string {
+      return userIds[Math.floor(Math.random() * userIds.length)];
+    }
+
+    // ── Create counters ────────────────────────────────────────────
+    const now = Date.now();
+    const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    // Assign each counter a random creation date spread over the last 2 years
+    const counterCreationDates: Date[] = SEED_COUNTERS.map(() => {
+      const ageMs = TWO_YEARS_MS * (0.05 + Math.random() * 0.95); // 5%-100% of 2 years ago
+      return new Date(now - ageMs);
+    });
+
+    const countersToCreate: NewCounter[] = SEED_COUNTERS.map((c, i) => ({
       ...c,
       isPublic: 1,
-      ownerId: null,
+      ownerId: randomUserId(),
+      createdAt: counterCreationDates[i],
+      updatedAt: counterCreationDates[i],
     }));
 
     const insertedCounters = await db
@@ -272,11 +371,8 @@ async function seedCounters() {
 
     console.info(`Created ${insertedCounters.length} counters.`);
 
-    // Generate realistic counter history spanning up to 2 years
+    // Generate realistic counter history based on each counter's creation date
     const historyRows: NewCounterHistory[] = [];
-    const now = Date.now();
-    const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
-    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
     for (let i = 0; i < insertedCounters.length; i++) {
       const counterId = insertedCounters[i].id;
@@ -284,11 +380,11 @@ async function seedCounters() {
 
       if (targetCount <= 0) continue;
 
-      // Each counter gets a random start point within the last 2 years
-      const historySpanMs = TWO_YEARS_MS * (0.3 + Math.random() * 0.7); // 30%-100% of 2 years
-      const startTime = now - historySpanMs;
+      // History starts from the counter's creation date
+      const startTime = counterCreationDates[i].getTime();
 
       // Build a list of "active days" with gaps (some days have activity, some don't)
+      const historySpanMs = now - startTime;
       const totalDays = Math.ceil(historySpanMs / ONE_DAY_MS);
       const activeDays: number[] = []; // day offsets from start
 
@@ -345,7 +441,7 @@ async function seedCounters() {
             counterId,
             previousValue,
             newValue: currentValue,
-            changedBy: null,
+            changedBy: randomUserId(),
             changedAt,
           });
         }
