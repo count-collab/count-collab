@@ -1,13 +1,24 @@
-import { and, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "$lib/db";
-import type { Counter, NewCounter, NewCounterHistory } from "$lib/db/schema";
+import type {
+  Counter,
+  NewCounter,
+  NewCounterHistory,
+  SparklinePoint,
+} from "$lib/db/schema";
 import {
   counterHistory as counterHistoryTable,
   counterMembers,
   counters as countersTable,
   users,
 } from "$lib/db/schema";
+import { createCache } from "$lib/server/cache";
 import { logger } from "$lib/server/logger";
+
+export const sparklineCache = createCache<SparklinePoint[]>({
+  ttlMs: 300_000,
+  maxSize: 500,
+});
 
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
@@ -153,6 +164,8 @@ export async function incrementCounter(
       from: counter.count,
       to: nextValue,
     });
+
+    sparklineCache.delete(counterId);
 
     return updated;
   });
@@ -305,4 +318,67 @@ export async function listAllCounters(
   ]);
 
   return { items, total: Number(total) };
+}
+
+export async function getCounterSparkline(
+  counterId: string,
+  maxPoints = 50,
+): Promise<SparklinePoint[]> {
+  const cached = sparklineCache.get(counterId);
+  if (cached) return cached;
+
+  const [counterRows, rows] = await Promise.all([
+    db
+      .select({ createdAt: countersTable.createdAt })
+      .from(countersTable)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+      .where(eq(countersTable.id, counterId as any)),
+    db
+      .select({
+        newValue: counterHistoryTable.newValue,
+        changedAt: counterHistoryTable.changedAt,
+      })
+      .from(counterHistoryTable)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+      .where(eq(counterHistoryTable.counterId, counterId as any))
+      .orderBy(asc(counterHistoryTable.changedAt))
+      .limit(1000),
+  ]);
+
+  const counter = counterRows[0] ?? null;
+  if (!counter) return [];
+
+  // Start with creation point (value 0) and end with a "now" point
+  const createdAt = new Date(counter.createdAt);
+  const now = new Date();
+  const rawPoints: SparklinePoint[] = [
+    { value: 0, timestamp: createdAt.toISOString() },
+  ];
+
+  for (const r of rows) {
+    rawPoints.push({
+      value: r.newValue,
+      timestamp: r.changedAt.toISOString(),
+    });
+  }
+
+  // Add a "now" point carrying the last known value for the trailing edge
+  const lastValue = rawPoints[rawPoints.length - 1].value;
+  rawPoints.push({ value: lastValue, timestamp: now.toISOString() });
+
+  // If sparse enough, return raw points directly — no bucketing needed
+  if (rawPoints.length <= maxPoints) {
+    sparklineCache.set(counterId, rawPoints);
+    return rawPoints;
+  }
+
+  // Too many points — sample evenly, always keeping first and last
+  const sampled: SparklinePoint[] = [];
+  const step = (rawPoints.length - 1) / (maxPoints - 1);
+  for (let i = 0; i < maxPoints; i++) {
+    const idx = Math.round(i * step);
+    sampled.push(rawPoints[idx]);
+  }
+  sparklineCache.set(counterId, sampled);
+  return sampled;
 }

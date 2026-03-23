@@ -24,8 +24,10 @@ mockWhere.mockReturnValue({ orderBy: mockOrderBy });
 mockOrderBy.mockReturnValue({ limit: mockLimit });
 
 import {
+  getCounterSparkline,
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
+  sparklineCache,
 } from "./counters";
 
 function makeCounter(overrides: Partial<Counter> = {}): Counter {
@@ -160,5 +162,121 @@ describe("listRecentlyUpdatedCounters", () => {
     await listRecentlyUpdatedCounters();
 
     expect(mockLimit).toHaveBeenCalledWith(6);
+  });
+});
+
+describe("getCounterSparkline", () => {
+  function makeHistoryRow(value: number, date: Date) {
+    return { newValue: value, changedAt: date };
+  }
+
+  function minutesAgo(n: number): Date {
+    return new Date(Date.now() - n * 60 * 1000);
+  }
+
+  function daysAgo(n: number): Date {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - n);
+    d.setUTCHours(12, 0, 0, 0);
+    return d;
+  }
+
+  function setupMocks(
+    counterResult: { createdAt: Date } | null,
+    historyRows: ReturnType<typeof makeHistoryRow>[],
+  ) {
+    vi.clearAllMocks();
+    sparklineCache.clear();
+
+    let callCount = 0;
+    mockSelect.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        const counterWhere = vi
+          .fn()
+          .mockResolvedValue(counterResult ? [counterResult] : []);
+        const counterFrom = vi.fn().mockReturnValue({ where: counterWhere });
+        return { from: counterFrom };
+      }
+      const historyLimit = vi.fn().mockResolvedValue(historyRows);
+      const historyOrderBy = vi.fn().mockReturnValue({ limit: historyLimit });
+      const historyWhere = vi.fn().mockReturnValue({ orderBy: historyOrderBy });
+      const historyFrom = vi.fn().mockReturnValue({ where: historyWhere });
+      return { from: historyFrom };
+    });
+  }
+
+  it("returns raw points with creation start and now end", async () => {
+    const createdAt = daysAgo(3);
+    const rows = [makeHistoryRow(1, daysAgo(2)), makeHistoryRow(5, daysAgo(1))];
+    setupMocks({ createdAt }, rows);
+
+    const result = await getCounterSparkline("test-id");
+
+    // creation + 2 history + now = 4 points
+    expect(result).toHaveLength(4);
+    expect(result[0].value).toBe(0); // creation
+    expect(result[1].value).toBe(1);
+    expect(result[2].value).toBe(5);
+    expect(result[3].value).toBe(5); // trailing "now" point
+  });
+
+  it("returns 2 points for brand new counter with no history", async () => {
+    const createdAt = minutesAgo(1);
+    setupMocks({ createdAt }, []);
+
+    const result = await getCounterSparkline("test-id");
+
+    // creation + now = 2 points
+    expect(result).toHaveLength(2);
+    expect(result[0].value).toBe(0);
+    expect(result[1].value).toBe(0);
+  });
+
+  it("returns 3 points for new counter with same-minute history", async () => {
+    const createdAt = minutesAgo(2);
+    const rows = [makeHistoryRow(5, minutesAgo(1))];
+    setupMocks({ createdAt }, rows);
+
+    const result = await getCounterSparkline("test-id");
+
+    // creation + 1 history + now = 3 points
+    expect(result).toHaveLength(3);
+    expect(result[0].value).toBe(0);
+    expect(result[1].value).toBe(5);
+    expect(result[2].value).toBe(5);
+  });
+
+  it("returns empty array when counter not found", async () => {
+    setupMocks(null, []);
+
+    const result = await getCounterSparkline("test-id");
+
+    expect(result).toEqual([]);
+  });
+
+  it("trailing point carries last known value", async () => {
+    const createdAt = daysAgo(10);
+    const rows = [makeHistoryRow(42, daysAgo(5))];
+    setupMocks({ createdAt }, rows);
+
+    const result = await getCounterSparkline("test-id");
+
+    expect(result).toHaveLength(3);
+    expect(result[2].value).toBe(42);
+  });
+
+  it("samples when points exceed maxPoints", async () => {
+    const createdAt = daysAgo(101);
+    const rows = Array.from({ length: 100 }, (_, i) =>
+      makeHistoryRow(i + 1, daysAgo(100 - i)),
+    );
+    setupMocks({ createdAt }, rows);
+
+    const result = await getCounterSparkline("test-id", 10);
+
+    expect(result).toHaveLength(10);
+    expect(result[0].value).toBe(0); // creation point preserved
+    expect(result[9].value).toBe(100); // trailing now point preserved
   });
 });

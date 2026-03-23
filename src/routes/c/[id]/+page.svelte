@@ -5,6 +5,7 @@
   import HistoryEntry from "$lib/components/HistoryEntry.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
+  import Sparkline from "$lib/components/Sparkline.svelte";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
   import type { PageData } from "./$types";
@@ -386,6 +387,9 @@
           >Owner</span
         >
       {/if}
+      <span class="text-xs text-slate-400">
+        Updated {new Date(displayUpdatedAt).toLocaleString()}
+      </span>
     </div>
   </header>
 
@@ -393,6 +397,12 @@
   <section
     class="relative flex-1 flex flex-col items-center justify-center py-6 select-none"
   >
+    <div
+      class="absolute bottom-0 h-2/3 left-1/2 w-screen -translate-x-1/2 pointer-events-none"
+    >
+      <Sparkline counterId={data.counter.id} />
+    </div>
+
     <Fireworks trigger={fireworkTrigger} />
     <p class="text-8xl sm:text-9xl font-extrabold tabular-nums text-blue-600">
       <RollingNumber value={displayCount} />
@@ -411,10 +421,6 @@
         +1
       {/if}
     </button>
-
-    <p class="mt-4 text-xs text-slate-400">
-      Last updated {new Date(displayUpdatedAt).toLocaleString()}
-    </p>
 
     {#if errorMessage}
       <p class="mt-2 text-sm text-red-600">{errorMessage}</p>
