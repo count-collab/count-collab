@@ -78,6 +78,28 @@ export async function listPublicCounters(
   return { items, total: Number(total) };
 }
 
+export async function listRecentlyCreatedCounters(
+  limit = 6,
+): Promise<Counter[]> {
+  return db
+    .select()
+    .from(countersTable)
+    .where(eq(countersTable.isPublic, 1))
+    .orderBy(desc(countersTable.createdAt))
+    .limit(limit);
+}
+
+export async function listRecentlyUpdatedCounters(
+  limit = 6,
+): Promise<Counter[]> {
+  return db
+    .select()
+    .from(countersTable)
+    .where(eq(countersTable.isPublic, 1))
+    .orderBy(desc(countersTable.updatedAt))
+    .limit(limit);
+}
+
 export async function getCounter(counterId: string): Promise<Counter | null> {
   const [counter] = await db
     .select()

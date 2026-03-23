@@ -66,7 +66,7 @@
 
   <section
     bind:this={heroEl}
-    class="full-bleed text-center min-h-[calc(100vh-250px)] flex flex-col items-center justify-center px-4 -mt-8 pt-16 pb-20"
+    class="full-bleed text-center min-h-[calc(100vh-250px)] lg:min-h-0 flex flex-col items-center justify-center px-4 -mt-8 pt-16 pb-20 lg:pt-20 lg:pb-24"
   >
     <div
       class="flex flex-col items-center"
@@ -115,79 +115,47 @@
   </section>
 
   {#if data.userCounters.length > 0}
-    <!-- Logged-in: side-by-side layout -->
-    <div class="relative z-10 grid md:grid-cols-2 gap-10">
-      <section aria-labelledby="your-counters-heading">
-        <div class="flex items-center justify-between mb-6">
-          <div class="flex items-center gap-3">
-            <div class="h-8 w-1 rounded-full bg-gradient-to-b from-blue-600 to-indigo-500"></div>
-            <h2 id="your-counters-heading" class="text-2xl font-bold text-slate-900">Your Counters</h2>
-          </div>
-          <a
-            href="/my-counters"
-            class="group flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
-          >
-            View all
-            <span class="inline-block transition-transform group-hover:translate-x-0.5">&rarr;</span>
-          </a>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {#each userSlice as counter, i (counter.id)}
-            <div
-              class="animate-fade-up {userSlice.length % 2 === 1 &&
-              i === userSlice.length - 1
-                ? 'sm:col-span-2'
-                : ''}"
-              style="animation-delay: {i * 60}ms"
-            >
-              <CounterCard {counter} showBadges />
-            </div>
-          {/each}
-        </div>
-      </section>
-
-      <section aria-labelledby="popular-counters-heading-auth">
-        <div class="flex items-center gap-3 mb-6">
-          <div class="h-8 w-1 rounded-full bg-gradient-to-b from-blue-600 to-indigo-500"></div>
-          <h2 id="popular-counters-heading-auth" class="text-2xl font-bold text-slate-900">Popular Counters</h2>
-        </div>
-        {#if data.popularCounters.length > 0}
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {#each popularSlice as counter, i (counter.id)}
-              <div
-                class="animate-fade-up {popularSlice.length % 2 === 1 &&
-                i === popularSlice.length - 1
-                  ? 'sm:col-span-2'
-                  : ''}"
-                style="animation-delay: {i * 60}ms"
-              >
-                <CounterCard {counter} />
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <p class="text-slate-500 text-center py-8">No public counters yet.</p>
-        {/if}
-      </section>
-    </div>
-  {:else if data.popularCounters.length > 0}
-    <!-- Guest or user with no counters -->
-    <section aria-labelledby="popular-counters-heading" class="relative z-10">
-      <div class="flex items-center gap-3 mb-6">
-        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-blue-600 to-indigo-500"></div>
-        <h2 id="popular-counters-heading" class="text-2xl font-bold text-slate-900">Popular Counters</h2>
+    <section aria-labelledby="your-counters-heading" class="relative z-10">
+      <div class="flex items-center justify-between mb-6">
+        <h2 id="your-counters-heading" class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <ion-icon name="person-outline" style="font-size: 24px;" aria-hidden="true"></ion-icon>
+          Your Counters
+        </h2>
+        <a
+          href="/my-counters"
+          class="group flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700 transition"
+        >
+          View all
+          <span class="inline-block transition-transform group-hover:translate-x-0.5">&rarr;</span>
+        </a>
       </div>
-      <div
-        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"
-      >
-        {#each data.popularCounters as counter, i (counter.id)}
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+        {#each userSlice as counter, i (counter.id)}
+          <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
+            <CounterCard {counter} showBadges />
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  {#if data.popularCounters.length > 0}
+    <section aria-labelledby="popular-counters-heading" class="relative z-10 mt-16">
+      <div class="mb-6">
+        <h2 id="popular-counters-heading" class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <ion-icon name="trending-up-outline" style="font-size: 24px;" aria-hidden="true"></ion-icon>
+          Popular Counters
+        </h2>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+        {#each popularSlice as counter, i (counter.id)}
           <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
             <CounterCard {counter} />
           </div>
         {/each}
       </div>
     </section>
-  {:else}
+  {:else if data.userCounters.length === 0}
     <section class="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-12 text-center">
       <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
         <ion-icon name="add-circle-outline" style="font-size: 32px; color: rgb(37 99 235);" aria-hidden="true"></ion-icon>
@@ -200,6 +168,42 @@
       >
         Create Counter
       </a>
+    </section>
+  {/if}
+
+  {#if data.recentlyCreated.length > 0}
+    <section aria-labelledby="recently-created-heading" class="relative z-10 mt-16">
+      <div class="mb-6">
+        <h2 id="recently-created-heading" class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <ion-icon name="sparkles-outline" style="font-size: 24px;" aria-hidden="true"></ion-icon>
+          Recently Created
+        </h2>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+        {#each data.recentlyCreated as counter, i (counter.id)}
+          <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
+            <CounterCard {counter} />
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  {#if data.recentlyUpdated.length > 0}
+    <section aria-labelledby="recently-updated-heading" class="relative z-10 mt-16">
+      <div class="mb-6">
+        <h2 id="recently-updated-heading" class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <ion-icon name="time-outline" style="font-size: 24px;" aria-hidden="true"></ion-icon>
+          Recently Updated
+        </h2>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+        {#each data.recentlyUpdated as counter, i (counter.id)}
+          <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
+            <CounterCard {counter} />
+          </div>
+        {/each}
+      </div>
     </section>
   {/if}
 </div>

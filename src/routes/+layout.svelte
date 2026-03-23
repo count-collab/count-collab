@@ -19,9 +19,13 @@
     logoGoogle,
     logoTwitch,
     menuOutline,
+    personOutline,
     shareSocialOutline,
     shieldOutline,
+    sparklesOutline,
+    timeOutline,
     trashOutline,
+    trendingUpOutline,
   } from "ionicons/icons";
   import { browser } from "$app/environment";
   import { page } from "$app/state";
@@ -49,6 +53,10 @@
       "logo-google": logoGoogle,
       "logo-discord": logoDiscord,
       "logo-twitch": logoTwitch,
+      "person-outline": personOutline,
+      "trending-up-outline": trendingUpOutline,
+      "sparkles-outline": sparklesOutline,
+      "time-outline": timeOutline,
     });
     defineCustomElement();
   }
