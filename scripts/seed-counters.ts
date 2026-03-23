@@ -1,7 +1,12 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { counters, type NewCounter } from "../src/lib/db/schema";
+import {
+  counterHistory,
+  counters,
+  type NewCounter,
+  type NewCounterHistory,
+} from "../src/lib/db/schema";
 
 const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   // High-traffic popular counters
@@ -266,6 +271,97 @@ async function seedCounters() {
       .returning({ id: counters.id });
 
     console.info(`Created ${insertedCounters.length} counters.`);
+
+    // Generate realistic counter history spanning up to 2 years
+    const historyRows: NewCounterHistory[] = [];
+    const now = Date.now();
+    const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    for (let i = 0; i < insertedCounters.length; i++) {
+      const counterId = insertedCounters[i].id;
+      const targetCount = SEED_COUNTERS[i].count ?? 0;
+
+      if (targetCount <= 0) continue;
+
+      // Each counter gets a random start point within the last 2 years
+      const historySpanMs = TWO_YEARS_MS * (0.3 + Math.random() * 0.7); // 30%-100% of 2 years
+      const startTime = now - historySpanMs;
+
+      // Build a list of "active days" with gaps (some days have activity, some don't)
+      const totalDays = Math.ceil(historySpanMs / ONE_DAY_MS);
+      const activeDays: number[] = []; // day offsets from start
+
+      for (let day = 0; day < totalDays; day++) {
+        // ~60% chance of activity on any given day, creating natural gaps
+        // Occasionally skip longer stretches (up to a week)
+        if (Math.random() < 0.15) {
+          // 15% chance to skip 2-7 days
+          day += Math.floor(Math.random() * 6) + 1;
+          continue;
+        }
+        if (Math.random() < 0.6) {
+          activeDays.push(day);
+        }
+      }
+
+      // Ensure at least a few active days
+      if (activeDays.length < 3) {
+        activeDays.push(0, Math.floor(totalDays / 2), totalDays - 1);
+      }
+
+      // Decide how many history entries (capped to keep seeding fast)
+      const numEntries = Math.min(targetCount, 150);
+
+      // Distribute entries across active days (some days get multiple increments)
+      const entriesPerDay: number[] = new Array(activeDays.length).fill(0);
+      for (let e = 0; e < numEntries; e++) {
+        // Weighted toward later days (counters tend to get busier over time)
+        const idx = Math.floor(Math.random() ** 0.8 * activeDays.length);
+        entriesPerDay[idx]++;
+      }
+
+      // Distribute the target count across entries
+      const baseIncrement = Math.floor(targetCount / numEntries);
+      let remainder = targetCount - baseIncrement * numEntries;
+      let currentValue = 0;
+
+      for (let d = 0; d < activeDays.length; d++) {
+        const dayOffset = activeDays[d];
+        const dayStart = startTime + dayOffset * ONE_DAY_MS;
+
+        for (let e = 0; e < entriesPerDay[d]; e++) {
+          const increment = baseIncrement + (remainder > 0 ? 1 : 0);
+          if (remainder > 0) remainder--;
+
+          const previousValue = currentValue;
+          currentValue += increment;
+
+          // Random time within the day (spread across waking hours 7am-11pm)
+          const hourOffset = 7 + Math.random() * 16; // 7:00 - 23:00
+          const changedAt = new Date(dayStart + hourOffset * 3600_000);
+
+          historyRows.push({
+            counterId,
+            previousValue,
+            newValue: currentValue,
+            changedBy: null,
+            changedAt,
+          });
+        }
+      }
+    }
+
+    // Insert history in batches to avoid exceeding query parameter limits
+    const BATCH_SIZE = 500;
+    for (let offset = 0; offset < historyRows.length; offset += BATCH_SIZE) {
+      const batch = historyRows.slice(offset, offset + BATCH_SIZE);
+      await db.insert(counterHistory).values(batch);
+    }
+
+    console.info(
+      `Created ${historyRows.length} counter history entries across ${insertedCounters.length} counters.`,
+    );
   } catch (error) {
     console.error("Failed to seed counters:", error);
     process.exitCode = 1;
