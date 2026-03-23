@@ -46,34 +46,63 @@ bun run db:studio      # Open Drizzle Studio for visual inspection
 - `counter_history` (serial PK, audit log of value changes)
 - `counter_members` (serial PK, unique index on counterId+userId, role)
 
-## Migration Safety Rules
+## Expand-and-Contract Migrations (MANDATORY)
 
-### Safe Operations (no data loss)
+**Every migration MUST be backward-compatible with the currently deployed app version.** This is a hard requirement because the deploy pipeline runs migrations before the new app starts, and auto-rolls back to the previous app version if the health check fails. If a migration breaks the old app, rollback becomes impossible.
+
+### The Rule
+
+> After a migration runs, both the OLD and NEW app versions must work against the resulting schema.
+
+This means:
+
+- **Never drop** a column, table, or constraint that the current app still uses — in the same deploy
+- **Never rename** a column in place — use expand-and-contract
+- **Never change** a column type in a way that breaks existing queries
+- **Never add** a NOT NULL column without a default — the old app can't write to it
+
+### Expand-and-Contract Pattern
+
+Breaking schema changes are split across **two separate deploys**:
+
+```
+Deploy 1 — EXPAND (additive, backward-compatible)
+  Migration: Add new column/table (nullable or with default)
+  App code:  Write to BOTH old and new, read from old
+
+Deploy 2 — CONTRACT (cleanup, now safe)
+  App code:  Read/write from new only (deployed first, works with both schemas)
+  Migration: Drop old column/table, add NOT NULL if needed
+```
+
+### Example: Renaming `counters.isPublic` → `counters.visibility`
+
+```
+Deploy 1:
+  Migration: ALTER TABLE counters ADD COLUMN visibility text DEFAULT 'public'
+  App code:  Writes to both isPublic and visibility, reads from isPublic
+  Backfill:  UPDATE counters SET visibility = CASE WHEN "isPublic" = 1 THEN 'public' ELSE 'private' END
+
+Deploy 2:
+  App code:  Reads/writes visibility only
+  Migration: ALTER TABLE counters DROP COLUMN "isPublic"
+```
+
+### Safe Operations (always allowed in a single deploy)
 
 - Adding a new table
 - Adding a nullable column
 - Adding a column with a default value
-- Adding an index
+- Adding an index (use CONCURRENTLY when possible)
 - Adding a foreign key constraint
 
-### Dangerous Operations (require careful planning)
+### Unsafe Operations (require expand-and-contract across two deploys)
 
-- Dropping a table or column → **always back up first**
-- Renaming a column → use a two-phase migration (add new → copy data → drop old)
-- Changing a column type → may require data conversion
-- Adding a NOT NULL constraint → ensure all existing rows satisfy it
-- Dropping an index → may impact query performance
-
-### Two-Phase Migration Pattern
-
-For column renames or type changes with production data:
-
-```
-Phase 1: Add new column (nullable), deploy code that writes to both
-Phase 2: Backfill data from old → new column
-Phase 3: Switch reads to new column, make NOT NULL if needed
-Phase 4: Drop old column
-```
+- Dropping a table or column
+- Renaming a column or table
+- Changing a column type
+- Adding a NOT NULL constraint to an existing column
+- Removing a default value
 
 ## Constraints
 
@@ -81,10 +110,13 @@ Phase 4: Drop old column
 - DO NOT modify Auth.js table names or primary key structures
 - DO NOT generate migrations without reviewing the generated SQL first
 - DO NOT use `db:push` in production — use generated migration files
+- DO NOT create migrations that break the currently deployed app version (see Expand-and-Contract above)
 - ALWAYS keep `src/lib/db/schema.ts` as the single source of truth
 - ALWAYS review generated SQL in `src/lib/db/migrations/` before applying
 - ALWAYS consider existing data when adding constraints
 - ALWAYS use `withTimezone: true` for new timestamp columns
+- ALWAYS verify that the generated SQL only contains additive/safe operations for a single deploy
+- ALWAYS split breaking changes into two separate PRs/deploys (expand then contract)
 
 ## Approach
 
