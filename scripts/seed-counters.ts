@@ -86,7 +86,7 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Office Coffee Cups",
     description: "How many cups of coffee the team drinks per week.",
-    count: 387,
+    count: 1850,
   },
   {
     title: "Bugs Squashed This Sprint",
@@ -96,30 +96,30 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Pull Requests Merged",
     description: "Total PRs merged into main across all repos.",
-    count: 1204,
+    count: 4700,
   },
   {
     title: "Books Read in 2026",
     description:
       "Community reading challenge — one increment per finished book.",
-    count: 89,
+    count: 310,
   },
 
   // Community & fun
   {
     title: "Times Someone Said 'It Works on My Machine'",
     description: "The classic excuse, tallied for posterity.",
-    count: 571,
+    count: 2200,
   },
   {
     title: "High Fives Given",
     description: "Spread positivity. Tap to record a high five.",
-    count: 2048,
+    count: 10000,
   },
   {
     title: "Dad Jokes Told",
     description: "Every groan-worthy joke deserves to be counted.",
-    count: 156,
+    count: 580,
   },
   {
     title: "Sunset Photos Shared",
@@ -129,7 +129,7 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Plants Watered",
     description: "A gentle reminder tracker — did you water your plants today?",
-    count: 312,
+    count: 1400,
   },
 
   // Fitness & wellness
@@ -141,29 +141,29 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Glasses of Water Today",
     description: "Stay hydrated! Increment for every glass you drink.",
-    count: 8,
+    count: 5,
   },
   {
     title: "Meditation Sessions",
     description: "Collective mindfulness minutes, one session at a time.",
-    count: 201,
+    count: 750,
   },
   {
     title: "Push-ups Challenge",
     description: "Team push-up challenge — total reps across all participants.",
-    count: 4500,
+    count: 8500,
   },
   {
     title: "Steps Walked (in thousands)",
     description: "Combined daily steps for the walking group.",
-    count: 892,
+    count: 3200,
   },
 
   // Office & work
   {
     title: "Meetings That Could Have Been Emails",
     description: "We've all been there. Increment freely.",
-    count: 743,
+    count: 2700,
   },
   {
     title: "Deploys This Month",
@@ -173,7 +173,7 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Slack Messages Sent",
     description: "Approximate message volume in #general this week.",
-    count: 2891,
+    count: 7400,
   },
   {
     title: "Whiteboard Markers Dried Out",
@@ -183,7 +183,7 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Standup Meetings Held",
     description: "Daily standups completed by the engineering team.",
-    count: 220,
+    count: 950,
   },
 
   // Events & milestones
@@ -217,22 +217,22 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Tutorial Videos Watched",
     description: "Online courses and tutorials completed by the study group.",
-    count: 163,
+    count: 5600,
   },
   {
     title: "New Words Learned",
     description: "Vocabulary challenge — add one for every new word you learn.",
-    count: 284,
+    count: 1100,
   },
   {
     title: "Open Source Contributions",
     description: "PRs, issues, and docs contributed to OSS projects.",
-    count: 109,
+    count: 420,
   },
   {
     title: "Blog Posts Published",
     description: "Collective writing output from the content team.",
-    count: 42,
+    count: 185,
   },
   {
     title: "Coding Streak (Days)",
@@ -254,12 +254,12 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Typos Found in Docs",
     description: "Documentation review tracker. Every typo counts.",
-    count: 71,
+    count: 3300,
   },
   {
     title: "Compliments Given",
     description: "Brighten someone's day and increment this counter.",
-    count: 445,
+    count: 6100,
   },
   {
     title: "Rainy Days This Year",
@@ -271,7 +271,7 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Pomodoro Sessions Today",
     description: "Focus timer completions for today's work session.",
-    count: 3,
+    count: 0,
   },
   {
     title: "New Recipes Tried",
@@ -281,7 +281,7 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
   {
     title: "Houseplants in the Office",
     description: "Census of all green friends on our desks.",
-    count: 9,
+    count: 0,
   },
   {
     title: "Parking Lot Ideas",
@@ -358,6 +358,7 @@ async function seedCounters() {
 
     const countersToCreate: NewCounter[] = SEED_COUNTERS.map((c, i) => ({
       ...c,
+      count: 0,
       isPublic: 1,
       ownerId: randomUserId(),
       createdAt: counterCreationDates[i],
@@ -373,6 +374,7 @@ async function seedCounters() {
 
     // Generate realistic counter history based on each counter's creation date
     const historyRows: NewCounterHistory[] = [];
+    const finalCounts: { id: string; count: number }[] = [];
 
     for (let i = 0; i < insertedCounters.length; i++) {
       const counterId = insertedCounters[i].id;
@@ -406,8 +408,7 @@ async function seedCounters() {
         activeDays.push(0, Math.floor(totalDays / 2), totalDays - 1);
       }
 
-      // Decide how many history entries (capped to keep seeding fast)
-      const numEntries = Math.min(targetCount, 150);
+      const numEntries = targetCount;
 
       // Distribute entries across active days (some days get multiple increments)
       const entriesPerDay: number[] = new Array(activeDays.length).fill(0);
@@ -417,9 +418,7 @@ async function seedCounters() {
         entriesPerDay[idx]++;
       }
 
-      // Distribute the target count across entries
-      const baseIncrement = Math.floor(targetCount / numEntries);
-      let remainder = targetCount - baseIncrement * numEntries;
+      // Each history entry increments by exactly +1
       let currentValue = 0;
 
       for (let d = 0; d < activeDays.length; d++) {
@@ -427,11 +426,8 @@ async function seedCounters() {
         const dayStart = startTime + dayOffset * ONE_DAY_MS;
 
         for (let e = 0; e < entriesPerDay[d]; e++) {
-          const increment = baseIncrement + (remainder > 0 ? 1 : 0);
-          if (remainder > 0) remainder--;
-
           const previousValue = currentValue;
-          currentValue += increment;
+          currentValue += 1;
 
           // Random time within the day (spread across waking hours 7am-11pm)
           const hourOffset = 7 + Math.random() * 16; // 7:00 - 23:00
@@ -446,6 +442,8 @@ async function seedCounters() {
           });
         }
       }
+
+      finalCounts.push({ id: counterId, count: currentValue });
     }
 
     // Insert history in batches to avoid exceeding query parameter limits
@@ -453,6 +451,14 @@ async function seedCounters() {
     for (let offset = 0; offset < historyRows.length; offset += BATCH_SIZE) {
       const batch = historyRows.slice(offset, offset + BATCH_SIZE);
       await db.insert(counterHistory).values(batch);
+    }
+
+    // Update each counter's count to match the actual history
+    for (const { id, count } of finalCounts) {
+      await db
+        .update(counters)
+        .set({ count })
+        .where(eq(counters.id, id));
     }
 
     console.info(
