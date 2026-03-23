@@ -204,6 +204,9 @@ runs:
           set +e
           while [ $ELAPSED -lt $HEALTH_TIMEOUT ]; do
             HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' ${{ inputs.container-name }} 2>/dev/null)
+
+            echo $HEALTH_STATUS
+            
             if [ "$HEALTH_STATUS" = "healthy" ]; then
               echo "count-collab is healthy after ${ELAPSED}s"
               docker compose ps
