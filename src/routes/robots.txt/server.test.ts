@@ -10,7 +10,7 @@ describe("GET /robots.txt", () => {
     vi.stubEnv("NOINDEX", "true");
     const { GET } = await import("./+server");
 
-    const response = GET({} as never);
+    const response = await GET({} as never);
     const body = await response.text();
 
     expect(response.status).toBe(200);
@@ -23,7 +23,7 @@ describe("GET /robots.txt", () => {
     vi.stubEnv("NOINDEX", "");
     const { GET } = await import("./+server");
 
-    const response = GET({} as never);
+    const response = await GET({} as never);
     const body = await response.text();
 
     expect(response.status).toBe(200);
