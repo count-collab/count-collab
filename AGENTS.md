@@ -139,13 +139,7 @@ bun run fix
 bun run lint
 ```
 
-4. Lint CI (strict, used in CI pipelines - ensures no fixable issues remain)
-
-```bash
-bun run lint:ci
-```
-
-5. Svelte check
+4. Svelte check
 
 ```bash
 bun svelte-check
