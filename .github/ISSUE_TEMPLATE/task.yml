@@ -1,0 +1,51 @@
+name: Task / Chore
+description: Track a maintenance task, refactor, or infrastructure work
+labels: ["chore"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for maintenance, tooling, refactoring, or infrastructure tasks.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this task?
+      options:
+        - "critical — Blocking deployment or causing incidents"
+        - "high — Should be done soon"
+        - "medium — Important but not urgent"
+        - "low — When time permits"
+      default: 2
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be done?
+      placeholder: Describe the task...
+    validations:
+      required: true
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      description: Break it down into subtasks if possible
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any relevant context or references
+      placeholder: Add any other context here...
+    validations:
+      required: false
