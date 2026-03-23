@@ -38,7 +38,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: ghcr.io/count-collab/count-collab-dev:latest
+          tags: ghcr.io/count-collab/count-collab:develop
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -57,7 +57,7 @@ jobs:
           deploy-user: ${{ secrets.DEPLOY_USER }}
           deploy-ssh-key: ${{ secrets.DEPLOY_SSH_KEY }}
           ghcr-pat: ${{ secrets.GHCR_PAT }}
-          docker-image: ghcr.io/count-collab/count-collab-dev:latest
+          docker-image: ghcr.io/count-collab/count-collab:develop
           deploy-dir: $HOME/count-collab-dev
           container-name: count-collab-dev
           app-port: "8000:3000"
