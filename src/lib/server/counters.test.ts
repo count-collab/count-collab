@@ -182,7 +182,7 @@ describe("getCounterSparkline", () => {
   }
 
   function setupMocks(
-    counterResult: { createdAt: Date } | null,
+    counterResult: { createdAt: Date; count: number } | null,
     historyRows: ReturnType<typeof makeHistoryRow>[],
   ) {
     vi.clearAllMocks();
@@ -209,7 +209,7 @@ describe("getCounterSparkline", () => {
   it("returns raw points with creation start and now end", async () => {
     const createdAt = daysAgo(3);
     const rows = [makeHistoryRow(1, daysAgo(2)), makeHistoryRow(5, daysAgo(1))];
-    setupMocks({ createdAt }, rows);
+    setupMocks({ createdAt, count: 5 }, rows);
 
     const result = await getCounterSparkline("test-id");
 
@@ -223,7 +223,7 @@ describe("getCounterSparkline", () => {
 
   it("returns 2 points for brand new counter with no history", async () => {
     const createdAt = minutesAgo(1);
-    setupMocks({ createdAt }, []);
+    setupMocks({ createdAt, count: 0 }, []);
 
     const result = await getCounterSparkline("test-id");
 
@@ -236,7 +236,7 @@ describe("getCounterSparkline", () => {
   it("returns 3 points for new counter with same-minute history", async () => {
     const createdAt = minutesAgo(2);
     const rows = [makeHistoryRow(5, minutesAgo(1))];
-    setupMocks({ createdAt }, rows);
+    setupMocks({ createdAt, count: 5 }, rows);
 
     const result = await getCounterSparkline("test-id");
 
@@ -258,7 +258,7 @@ describe("getCounterSparkline", () => {
   it("trailing point carries last known value", async () => {
     const createdAt = daysAgo(10);
     const rows = [makeHistoryRow(42, daysAgo(5))];
-    setupMocks({ createdAt }, rows);
+    setupMocks({ createdAt, count: 42 }, rows);
 
     const result = await getCounterSparkline("test-id");
 
@@ -271,7 +271,7 @@ describe("getCounterSparkline", () => {
     const rows = Array.from({ length: 100 }, (_, i) =>
       makeHistoryRow(i + 1, daysAgo(100 - i)),
     );
-    setupMocks({ createdAt }, rows);
+    setupMocks({ createdAt, count: 100 }, rows);
 
     const result = await getCounterSparkline("test-id", 10);
 
