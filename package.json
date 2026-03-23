@@ -33,6 +33,7 @@
     "@sveltejs/kit": "^2.0.0",
     "drizzle-orm": "^0.29.0",
     "ionicons": "^8.0.13",
+    "lru-cache": "^11.2.7",
     "postgres": "^3.4.0",
     "satori": "^0.26.0",
     "socket.io": "^4.7.0",

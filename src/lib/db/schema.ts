@@ -1,6 +1,7 @@
 // Database schema and types
 
 import {
+  index,
   integer,
   pgTable,
   primaryKey,
@@ -119,20 +120,29 @@ export const counters = pgTable("counters", {
     .notNull(),
 });
 
-export const counterHistory = pgTable("counter_history", {
-  id: serial("id").primaryKey(),
-  counterId: uuid("counter_id")
-    .notNull()
-    .references(() => counters.id, { onDelete: "cascade" }),
-  previousValue: integer("previous_value").notNull(),
-  newValue: integer("new_value").notNull(),
-  changedBy: text("changed_by").references(() => users.id, {
-    onDelete: "set null",
+export const counterHistory = pgTable(
+  "counter_history",
+  {
+    id: serial("id").primaryKey(),
+    counterId: uuid("counter_id")
+      .notNull()
+      .references(() => counters.id, { onDelete: "cascade" }),
+    previousValue: integer("previous_value").notNull(),
+    newValue: integer("new_value").notNull(),
+    changedBy: text("changed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    changedAt: timestamp("changed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    counterChangedAtIdx: index("counter_history_counter_id_changed_at_idx").on(
+      t.counterId,
+      t.changedAt,
+    ),
   }),
-  changedAt: timestamp("changed_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+);
 
 // ── Counter Members ─────────────────────────────────────────────
 
@@ -174,3 +184,8 @@ export type NewCounterHistory = typeof counterHistory.$inferInsert;
 
 export type CounterMember = typeof counterMembers.$inferSelect;
 export type NewCounterMember = typeof counterMembers.$inferInsert;
+
+export type SparklinePoint = {
+  value: number;
+  timestamp: string;
+};
