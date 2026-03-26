@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { and, asc, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
@@ -20,6 +21,10 @@ export const sparklineCache = createCache<SparklinePoint[]>({
   maxSize: 500,
 });
 
+export function generateShareToken(): string {
+  return crypto.randomBytes(16).toString("hex");
+}
+
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
 }
@@ -39,6 +44,7 @@ export async function createCounter(
     description: input.description?.trim() || null,
     count: 0,
     isPublic: input.isPublic ? 1 : 0,
+    shareToken: input.isPublic ? null : generateShareToken(),
     ownerId: input.ownerId ?? null,
   };
 
@@ -219,7 +225,16 @@ export async function updateCounter(
   if (input.title !== undefined) set.title = input.title.trim();
   if (input.description !== undefined)
     set.description = input.description.trim() || null;
-  if (input.isPublic !== undefined) set.isPublic = input.isPublic ? 1 : 0;
+  if (input.isPublic !== undefined) {
+    set.isPublic = input.isPublic ? 1 : 0;
+    // Generate a share token when switching to private (if not already set)
+    if (!input.isPublic) {
+      const existing = await getCounter(counterId);
+      if (existing && !existing.shareToken) {
+        set.shareToken = generateShareToken();
+      }
+    }
+  }
 
   const [updated] = await db
     .update(countersTable)
@@ -270,6 +285,7 @@ export async function getUserCounters(
       description: countersTable.description,
       count: countersTable.count,
       isPublic: countersTable.isPublic,
+      shareToken: countersTable.shareToken,
       ownerId: countersTable.ownerId,
       createdAt: countersTable.createdAt,
       updatedAt: countersTable.updatedAt,

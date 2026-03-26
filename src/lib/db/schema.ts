@@ -109,6 +109,7 @@ export const counters = pgTable("counters", {
   description: text("description"),
   count: integer("count").default(0).notNull(),
   isPublic: integer("is_public").default(1).notNull(), // 1 for public, 0 for private
+  shareToken: text("share_token").unique(),
   ownerId: text("owner_id").references(() => users.id, {
     onDelete: "set null",
   }),

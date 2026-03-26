@@ -11,7 +11,12 @@ import { getCounterMembers } from "$lib/server/members";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ params, depends, locals }) => {
+export const load: PageServerLoad = async ({
+  params,
+  depends,
+  locals,
+  url,
+}) => {
   // Validate UUID format
   const idValidation = counterIdSchema.safeParse(params.id);
 
@@ -30,14 +35,24 @@ export const load: PageServerLoad = async ({ params, depends, locals }) => {
   const session = await locals.auth();
   const userId = session?.user?.id;
 
+  // Check if a valid share token was provided
+  const token = url.searchParams.get("token");
+  const hasValidToken =
+    !counter.isPublic &&
+    !!token &&
+    !!counter.shareToken &&
+    token === counter.shareToken;
+
   // Private counter access check
-  if (!counter.isPublic && userId) {
-    const canView = await canViewPrivateCounter(userId, counter.id);
-    if (!canView) {
-      throw error(403, "You don't have access to this counter");
+  if (!counter.isPublic && !hasValidToken) {
+    if (userId) {
+      const canView = await canViewPrivateCounter(userId, counter.id);
+      if (!canView) {
+        throw error(403, "You don't have access to this counter");
+      }
+    } else {
+      throw error(403, "Sign in to view this private counter");
     }
-  } else if (!counter.isPublic && !userId) {
-    throw error(403, "Sign in to view this private counter");
   }
 
   const canEdit = userId ? await canEditCounter(userId, counter.id) : false;
@@ -57,6 +72,9 @@ export const load: PageServerLoad = async ({ params, depends, locals }) => {
     canManage,
     isOwner,
     members,
+    // Only expose the share token to users who can manage the counter
+    shareToken: canManage ? (counter.shareToken ?? null) : null,
+    hasValidToken,
     title: `${counter.title} | Count Collab`,
     description:
       counter.description ||

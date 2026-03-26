@@ -1,7 +1,12 @@
 import { error, json } from "@sveltejs/kit";
-import { canDeleteCounter, canEditCounter } from "$lib/server/authorize";
+import {
+  canDeleteCounter,
+  canEditCounter,
+  canViewPrivateCounter,
+} from "$lib/server/authorize";
 import {
   deleteCounter,
+  getCounter,
   incrementCounter,
   updateCounter,
 } from "$lib/server/counters";
@@ -13,7 +18,7 @@ import { emitCounterUpdate } from "$lib/utils/socket";
 import { counterIdSchema, updateCounterSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ params, locals }) => {
+export const POST: RequestHandler = async ({ params, locals, url }) => {
   // Validate UUID format
   const idValidation = counterIdSchema.safeParse(params.id);
 
@@ -27,14 +32,38 @@ export const POST: RequestHandler = async ({ params, locals }) => {
   const session = await locals.auth();
   const userId = session?.user?.id;
 
-  const counter = await incrementCounter(params.id, 1, userId);
-
+  // Private counter access check
+  const counter = await getCounter(params.id);
   if (!counter) {
     logger.warn("Increment failed: counter not found", { id: params.id });
     throw error(404, "Counter not found");
   }
 
-  emitCounterUpdate(counter.id, counter.count, counter.updatedAt);
+  if (!counter.isPublic) {
+    const token = url.searchParams.get("token");
+    const hasValidToken =
+      !!token && !!counter.shareToken && token === counter.shareToken;
+
+    if (!hasValidToken) {
+      if (userId) {
+        const canView = await canViewPrivateCounter(userId, counter.id);
+        if (!canView) {
+          throw error(403, "You don't have access to this counter");
+        }
+      } else {
+        throw error(403, "Sign in to view this private counter");
+      }
+    }
+  }
+
+  const updated = await incrementCounter(params.id, 1, userId);
+
+  if (!updated) {
+    logger.warn("Increment failed: counter not found", { id: params.id });
+    throw error(404, "Counter not found");
+  }
+
+  emitCounterUpdate(updated.id, updated.count, updated.updatedAt);
 
   let cooldownSeconds = Math.ceil(
     RATE_LIMIT_CONFIG["/api/counters/[id]"].windowMs / 1000,
@@ -48,8 +77,8 @@ export const POST: RequestHandler = async ({ params, locals }) => {
   }
 
   return json({
-    count: counter.count,
-    updatedAt: counter.updatedAt,
+    count: updated.count,
+    updatedAt: updated.updatedAt,
     cooldownSeconds,
   });
 };
