@@ -1,8 +1,8 @@
+import crypto from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { counters } from "../src/lib/db/schema";
-import crypto from "node:crypto";
 
 const DATABASE_URL =
   process.env.DATABASE_URL ??
