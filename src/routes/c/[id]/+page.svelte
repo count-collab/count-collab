@@ -37,11 +37,15 @@
   // Actions dropdown state
   let showActionsMenu = $state(false);
 
-  const shareUrl = $derived(
-    browser
+  const shareUrl = $derived.by(() => {
+    const base = browser
       ? `${window.location.origin}/c/${data.counter.id}`
-      : `/c/${data.counter.id}`,
-  );
+      : `/c/${data.counter.id}`;
+    if (!data.counter.isPublic && data.shareToken) {
+      return `${base}?token=${data.shareToken}`;
+    }
+    return base;
+  });
 
   async function copyShareLink() {
     try {
@@ -77,7 +81,17 @@
     errorMessage = null;
 
     try {
-      const response = await fetch(`/api/counters/${data.counter.id}`, { method: "POST" });
+      let incrementUrl = `/api/counters/${data.counter.id}`;
+      // Pass the share token from the current URL if present (for token-based access)
+      if (browser) {
+        const currentToken = new URL(window.location.href).searchParams.get(
+          "token",
+        );
+        if (currentToken) {
+          incrementUrl += `?token=${encodeURIComponent(currentToken)}`;
+        }
+      }
+      const response = await fetch(incrementUrl, { method: "POST" });
 
       if (!response.ok) {
         const body = await response.json();
@@ -497,6 +511,11 @@
             {/if}
           </button>
         </div>
+        {#if !data.counter.isPublic && data.shareToken}
+          <p class="text-xs text-amber-600">
+            Anyone with this link can view and increment this private counter.
+          </p>
+        {/if}
       </div>
 
       <!-- Invite form -->

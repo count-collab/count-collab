@@ -15,6 +15,13 @@
       "when": 1773913977697,
       "tag": "0001_thin_garia",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1774517014971,
+      "tag": "0002_public_onslaught",
+      "breakpoints": true
     }
   ]
 }

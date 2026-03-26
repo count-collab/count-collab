@@ -24,6 +24,7 @@ mockWhere.mockReturnValue({ orderBy: mockOrderBy });
 mockOrderBy.mockReturnValue({ limit: mockLimit });
 
 import {
+  generateShareToken,
   getCounterSparkline,
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
@@ -37,6 +38,7 @@ function makeCounter(overrides: Partial<Counter> = {}): Counter {
     description: null,
     count: 0,
     isPublic: 1,
+    shareToken: null,
     ownerId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -278,5 +280,19 @@ describe("getCounterSparkline", () => {
     expect(result).toHaveLength(10);
     expect(result[0].value).toBe(0); // creation point preserved
     expect(result[9].value).toBe(100); // trailing now point preserved
+  });
+});
+
+describe("generateShareToken", () => {
+  it("returns a 32-character hex string", () => {
+    const token = generateShareToken();
+    expect(token).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it("returns unique tokens on each call", () => {
+    const tokens = new Set(
+      Array.from({ length: 50 }, () => generateShareToken()),
+    );
+    expect(tokens.size).toBe(50);
   });
 });

@@ -1,24 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 
 const {
+  mockGetCounter,
   mockIncrementCounter,
   mockUpdateCounter,
   mockDeleteCounter,
   mockCanEditCounter,
   mockCanDeleteCounter,
+  mockCanViewPrivateCounter,
   mockGetUserRole,
   mockEmitCounterUpdate,
 } = vi.hoisted(() => ({
+  mockGetCounter: vi.fn(),
   mockIncrementCounter: vi.fn(),
   mockUpdateCounter: vi.fn(),
   mockDeleteCounter: vi.fn(),
   mockCanEditCounter: vi.fn(),
   mockCanDeleteCounter: vi.fn(),
+  mockCanViewPrivateCounter: vi.fn(),
   mockGetUserRole: vi.fn(),
   mockEmitCounterUpdate: vi.fn(),
 }));
 
 vi.mock("$lib/server/counters", () => ({
+  getCounter: mockGetCounter,
   incrementCounter: mockIncrementCounter,
   updateCounter: mockUpdateCounter,
   deleteCounter: mockDeleteCounter,
@@ -27,6 +32,7 @@ vi.mock("$lib/server/counters", () => ({
 vi.mock("$lib/server/authorize", () => ({
   canEditCounter: mockCanEditCounter,
   canDeleteCounter: mockCanDeleteCounter,
+  canViewPrivateCounter: mockCanViewPrivateCounter,
 }));
 
 vi.mock("$lib/server/logger", () => ({
@@ -85,6 +91,7 @@ function makeEvent(id: string, overrides: Record<string, unknown> = {}) {
   return {
     params: { id },
     locals: makeLocals(null),
+    url: new URL(`http://localhost/api/counters/${id}`),
     ...overrides,
   } as any;
 }
@@ -97,13 +104,18 @@ describe("POST /api/counters/[id] (increment)", () => {
   });
 
   it("returns 404 when counter does not exist", async () => {
-    mockIncrementCounter.mockResolvedValue(null);
+    mockGetCounter.mockResolvedValue(null);
     await expect(POST(makeEvent(VALID_ID))).rejects.toMatchObject({
       status: 404,
     });
   });
 
   it("increments and returns updated counter", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      isPublic: 1,
+      shareToken: null,
+    });
     mockIncrementCounter.mockResolvedValue({
       id: VALID_ID,
       count: 42,
@@ -126,6 +138,11 @@ describe("POST /api/counters/[id] (increment)", () => {
   });
 
   it("returns cooldownSeconds=0 for admin users", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      isPublic: 1,
+      shareToken: null,
+    });
     mockIncrementCounter.mockResolvedValue({
       id: VALID_ID,
       count: 10,
@@ -139,6 +156,93 @@ describe("POST /api/counters/[id] (increment)", () => {
     const body = await response.json();
 
     expect(body.cooldownSeconds).toBe(0);
+  });
+
+  it("returns 403 for private counter without token and not logged in", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      isPublic: 0,
+      shareToken: "abc123",
+    });
+
+    await expect(POST(makeEvent(VALID_ID))).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it("returns 403 for private counter with invalid token", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      isPublic: 0,
+      shareToken: "abc123",
+    });
+
+    await expect(
+      POST(
+        makeEvent(VALID_ID, {
+          url: new URL(`http://localhost/api/counters/${VALID_ID}?token=wrong`),
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("allows private counter increment with valid share token", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      isPublic: 0,
+      shareToken: "valid-token-123",
+    });
+    mockIncrementCounter.mockResolvedValue({
+      id: VALID_ID,
+      count: 5,
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+
+    const response = await POST(
+      makeEvent(VALID_ID, {
+        url: new URL(
+          `http://localhost/api/counters/${VALID_ID}?token=valid-token-123`,
+        ),
+      }),
+    );
+    const body = await response.json();
+
+    expect(body.count).toBe(5);
+  });
+
+  it("allows private counter increment for authorized member", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      isPublic: 0,
+      shareToken: "abc123",
+    });
+    mockCanViewPrivateCounter.mockResolvedValue(true);
+    mockIncrementCounter.mockResolvedValue({
+      id: VALID_ID,
+      count: 7,
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+    mockGetUserRole.mockResolvedValue("user");
+
+    const response = await POST(
+      makeEvent(VALID_ID, { locals: makeLocals("user-1") }),
+    );
+    const body = await response.json();
+
+    expect(body.count).toBe(7);
+  });
+
+  it("returns 403 for private counter when logged-in user lacks access", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      isPublic: 0,
+      shareToken: "abc123",
+    });
+    mockCanViewPrivateCounter.mockResolvedValue(false);
+
+    await expect(
+      POST(makeEvent(VALID_ID, { locals: makeLocals("user-1") })),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });
 
