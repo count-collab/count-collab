@@ -6,10 +6,12 @@ const mockFrom = vi.fn();
 const mockWhere = vi.fn();
 const mockOrderBy = vi.fn();
 const mockLimit = vi.fn();
+const mockExecute = vi.fn();
 
 vi.mock("$lib/db", () => ({
   db: {
     select: (...args: unknown[]) => mockSelect(...args),
+    execute: (...args: unknown[]) => mockExecute(...args),
   },
 }));
 
@@ -168,124 +170,106 @@ describe("listRecentlyUpdatedCounters", () => {
 });
 
 describe("getCounterSparkline", () => {
-  function makeHistoryRow(value: number, date: Date) {
-    return { newValue: value, changedAt: date };
-  }
-
-  function minutesAgo(n: number): Date {
-    return new Date(Date.now() - n * 60 * 1000);
-  }
-
-  function hoursAgo(n: number): Date {
-    return new Date(Date.now() - n * 60 * 60 * 1000);
-  }
-
-  function daysAgo(n: number): Date {
+  function dayString(n: number): string {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - n);
-    d.setUTCHours(12, 0, 0, 0);
-    return d;
+    return d.toISOString().slice(0, 10);
   }
 
-  function setupMocks(
-    counterResult: { createdAt: Date; count: number } | null,
-    historyRows: ReturnType<typeof makeHistoryRow>[],
-  ) {
+  function setupExecuteMock(rows: { day: string; value: number }[]) {
     vi.clearAllMocks();
     sparklineCache.clear();
-
-    let callCount = 0;
-    mockSelect.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        const counterWhere = vi
-          .fn()
-          .mockResolvedValue(counterResult ? [counterResult] : []);
-        const counterFrom = vi.fn().mockReturnValue({ where: counterWhere });
-        return { from: counterFrom };
-      }
-      const historyLimit = vi.fn().mockResolvedValue(historyRows);
-      const historyOrderBy = vi.fn().mockReturnValue({ limit: historyLimit });
-      const historyWhere = vi.fn().mockReturnValue({ orderBy: historyOrderBy });
-      const historyFrom = vi.fn().mockReturnValue({ where: historyWhere });
-      return { from: historyFrom };
-    });
+    mockExecute.mockResolvedValue(rows);
   }
 
-  it("returns bucketed points with creation start and trailing end", async () => {
-    const createdAt = daysAgo(3);
-    const rows = [makeHistoryRow(5, daysAgo(1)), makeHistoryRow(1, daysAgo(2))];
-    setupMocks({ createdAt, count: 5 }, rows);
+  it("returns one point per day from creation to today", async () => {
+    setupExecuteMock([
+      { day: dayString(3), value: 0 },
+      { day: dayString(2), value: 1 },
+      { day: dayString(1), value: 5 },
+      { day: dayString(0), value: 5 },
+    ]);
 
     const result = await getCounterSparkline("test-id");
 
-    // creation + 2 day-bucketed history + trailing = 4 points
-    expect(result[0].value).toBe(0); // creation
-    expect(result[result.length - 1].value).toBe(5); // trailing current value
-  });
-
-  it("returns 2 points for brand new counter with no history", async () => {
-    const createdAt = minutesAgo(1);
-    setupMocks({ createdAt, count: 0 }, []);
-
-    const result = await getCounterSparkline("test-id");
-
-    // creation + trailing = 2 points
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(4);
     expect(result[0].value).toBe(0);
-    expect(result[1].value).toBe(0);
+    expect(result[1].value).toBe(1);
+    expect(result[2].value).toBe(5);
+    expect(result[3].value).toBe(5);
   });
 
-  it("returns points for new counter with same-hour history", async () => {
-    const createdAt = minutesAgo(30);
-    const rows = [makeHistoryRow(5, minutesAgo(10))];
-    setupMocks({ createdAt, count: 5 }, rows);
+  it("returns 1 point for brand new counter with no history", async () => {
+    setupExecuteMock([{ day: dayString(0), value: 0 }]);
 
     const result = await getCounterSparkline("test-id");
 
-    expect(result[0].value).toBe(0); // creation
-    expect(result[result.length - 1].value).toBe(5); // trailing
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBe(0);
+  });
+
+  it("returns 1 point for new counter with same-day history", async () => {
+    setupExecuteMock([{ day: dayString(0), value: 5 }]);
+
+    const result = await getCounterSparkline("test-id");
+
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBe(5);
   });
 
   it("returns empty array when counter not found", async () => {
-    setupMocks(null, []);
+    setupExecuteMock([]);
 
     const result = await getCounterSparkline("test-id");
 
     expect(result).toEqual([]);
   });
 
-  it("trailing point carries last known value", async () => {
-    const createdAt = daysAgo(10);
-    const rows = [makeHistoryRow(42, daysAgo(5))];
-    setupMocks({ createdAt, count: 42 }, rows);
+  it("carries forward last known value for days without activity", async () => {
+    const rows = Array.from({ length: 11 }, (_, i) => ({
+      day: dayString(10 - i),
+      value: i >= 5 ? 42 : 0,
+    }));
+    setupExecuteMock(rows);
 
     const result = await getCounterSparkline("test-id");
 
-    expect(result[0].value).toBe(0); // creation
-    expect(result[result.length - 1].value).toBe(42); // trailing
+    expect(result).toHaveLength(11);
+    expect(result[0].value).toBe(0);
+    for (let i = 1; i <= 4; i++) {
+      expect(result[i].value).toBe(0);
+    }
+    for (let i = 5; i <= 10; i++) {
+      expect(result[i].value).toBe(42);
+    }
   });
 
-  it("buckets older points by day and recent points by hour", async () => {
-    const createdAt = daysAgo(5);
-    const rows = [
-      // Most recent first (matches DB query ordering)
-      makeHistoryRow(60, hoursAgo(1)),
-      makeHistoryRow(50, hoursAgo(3)),
-      makeHistoryRow(40, hoursAgo(6)),
-      // Older than 24h — should bucket by day
-      makeHistoryRow(30, daysAgo(2)),
-      makeHistoryRow(20, daysAgo(3)),
-      makeHistoryRow(10, daysAgo(4)),
-    ];
-    setupMocks({ createdAt, count: 60 }, rows);
+  it("produces daily entries even with multiple changes per day", async () => {
+    setupExecuteMock([
+      { day: dayString(5), value: 0 },
+      { day: dayString(4), value: 10 },
+      { day: dayString(3), value: 20 },
+      { day: dayString(2), value: 30 },
+      { day: dayString(1), value: 30 },
+      { day: dayString(0), value: 60 },
+    ]);
 
     const result = await getCounterSparkline("test-id");
 
-    expect(result[0].value).toBe(0); // creation point preserved
-    expect(result[result.length - 1].value).toBe(60); // trailing point
-    // Should have: creation + day buckets + hour buckets + trailing
-    expect(result.length).toBeGreaterThanOrEqual(4);
+    expect(result).toHaveLength(6);
+    expect(result[0].value).toBe(0);
+    expect(result[result.length - 1].value).toBe(60);
+  });
+
+  it("uses cache on second call", async () => {
+    setupExecuteMock([{ day: dayString(0), value: 7 }]);
+
+    await getCounterSparkline("cached-id");
+    const result = await getCounterSparkline("cached-id");
+
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBe(7);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
   });
 });
 

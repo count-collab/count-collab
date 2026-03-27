@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count as countFn, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
   Counter,
@@ -342,93 +342,48 @@ export async function getCounterSparkline(
   const cached = sparklineCache.get(counterId);
   if (cached) return cached;
 
-  const [counterRows, rows] = await Promise.all([
-    db
-      .select({
-        createdAt: countersTable.createdAt,
-        count: countersTable.count,
-      })
-      .from(countersTable)
-      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
-      .where(eq(countersTable.id, counterId as any)),
-    db
-      .select({
-        newValue: counterHistoryTable.newValue,
-        changedAt: counterHistoryTable.changedAt,
-      })
-      .from(counterHistoryTable)
-      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
-      .where(eq(counterHistoryTable.counterId, counterId as any))
-      .orderBy(desc(counterHistoryTable.changedAt))
-      .limit(2000),
-  ]);
+  const rows = await db.execute<{ day: string; value: number }>(sql`
+    WITH counter_info AS (
+      SELECT created_at, count
+      FROM counters
+      WHERE id = ${counterId}::uuid
+    ),
+    days AS (
+      SELECT d::date AS day
+      FROM counter_info,
+           generate_series(
+             (SELECT created_at::date FROM counter_info),
+             CURRENT_DATE,
+             '1 day'::interval
+           ) AS d
+    ),
+    daily_values AS (
+      SELECT
+        d.day,
+        (
+          SELECT h.new_value
+          FROM counter_history h
+          WHERE h.counter_id = ${counterId}::uuid
+            AND h.changed_at < (d.day + '1 day'::interval)
+          ORDER BY h.changed_at DESC
+          LIMIT 1
+        ) AS value
+      FROM days d
+    )
+    SELECT
+      day::text,
+      COALESCE(value, 0) AS value
+    FROM daily_values
+    ORDER BY day
+  `);
 
-  const counter = counterRows[0] ?? null;
-  if (!counter) return [];
+  if (rows.length === 0) return [];
 
-  // Reverse to chronological order (query fetches most recent first)
-  rows.reverse();
+  const points: SparklinePoint[] = rows.map((r) => ({
+    value: Number(r.value),
+    timestamp: new Date(`${r.day}T00:00:00.000Z`).toISOString(),
+  }));
 
-  // Start with creation point (value 0)
-  const createdAt = new Date(counter.createdAt);
-  const rawPoints: SparklinePoint[] = [
-    { value: 0, timestamp: createdAt.toISOString() },
-  ];
-
-  for (const r of rows) {
-    rawPoints.push({
-      value: r.newValue,
-      timestamp: r.changedAt.toISOString(),
-    });
-  }
-
-  // Time-based bucketing: >24h ago → per day, ≤24h → per hour
-  const now = Date.now();
-  const oneDayAgo = now - 24 * 60 * 60 * 1000;
-
-  const buckets = new Map<string, SparklinePoint>();
-
-  for (const point of rawPoints) {
-    const ts = new Date(point.timestamp).getTime();
-    let bucketKey: string;
-    let bucketTimestamp: string;
-
-    if (ts < oneDayAgo) {
-      // Bucket by day (start of day UTC)
-      const d = new Date(ts);
-      d.setUTCHours(0, 0, 0, 0);
-      bucketKey = `d-${d.getTime()}`;
-      bucketTimestamp = d.toISOString();
-    } else {
-      // Bucket by hour (start of hour UTC)
-      const d = new Date(ts);
-      d.setUTCMinutes(0, 0, 0);
-      bucketKey = `h-${d.getTime()}`;
-      bucketTimestamp = d.toISOString();
-    }
-
-    // Last point in each bucket wins (rawPoints is chronological)
-    buckets.set(bucketKey, { value: point.value, timestamp: bucketTimestamp });
-  }
-
-  const bucketed = Array.from(buckets.values());
-
-  // Always keep the very first point (creation point)
-  const firstRaw = rawPoints[0];
-  if (bucketed.length === 0 || bucketed[0].timestamp !== firstRaw.timestamp) {
-    bucketed.unshift(firstRaw);
-  }
-
-  // Always include a trailing point for the current value
-  const lastValue = rawPoints[rawPoints.length - 1].value;
-  const lastBucketed = bucketed[bucketed.length - 1];
-  if (lastBucketed.value !== lastValue || bucketed.length === 1) {
-    bucketed.push({
-      value: lastValue,
-      timestamp: new Date(now).toISOString(),
-    });
-  }
-
-  sparklineCache.set(counterId, bucketed);
-  return bucketed;
+  sparklineCache.set(counterId, points);
+  return points;
 }
