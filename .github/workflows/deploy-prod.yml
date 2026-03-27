@@ -1,4 +1,4 @@
-name: Test, Build, and Deploy (PROD)
+name: PROD | Test, Build, and Deploy
 
 on:
   push:

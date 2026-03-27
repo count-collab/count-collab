@@ -1,4 +1,4 @@
-name: Reseed Database (DEV)
+name: DEV | Reseed Database
 
 on:
   workflow_dispatch:
