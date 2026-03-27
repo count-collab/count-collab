@@ -56,6 +56,37 @@ Seed the database with 50 test counters. Useful for local development and testin
 bun run db:init
 ```
 
+## Releasing
+
+Releases are managed by [release-please](https://github.com/googleapis/release-please). It uses conventional commit messages to determine version bumps and generate changelogs automatically.
+
+### How It Works
+
+1. **Develop as normal** — merge feature branches into `develop` using conventional commits (`feat:`, `fix:`, etc.)
+2. **Merge `develop` → `main`** — create and merge a PR from `develop` into `main`
+3. **Release PR is created** — release-please automatically opens (or updates) a Release PR on `main` with the computed version bump and changelog
+4. **Merge the Release PR** — this triggers release-please to:
+   - Bump the version in `package.json`
+   - Generate/update `CHANGELOG.md`
+   - Create a GitHub Release with a git tag (e.g. `v0.2.0`)
+5. **Sync back** — the existing `sync-main-to-develop` workflow merges the version bump back to `develop`
+
+### Version Bump Rules
+
+| Commit Type                   | Example                         | Bump (pre-1.0) | Bump (post-1.0) |
+| ----------------------------- | ------------------------------- | -------------- | --------------- |
+| `fix:`                        | `fix(api): handle null counter` | patch          | patch           |
+| `feat:`                       | `feat(counters): add sorting`   | patch          | minor           |
+| `feat!:` or `BREAKING CHANGE` | `feat!: redesign API`           | minor          | major           |
+
+### Configuration Files
+
+| File                            | Purpose                                |
+| ------------------------------- | -------------------------------------- |
+| `release-please-config.json`    | Release type and changelog settings    |
+| `.release-please-manifest.json` | Tracks the current released version    |
+| `.github/workflows/release.yml` | GitHub Action that runs release-please |
+
 ## Visual Debugging with Copilot
 
 GitHub Copilot can navigate your running local app, take screenshots, inspect DOM elements, and check console/network errors using the Playwright MCP server configured in `.vscode/mcp.json`.
