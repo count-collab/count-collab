@@ -7,5 +7,6 @@ DO $$ BEGIN
 ALTER TABLE "counters"
 ADD CONSTRAINT "counters_share_token_unique" UNIQUE("share_token");
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
