@@ -338,7 +338,7 @@ export async function listAllCounters(
 
 export async function getCounterSparkline(
   counterId: string,
-  maxPoints = 50,
+  maxPoints = 100,
 ): Promise<SparklinePoint[]> {
   const cached = sparklineCache.get(counterId);
   if (cached) return cached;
