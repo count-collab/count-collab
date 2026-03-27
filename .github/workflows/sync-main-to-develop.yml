@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   sync:
+    if: false # Disabled
     name: Merge main → develop
     runs-on: self-hosted
 
