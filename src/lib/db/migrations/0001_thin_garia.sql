@@ -8,7 +8,8 @@ DO $$ BEGIN
 ALTER TABLE "roles"
 ADD CONSTRAINT "roles_name_unique" UNIQUE("name");
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "permissions" (
@@ -21,7 +22,8 @@ DO $$ BEGIN
 ALTER TABLE "permissions"
 ADD CONSTRAINT "permissions_name_unique" UNIQUE("name");
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "user" (
@@ -38,21 +40,24 @@ DO $$ BEGIN
 ALTER TABLE "user"
 ADD CONSTRAINT "user_email_unique" UNIQUE("email");
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
 ALTER TABLE "user"
 ADD CONSTRAINT "user_username_unique" UNIQUE("username");
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
 ALTER TABLE "user"
 ADD CONSTRAINT "user_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "account" (
@@ -74,7 +79,8 @@ DO $$ BEGIN
 ALTER TABLE "account"
 ADD CONSTRAINT "account_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "session" (
@@ -87,7 +93,8 @@ DO $$ BEGIN
 ALTER TABLE "session"
 ADD CONSTRAINT "session_userId_user_id_fk" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "verificationToken" (
@@ -107,14 +114,16 @@ DO $$ BEGIN
 ALTER TABLE "role_permissions"
 ADD CONSTRAINT "role_permissions_role_id_roles_id_fk" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
 ALTER TABLE "role_permissions"
 ADD CONSTRAINT "role_permissions_permission_id_permissions_id_fk" FOREIGN KEY ("permission_id") REFERENCES "permissions"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "counter_members" (
@@ -131,14 +140,16 @@ DO $$ BEGIN
 ALTER TABLE "counter_members"
 ADD CONSTRAINT "counter_members_counter_id_counters_id_fk" FOREIGN KEY ("counter_id") REFERENCES "counters"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
 ALTER TABLE "counter_members"
 ADD CONSTRAINT "counter_members_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 ALTER TABLE "counter_history"
@@ -149,7 +160,8 @@ ALTER TABLE "counter_history"
 ADD CONSTRAINT "counter_history_changed_by_user_id_fk" FOREIGN KEY ("changed_by") REFERENCES "user"("id") ON DELETE
 set null ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
 --> statement-breakpoint
 ALTER TABLE "counters"
@@ -160,5 +172,6 @@ ALTER TABLE "counters"
 ADD CONSTRAINT "counters_owner_id_user_id_fk" FOREIGN KEY ("owner_id") REFERENCES "user"("id") ON DELETE
 set null ON UPDATE no action;
 EXCEPTION
-WHEN duplicate_object THEN null;
+WHEN duplicate_object
+OR duplicate_table THEN null;
 END $$;
