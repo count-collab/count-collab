@@ -17,11 +17,8 @@ runs:
       run: bun install --frozen-lockfile
       shell: bash
 
-    - name: Setup Biome
-      uses: biomejs/setup-biome@v2
-
     - name: Lint
-      run: biome ci
+      run: bun run lint
       shell: bash
 
     - name: Test

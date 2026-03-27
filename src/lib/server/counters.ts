@@ -70,15 +70,15 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-      eq(countersTable.isPublic, 1),
-      or(
-        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(
-          countersTable.description,
-          `%${escapeLikePattern(searchQuery)}%`,
+        eq(countersTable.isPublic, 1),
+        or(
+          ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+          ilike(
+            countersTable.description,
+            `%${escapeLikePattern(searchQuery)}%`,
+          ),
         ),
-      ),
-    )
+      )
     : eq(countersTable.isPublic, 1);
 
   const [items, [{ total }]] = await Promise.all([
@@ -317,9 +317,9 @@ export async function listAllCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-      ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-      ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
-    )
+        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
+      )
     : undefined;
 
   const [items, [{ total }]] = await Promise.all([

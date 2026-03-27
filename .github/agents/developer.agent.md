@@ -117,7 +117,7 @@ Run these commands yourself (do NOT delegate validation):
 
 ```bash
 bun test           # All tests pass
-bun run lint:ci        # Strict lint
+bun run lint        # Strict lint
 bun svelte-check   # TypeScript checks
 bun run format         # Format code
 ```

@@ -31,14 +31,10 @@ bun run lint
 ```
 
 ```bash
-bun run lint:ci
-```
-
-```bash
 bun svelte-check
 ```
 
-If `bun run format` or `bun run fix` modified files, re-run `bun run lint`, `bun run lint:ci` and `bun svelte-check` to confirm everything is clean.
+If `bun run format` or `bun run fix` modified files, re-run `bun run lint`, and `bun svelte-check` to confirm everything is clean.
 
 ### 2. Identify and Stage Chat Changes
 
