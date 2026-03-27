@@ -210,17 +210,16 @@ describe("getCounterSparkline", () => {
 
   it("returns raw points with creation start and now end", async () => {
     const createdAt = daysAgo(3);
-    const rows = [makeHistoryRow(1, daysAgo(2)), makeHistoryRow(5, daysAgo(1))];
+    const rows = [makeHistoryRow(5, daysAgo(1)), makeHistoryRow(1, daysAgo(2))];
     setupMocks({ createdAt, count: 5 }, rows);
 
     const result = await getCounterSparkline("test-id");
 
-    // creation + 2 history + now = 4 points
-    expect(result).toHaveLength(4);
+    // creation + 2 history = 3 points
+    expect(result).toHaveLength(3);
     expect(result[0].value).toBe(0); // creation
     expect(result[1].value).toBe(1);
     expect(result[2].value).toBe(5);
-    expect(result[3].value).toBe(5); // trailing "now" point
   });
 
   it("returns 2 points for brand new counter with no history", async () => {
@@ -229,10 +228,9 @@ describe("getCounterSparkline", () => {
 
     const result = await getCounterSparkline("test-id");
 
-    // creation + now = 2 points
-    expect(result).toHaveLength(2);
+    // creation only = 1 point
+    expect(result).toHaveLength(1);
     expect(result[0].value).toBe(0);
-    expect(result[1].value).toBe(0);
   });
 
   it("returns 3 points for new counter with same-minute history", async () => {
@@ -242,11 +240,10 @@ describe("getCounterSparkline", () => {
 
     const result = await getCounterSparkline("test-id");
 
-    // creation + 1 history + now = 3 points
-    expect(result).toHaveLength(3);
+    // creation + 1 history = 2 points
+    expect(result).toHaveLength(2);
     expect(result[0].value).toBe(0);
     expect(result[1].value).toBe(5);
-    expect(result[2].value).toBe(5);
   });
 
   it("returns empty array when counter not found", async () => {
@@ -264,14 +261,14 @@ describe("getCounterSparkline", () => {
 
     const result = await getCounterSparkline("test-id");
 
-    expect(result).toHaveLength(3);
-    expect(result[2].value).toBe(42);
+    expect(result).toHaveLength(2);
+    expect(result[1].value).toBe(42);
   });
 
   it("samples when points exceed maxPoints", async () => {
     const createdAt = daysAgo(101);
     const rows = Array.from({ length: 100 }, (_, i) =>
-      makeHistoryRow(i + 1, daysAgo(100 - i)),
+      makeHistoryRow(100 - i, daysAgo(i + 1)),
     );
     setupMocks({ createdAt, count: 100 }, rows);
 
@@ -279,7 +276,7 @@ describe("getCounterSparkline", () => {
 
     expect(result).toHaveLength(10);
     expect(result[0].value).toBe(0); // creation point preserved
-    expect(result[9].value).toBe(100); // trailing now point preserved
+    expect(result[9].value).toBe(100); // last history point preserved
   });
 });
 

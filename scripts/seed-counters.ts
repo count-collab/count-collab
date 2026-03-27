@@ -455,10 +455,7 @@ async function seedCounters() {
 
     // Update each counter's count to match the actual history
     for (const { id, count } of finalCounts) {
-      await db
-        .update(counters)
-        .set({ count })
-        .where(eq(counters.id, id));
+      await db.update(counters).set({ count }).where(eq(counters.id, id));
     }
 
     console.info(

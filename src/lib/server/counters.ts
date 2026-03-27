@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, asc, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
   Counter,
@@ -70,15 +70,15 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-        eq(countersTable.isPublic, 1),
-        or(
-          ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-          ilike(
-            countersTable.description,
-            `%${escapeLikePattern(searchQuery)}%`,
-          ),
+      eq(countersTable.isPublic, 1),
+      or(
+        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(
+          countersTable.description,
+          `%${escapeLikePattern(searchQuery)}%`,
         ),
-      )
+      ),
+    )
     : eq(countersTable.isPublic, 1);
 
   const [items, [{ total }]] = await Promise.all([
@@ -317,9 +317,9 @@ export async function listAllCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
-      )
+      ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+      ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
+    )
     : undefined;
 
   const [items, [{ total }]] = await Promise.all([
@@ -360,16 +360,18 @@ export async function getCounterSparkline(
       .from(counterHistoryTable)
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
       .where(eq(counterHistoryTable.counterId, counterId as any))
-      .orderBy(asc(counterHistoryTable.changedAt))
-      .limit(1000),
+      .orderBy(desc(counterHistoryTable.changedAt))
+      .limit(2000),
   ]);
 
   const counter = counterRows[0] ?? null;
   if (!counter) return [];
 
-  // Start with creation point (value 0) and end with a "now" point
+  // Reverse to chronological order (query fetches most recent first)
+  rows.reverse();
+
+  // Start with creation point (value 0)
   const createdAt = new Date(counter.createdAt);
-  const now = new Date();
   const rawPoints: SparklinePoint[] = [
     { value: 0, timestamp: createdAt.toISOString() },
   ];
@@ -380,9 +382,6 @@ export async function getCounterSparkline(
       timestamp: r.changedAt.toISOString(),
     });
   }
-
-  // Add a "now" point carrying the current counter value for the trailing edge
-  rawPoints.push({ value: counter.count, timestamp: now.toISOString() });
 
   // If sparse enough, return raw points directly — no bucketing needed
   if (rawPoints.length <= maxPoints) {
