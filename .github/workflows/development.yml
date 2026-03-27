@@ -1,4 +1,4 @@
-name: Test and Build on Pull Request
+name: Development
 
 on:
   pull_request:
