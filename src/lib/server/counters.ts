@@ -338,7 +338,6 @@ export async function listAllCounters(
 
 export async function getCounterSparkline(
   counterId: string,
-  maxPoints = 100,
 ): Promise<SparklinePoint[]> {
   const cached = sparklineCache.get(counterId);
   if (cached) return cached;
@@ -383,19 +382,53 @@ export async function getCounterSparkline(
     });
   }
 
-  // If sparse enough, return raw points directly — no bucketing needed
-  if (rawPoints.length <= maxPoints) {
-    sparklineCache.set(counterId, rawPoints);
-    return rawPoints;
+  // Time-based bucketing: >24h ago → per day, ≤24h → per hour
+  const now = Date.now();
+  const oneDayAgo = now - 24 * 60 * 60 * 1000;
+
+  const buckets = new Map<string, SparklinePoint>();
+
+  for (const point of rawPoints) {
+    const ts = new Date(point.timestamp).getTime();
+    let bucketKey: string;
+    let bucketTimestamp: string;
+
+    if (ts < oneDayAgo) {
+      // Bucket by day (start of day UTC)
+      const d = new Date(ts);
+      d.setUTCHours(0, 0, 0, 0);
+      bucketKey = `d-${d.getTime()}`;
+      bucketTimestamp = d.toISOString();
+    } else {
+      // Bucket by hour (start of hour UTC)
+      const d = new Date(ts);
+      d.setUTCMinutes(0, 0, 0);
+      bucketKey = `h-${d.getTime()}`;
+      bucketTimestamp = d.toISOString();
+    }
+
+    // Last point in each bucket wins (rawPoints is chronological)
+    buckets.set(bucketKey, { value: point.value, timestamp: bucketTimestamp });
   }
 
-  // Too many points — sample evenly, always keeping first and last
-  const sampled: SparklinePoint[] = [];
-  const step = (rawPoints.length - 1) / (maxPoints - 1);
-  for (let i = 0; i < maxPoints; i++) {
-    const idx = Math.round(i * step);
-    sampled.push(rawPoints[idx]);
+  const bucketed = Array.from(buckets.values());
+
+  // Always keep the very first point (creation point)
+  const firstRaw = rawPoints[0];
+  if (bucketed.length === 0 || bucketed[0].timestamp !== firstRaw.timestamp) {
+    bucketed.unshift(firstRaw);
   }
-  sparklineCache.set(counterId, sampled);
-  return sampled;
+
+  // Always include a trailing point for the current value
+  const lastValue = rawPoints[rawPoints.length - 1].value;
+  const lastBucketed = bucketed[bucketed.length - 1];
+  if (lastBucketed.value !== lastValue || bucketed.length === 1) {
+    bucketed.push({
+      value: lastValue,
+      timestamp: new Date(now).toISOString(),
+    });
+  }
+
+  sparklineCache.set(counterId, bucketed);
+  return bucketed;
 }

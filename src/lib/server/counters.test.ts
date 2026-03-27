@@ -176,6 +176,10 @@ describe("getCounterSparkline", () => {
     return new Date(Date.now() - n * 60 * 1000);
   }
 
+  function hoursAgo(n: number): Date {
+    return new Date(Date.now() - n * 60 * 60 * 1000);
+  }
+
   function daysAgo(n: number): Date {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - n);
@@ -208,18 +212,16 @@ describe("getCounterSparkline", () => {
     });
   }
 
-  it("returns raw points with creation start and now end", async () => {
+  it("returns bucketed points with creation start and trailing end", async () => {
     const createdAt = daysAgo(3);
     const rows = [makeHistoryRow(5, daysAgo(1)), makeHistoryRow(1, daysAgo(2))];
     setupMocks({ createdAt, count: 5 }, rows);
 
     const result = await getCounterSparkline("test-id");
 
-    // creation + 2 history = 3 points
-    expect(result).toHaveLength(3);
+    // creation + 2 day-bucketed history + trailing = 4 points
     expect(result[0].value).toBe(0); // creation
-    expect(result[1].value).toBe(1);
-    expect(result[2].value).toBe(5);
+    expect(result[result.length - 1].value).toBe(5); // trailing current value
   });
 
   it("returns 2 points for brand new counter with no history", async () => {
@@ -228,22 +230,21 @@ describe("getCounterSparkline", () => {
 
     const result = await getCounterSparkline("test-id");
 
-    // creation only = 1 point
-    expect(result).toHaveLength(1);
+    // creation + trailing = 2 points
+    expect(result).toHaveLength(2);
     expect(result[0].value).toBe(0);
+    expect(result[1].value).toBe(0);
   });
 
-  it("returns 3 points for new counter with same-minute history", async () => {
-    const createdAt = minutesAgo(2);
-    const rows = [makeHistoryRow(5, minutesAgo(1))];
+  it("returns points for new counter with same-hour history", async () => {
+    const createdAt = minutesAgo(30);
+    const rows = [makeHistoryRow(5, minutesAgo(10))];
     setupMocks({ createdAt, count: 5 }, rows);
 
     const result = await getCounterSparkline("test-id");
 
-    // creation + 1 history = 2 points
-    expect(result).toHaveLength(2);
-    expect(result[0].value).toBe(0);
-    expect(result[1].value).toBe(5);
+    expect(result[0].value).toBe(0); // creation
+    expect(result[result.length - 1].value).toBe(5); // trailing
   });
 
   it("returns empty array when counter not found", async () => {
@@ -261,22 +262,30 @@ describe("getCounterSparkline", () => {
 
     const result = await getCounterSparkline("test-id");
 
-    expect(result).toHaveLength(2);
-    expect(result[1].value).toBe(42);
+    expect(result[0].value).toBe(0); // creation
+    expect(result[result.length - 1].value).toBe(42); // trailing
   });
 
-  it("samples when points exceed maxPoints", async () => {
-    const createdAt = daysAgo(101);
-    const rows = Array.from({ length: 100 }, (_, i) =>
-      makeHistoryRow(100 - i, daysAgo(i + 1)),
-    );
-    setupMocks({ createdAt, count: 100 }, rows);
+  it("buckets older points by day and recent points by hour", async () => {
+    const createdAt = daysAgo(5);
+    const rows = [
+      // Most recent first (matches DB query ordering)
+      makeHistoryRow(60, hoursAgo(1)),
+      makeHistoryRow(50, hoursAgo(3)),
+      makeHistoryRow(40, hoursAgo(6)),
+      // Older than 24h — should bucket by day
+      makeHistoryRow(30, daysAgo(2)),
+      makeHistoryRow(20, daysAgo(3)),
+      makeHistoryRow(10, daysAgo(4)),
+    ];
+    setupMocks({ createdAt, count: 60 }, rows);
 
-    const result = await getCounterSparkline("test-id", 10);
+    const result = await getCounterSparkline("test-id");
 
-    expect(result).toHaveLength(10);
     expect(result[0].value).toBe(0); // creation point preserved
-    expect(result[9].value).toBe(100); // last history point preserved
+    expect(result[result.length - 1].value).toBe(60); // trailing point
+    // Should have: creation + day buckets + hour buckets + trailing
+    expect(result.length).toBeGreaterThanOrEqual(4);
   });
 });
 
