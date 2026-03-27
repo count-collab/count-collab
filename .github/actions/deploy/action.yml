@@ -140,7 +140,7 @@ runs:
                   condition: service_healthy
               networks:
                 - ${{ inputs.container-name }}
-              command: bun run db:push
+              command: bun run db:migrate
               profiles:
                 - ""
 
