@@ -9,7 +9,7 @@
     visible: boolean;
   }
 
-  const digits = $derived(String(value).split(""));
+  const digits = $derived(value.toLocaleString("en-US").split(""));
   let prevLength = -1;
   let prevDigits: string[] = [];
   let displayEntries: DigitEntry[] = $state([]);
@@ -83,25 +83,29 @@
   }
 </script>
 
-<span class="rolling-number" aria-label={String(value)}>
+<span class="rolling-number" aria-label={value.toLocaleString("en-US")}>
   {#each displayEntries as entry, i (displayEntries.length - i)}
     <span
-      class="rolling-digit-slot"
+      class={/\d/.test(entry.digit) || entry.digit === "" ? "rolling-digit-slot" : "rolling-separator"}
       in:slideWidth={{ duration: slideDuration }}
       out:slideWidth={{ duration: slideDuration }}
       animate:flip={{ duration, easing: cubicOut }}
     >
-      {#if entry.visible}
-        {#key entry.digit}
-          <span
-            class="rolling-digit"
-            aria-hidden="true"
-            in:digitIn={{ index: i }}
-            out:digitOut={{ index: i }}
-          >
-            {entry.digit}
-          </span>
-        {/key}
+      {#if /\d/.test(entry.digit) || entry.digit === ""}
+        {#if entry.visible}
+          {#key entry.digit}
+            <span
+              class="rolling-digit"
+              aria-hidden="true"
+              in:digitIn={{ index: i }}
+              out:digitOut={{ index: i }}
+            >
+              {entry.digit}
+            </span>
+          {/key}
+        {/if}
+      {:else}
+        <span aria-hidden="true">{entry.digit}</span>
       {/if}
     </span>
   {/each}
@@ -129,5 +133,12 @@
     position: absolute;
     inset: 0;
     text-align: center;
+  }
+
+  .rolling-separator {
+    display: inline-block;
+    width: 0.5ch;
+    text-align: center;
+    line-height: 1;
   }
 </style>
