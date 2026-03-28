@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
   import type { Counter } from "$lib/db/schema";
+  import RollingNumber from "./RollingNumber.svelte";
   import Sparkline from "./Sparkline.svelte";
 
   type Props = {
@@ -48,9 +49,9 @@
   {/if}
 
   <span
-    class="relative text-3xl font-extrabold bg-gradient-to-br from-blue-600 to-indigo-500 bg-clip-text text-transparent mb-1"
+    class="relative text-3xl font-extrabold text-blue-600 mb-1"
   >
-    {counter.count.toLocaleString()}
+    <RollingNumber value={counter.count} />
   </span>
   <span class="relative font-semibold text-slate-900 truncate">{counter.title}</span>
   <span class="relative text-sm text-slate-500 mt-0.5 truncate min-h-5"
