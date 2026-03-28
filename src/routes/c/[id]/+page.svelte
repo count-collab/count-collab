@@ -402,7 +402,8 @@
         >
       {/if}
       <span class="text-xs text-slate-400">
-        Updated {new Date(displayUpdatedAt).toLocaleString()}
+        Created {new Date(data.counter.createdAt).toLocaleDateString()}
+        · Updated {new Date(displayUpdatedAt).toLocaleString()}
       </span>
     </div>
   </header>
