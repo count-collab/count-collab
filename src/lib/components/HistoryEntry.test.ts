@@ -1,12 +1,21 @@
 import { render } from "@testing-library/svelte";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import HistoryEntry from "./HistoryEntry.svelte";
 
 describe("HistoryEntry", () => {
+  beforeAll(() => {
+    Element.prototype.animate = vi.fn().mockReturnValue({
+      onfinish: null,
+      cancel: vi.fn(),
+      finished: Promise.resolve(),
+    });
+  });
   function getText(props: {
     username: string | null;
     newValue: number;
+    previousValue: number;
     changedAt: Date;
+    index: number;
   }) {
     const { container } = render(HistoryEntry, { props });
     return container.textContent?.replace(/\s+/g, " ").trim() ?? "";
@@ -16,7 +25,9 @@ describe("HistoryEntry", () => {
     const text = getText({
       username: "alice",
       newValue: 2,
+      previousValue: 1,
       changedAt: new Date(),
+      index: 0,
     });
     expect(text).toContain("alice");
   });
@@ -25,7 +36,9 @@ describe("HistoryEntry", () => {
     const text = getText({
       username: null,
       newValue: 2,
+      previousValue: 1,
       changedAt: new Date(),
+      index: 0,
     });
     expect(text).toContain("Someone");
   });
@@ -34,15 +47,45 @@ describe("HistoryEntry", () => {
     const text = getText({
       username: "alice",
       newValue: 42,
+      previousValue: 41,
       changedAt: new Date(),
+      index: 0,
     });
     expect(text).toContain("42");
+  });
+
+  it("shows positive delta with + prefix", () => {
+    const text = getText({
+      username: "alice",
+      newValue: 5,
+      previousValue: 3,
+      changedAt: new Date(),
+      index: 0,
+    });
+    expect(text).toContain("+2");
+  });
+
+  it("shows negative delta", () => {
+    const text = getText({
+      username: "alice",
+      newValue: 3,
+      previousValue: 5,
+      changedAt: new Date(),
+      index: 0,
+    });
+    expect(text).toContain("-2");
   });
 
   it("shows time only (HH:MM) for today's entries", () => {
     const now = new Date();
     now.setHours(16, 20, 8);
-    const text = getText({ username: "alice", newValue: 2, changedAt: now });
+    const text = getText({
+      username: "alice",
+      newValue: 2,
+      previousValue: 1,
+      changedAt: now,
+      index: 0,
+    });
     expect(text).toContain("@ 16:20");
     // Should NOT contain a date part for today
     const dateStr = `${now.getDate()}.${now.getMonth() + 1}.`;
@@ -58,7 +101,9 @@ describe("HistoryEntry", () => {
     const text = getText({
       username: "bob",
       newValue: 5,
+      previousValue: 4,
       changedAt: yesterday,
+      index: 0,
     });
     expect(text).toContain("@ 09:05 18.3.26");
 
@@ -70,7 +115,13 @@ describe("HistoryEntry", () => {
     vi.setSystemTime(new Date(2026, 2, 19, 14, 0, 0));
 
     const early = new Date(2026, 0, 1, 3, 7, 0);
-    const text = getText({ username: "alice", newValue: 10, changedAt: early });
+    const text = getText({
+      username: "alice",
+      newValue: 10,
+      previousValue: 9,
+      changedAt: early,
+      index: 0,
+    });
     expect(text).toContain("03:07");
 
     vi.useRealTimers();
@@ -81,7 +132,13 @@ describe("HistoryEntry", () => {
     vi.setSystemTime(new Date(2026, 2, 19, 14, 0, 0));
 
     const midnight = new Date(2026, 2, 19, 0, 0, 0);
-    const text = getText({ username: null, newValue: 1, changedAt: midnight });
+    const text = getText({
+      username: null,
+      newValue: 1,
+      previousValue: 0,
+      changedAt: midnight,
+      index: 0,
+    });
     expect(text).toContain("Someone");
     expect(text).toContain("@ 00:00");
 
@@ -96,7 +153,9 @@ describe("HistoryEntry", () => {
     const text = getText({
       username: "alice",
       newValue: 100,
+      previousValue: 99,
       changedAt: oldEntry,
+      index: 0,
     });
     expect(text).toContain("23:59 31.12.25");
 

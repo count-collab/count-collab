@@ -189,7 +189,7 @@ export type CounterHistoryWithUser = {
 
 export async function getCounterHistory(
   counterId: string,
-  limit = 10,
+  limit = 20,
 ): Promise<CounterHistoryWithUser[]> {
   const rows = await db
     .select({
