@@ -1,4 +1,5 @@
 import {
+  getGlobalCounterSum,
   getUserCounters,
   listPublicCounters,
   listRecentlyCreatedCounters,
@@ -13,20 +14,27 @@ export const load: PageServerLoad = async ({ depends, parent }) => {
   const { session } = await parent();
   const userId = session?.user?.id;
 
-  const [popularResult, userResult, recentlyCreated, recentlyUpdated] =
-    await Promise.all([
-      listPublicCounters(12),
-      userId
-        ? getUserCounters(userId, 6)
-        : Promise.resolve({ items: [], total: 0 }),
-      listRecentlyCreatedCounters(),
-      listRecentlyUpdatedCounters(),
-    ]);
+  const [
+    popularResult,
+    userResult,
+    recentlyCreated,
+    recentlyUpdated,
+    globalSum,
+  ] = await Promise.all([
+    listPublicCounters(12),
+    userId
+      ? getUserCounters(userId, 6)
+      : Promise.resolve({ items: [], total: 0 }),
+    listRecentlyCreatedCounters(),
+    listRecentlyUpdatedCounters(),
+    getGlobalCounterSum(),
+  ]);
 
   return {
     popularCounters: popularResult.items,
     userCounters: userResult.items,
     recentlyCreated,
     recentlyUpdated,
+    globalSum,
   };
 };

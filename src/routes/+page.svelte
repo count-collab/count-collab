@@ -3,6 +3,7 @@
   import { invalidate } from "$app/navigation";
   import CounterCard from "$lib/components/CounterCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
   import type { PageData } from "./$types";
 
@@ -93,7 +94,14 @@
       No sign-up required.
     </p>
 
-    <div class="hero-stagger mt-8 flex flex-wrap gap-4 justify-center" style="animation-delay: 300ms">
+    <div class="hero-stagger mt-10 flex flex-col items-center gap-1" style="animation-delay: 250ms">
+      <p class="text-5xl sm:text-7xl font-extrabold text-blue-600">
+        <RollingNumber value={data.globalSum} />
+      </p>
+      
+    </div>
+
+    <div class="hero-stagger mt-8 flex flex-wrap gap-4 justify-center" style="animation-delay: 350ms">
       <a
         href="/create"
         class="group inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-white font-semibold shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"

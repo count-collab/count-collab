@@ -387,3 +387,10 @@ export async function getCounterSparkline(
   sparklineCache.set(counterId, points);
   return points;
 }
+
+export async function getGlobalCounterSum(): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<string>`COALESCE(SUM(${countersTable.count}), 0)` })
+    .from(countersTable);
+  return Number(row.total);
+}
