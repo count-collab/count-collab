@@ -66,6 +66,9 @@ jobs:
     runs-on: self-hosted
     needs: docker-build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: ${{ vars.ENVIRONMENT_URL }}
 
     steps:
       - uses: actions/checkout@v4
