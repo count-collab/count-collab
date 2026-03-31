@@ -54,4 +54,4 @@ jobs:
 
           # Auto-merge the PR
           PR=$(gh pr list --head "$BRANCH" --base develop --json number --jq '.[0].number')
-          gh pr merge "$PR" --merge --auto
+          gh pr merge "$PR" --squash --auto
