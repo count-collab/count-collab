@@ -26,7 +26,6 @@ mockWhere.mockReturnValue({ orderBy: mockOrderBy });
 mockOrderBy.mockReturnValue({ limit: mockLimit });
 
 import {
-  generateShareToken,
   getCounterSparkline,
   getGlobalCounterSum,
   listRecentlyCreatedCounters,
