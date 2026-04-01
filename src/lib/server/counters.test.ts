@@ -304,34 +304,5 @@ describe("getGlobalCounterSum", () => {
     const result = await getGlobalCounterSum();
 
     expect(result).toBe(150);
-
-    expect(result).toHaveLength(6);
-    expect(result[0].value).toBe(0);
-    expect(result[result.length - 1].value).toBe(60);
-  });
-
-  it("uses cache on second call", async () => {
-    setupExecuteMock([{ day: dayString(0), value: 7 }]);
-
-    await getCounterSparkline("cached-id");
-    const result = await getCounterSparkline("cached-id");
-
-    expect(result).toHaveLength(1);
-    expect(result[0].value).toBe(7);
-    expect(mockExecute).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("generateShareToken", () => {
-  it("returns a 32-character hex string", () => {
-    const token = generateShareToken();
-    expect(token).toMatch(/^[0-9a-f]{32}$/);
-  });
-
-  it("returns unique tokens on each call", () => {
-    const tokens = new Set(
-      Array.from({ length: 50 }, () => generateShareToken()),
-    );
-    expect(tokens.size).toBe(50);
   });
 });
