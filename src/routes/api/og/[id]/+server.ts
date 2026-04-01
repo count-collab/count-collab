@@ -34,7 +34,7 @@ function loadBoldFont(): ArrayBuffer {
 }
 
 function formatCount(count: number): string {
-  return String(count);
+  return count.toLocaleString("en-US");
 }
 
 export const GET: RequestHandler = async ({ params }) => {

@@ -26,8 +26,8 @@ mockWhere.mockReturnValue({ orderBy: mockOrderBy });
 mockOrderBy.mockReturnValue({ limit: mockLimit });
 
 import {
-  generateShareToken,
   getCounterSparkline,
+  getGlobalCounterSum,
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
   sparklineCache,
@@ -273,16 +273,35 @@ describe("getCounterSparkline", () => {
   });
 });
 
-describe("generateShareToken", () => {
-  it("returns a 32-character hex string", () => {
-    const token = generateShareToken();
-    expect(token).toMatch(/^[0-9a-f]{32}$/);
+describe("getGlobalCounterSum", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSelect.mockReturnValue({ from: mockFrom });
   });
 
-  it("returns unique tokens on each call", () => {
-    const tokens = new Set(
-      Array.from({ length: 50 }, () => generateShareToken()),
-    );
-    expect(tokens.size).toBe(50);
+  it("returns 0 when no counters exist", async () => {
+    mockFrom.mockResolvedValue([{ total: "0" }]);
+
+    const result = await getGlobalCounterSum();
+
+    expect(result).toBe(0);
+    expect(mockSelect).toHaveBeenCalledOnce();
+    expect(mockFrom).toHaveBeenCalledOnce();
+  });
+
+  it("returns correct sum when counters exist", async () => {
+    mockFrom.mockResolvedValue([{ total: "42" }]);
+
+    const result = await getGlobalCounterSum();
+
+    expect(result).toBe(42);
+  });
+
+  it("returns correct sum with multiple counters", async () => {
+    mockFrom.mockResolvedValue([{ total: "150" }]);
+
+    const result = await getGlobalCounterSum();
+
+    expect(result).toBe(150);
   });
 });

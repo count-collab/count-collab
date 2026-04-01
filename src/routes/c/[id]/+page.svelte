@@ -18,6 +18,15 @@
   let isIncrementing = $state(false);
   let fireworkTrigger = $state(0);
 
+  // History toggle state
+  const COLLAPSED_HISTORY_COUNT = 5;
+  let historyExpanded = $state(false);
+  const visibleHistory = $derived(
+    historyExpanded
+      ? data.history
+      : data.history.slice(0, COLLAPSED_HISTORY_COUNT),
+  );
+
   // Edit modal state
   let showEditModal = $state(false);
   let editTitle = $state("");
@@ -402,7 +411,8 @@
         >
       {/if}
       <span class="text-xs text-slate-400">
-        Updated {new Date(displayUpdatedAt).toLocaleString()}
+        Created {new Date(data.counter.createdAt).toLocaleDateString()}
+        · Updated {new Date(displayUpdatedAt).toLocaleString()}
       </span>
     </div>
   </header>
@@ -450,14 +460,27 @@
         Recent activity
       </h2>
       <ol class="flex flex-wrap gap-x-4 gap-y-1">
-        {#each data.history as entry (entry.id)}
+        {#each visibleHistory as entry, i (entry.id)}
           <HistoryEntry
             username={entry.username}
             newValue={entry.newValue}
+            previousValue={entry.previousValue}
             changedAt={entry.changedAt}
+            index={i}
           />
         {/each}
       </ol>
+      {#if data.history.length > COLLAPSED_HISTORY_COUNT}
+        <button
+          type="button"
+          onclick={() => (historyExpanded = !historyExpanded)}
+          class="mt-2 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+        >
+          {historyExpanded
+            ? "Show less"
+            : `Show all ${data.history.length} entries`}
+        </button>
+      {/if}
     </footer>
   {/if}
 </div>

@@ -50,6 +50,9 @@ jobs:
     runs-on: self-hosted
     needs: docker-build
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    environment:
+      name: development
+      url: ${{ vars.ENVIRONMENT_URL }}
 
     steps:
       - uses: actions/checkout@v4
