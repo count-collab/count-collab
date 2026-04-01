@@ -304,6 +304,21 @@ describe("getGlobalCounterSum", () => {
     const result = await getGlobalCounterSum();
 
     expect(result).toBe(150);
+
+    expect(result).toHaveLength(6);
+    expect(result[0].value).toBe(0);
+    expect(result[result.length - 1].value).toBe(60);
+  });
+
+  it("uses cache on second call", async () => {
+    setupExecuteMock([{ day: dayString(0), value: 7 }]);
+
+    await getCounterSparkline("cached-id");
+    const result = await getCounterSparkline("cached-id");
+
+    expect(result).toHaveLength(1);
+    expect(result[0].value).toBe(7);
+    expect(mockExecute).toHaveBeenCalledTimes(1);
   });
 });
 
