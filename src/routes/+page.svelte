@@ -99,7 +99,7 @@
         <RollingNumber value={data.globalSum} />
       </p>
       <p class="text-base text-slate-500">
-        across <span class="font-semibold text-slate-700"><RollingNumber value={data.counterCount} /></span> counters
+        across <span class="font-semibold"><RollingNumber value={data.counterCount} /></span> counters
       </p>
     </div>
 
