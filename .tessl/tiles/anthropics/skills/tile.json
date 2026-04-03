@@ -1,0 +1,31 @@
+{
+  "name": "anthropics/skills",
+  "version": "98669c11ca63e9c81c11501e1437e5c47b556621",
+  "summary": "Auto-generated tile from GitHub (17 skills)",
+  "private": true,
+  "skills": {
+    "frontend-design": {
+      "path": "skills/frontend-design/SKILL.md"
+    }
+  },
+  "excludes": {
+    "skills": [
+      "algorithmic-art",
+      "brand-guidelines",
+      "canvas-design",
+      "claude-api",
+      "doc-coauthoring",
+      "docx",
+      "internal-comms",
+      "mcp-builder",
+      "pdf",
+      "pptx",
+      "skill-creator",
+      "slack-gif-creator",
+      "theme-factory",
+      "web-artifacts-builder",
+      "webapp-testing",
+      "xlsx"
+    ]
+  }
+}
