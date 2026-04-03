@@ -16,7 +16,7 @@ vi.mock("$app/stores", async () => {
 
 // Mock stores
 vi.mock("$lib/stores/counters", () => ({
-  onCounterUpdated: vi.fn(() => () => {}),
+  onCounterUpdated: vi.fn(() => () => { }),
 }));
 vi.mock("$lib/stores/ratelimit", async () => {
   const { readable } = await import("svelte/store");
@@ -188,6 +188,48 @@ describe("Counter detail page", () => {
 
     expect(screen.getByText("alice")).toBeTruthy();
     expect(screen.getAllByText("Incrementer").length).toBeGreaterThan(0);
+  });
+
+  it("closes the share modal when Escape is pressed", async () => {
+    render(Page, {
+      props: { data: makePageData({ canManage: true }) as never },
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Share" }));
+
+    expect(screen.getByRole("dialog", { name: "Share Counter" })).toBeTruthy();
+
+    await fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Share Counter" })).toBeNull();
+  });
+
+  it("closes the edit modal when Escape is pressed", async () => {
+    render(Page, {
+      props: { data: makePageData({ canEdit: true }) as never },
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+    expect(screen.getByRole("dialog", { name: "Edit Counter" })).toBeTruthy();
+
+    await fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Edit Counter" })).toBeNull();
+  });
+
+  it("closes the delete confirmation modal when Escape is pressed", async () => {
+    render(Page, {
+      props: { data: makePageData({ canDelete: true }) as never },
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(screen.getByRole("dialog", { name: "Delete Counter?" })).toBeTruthy();
+
+    await fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: "Delete Counter?" })).toBeNull();
   });
 
   it("shows Owner tag when user is owner", () => {

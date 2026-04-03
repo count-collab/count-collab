@@ -90,6 +90,39 @@
   // Actions dropdown state
   let showActionsMenu = $state(false);
 
+  function closeShareModal() {
+    showShareModal = false;
+  }
+
+  function closeEditModal() {
+    showEditModal = false;
+  }
+
+  function closeDeleteConfirm() {
+    showDeleteConfirm = false;
+  }
+
+  function closeActiveModal() {
+    if (showDeleteConfirm) {
+      closeDeleteConfirm();
+      return;
+    }
+
+    if (showEditModal) {
+      closeEditModal();
+      return;
+    }
+
+    if (showShareModal) {
+      closeShareModal();
+    }
+  }
+
+  function handleModalKeydown(event: KeyboardEvent) {
+    if (event.key !== "Escape") return;
+    closeActiveModal();
+  }
+
   const shareUrl = $derived.by(() => {
     const base = browser
       ? `${window.location.origin}/c/${data.counter.id}`
@@ -314,6 +347,8 @@
   path="/c/{data.counter.id}"
   image="/api/og/{data.counter.id}"
 />
+
+<svelte:window onkeydown={handleModalKeydown} />
 
 <div class="flex flex-col min-h-[calc(100vh-8rem)]">
   <!-- Header bar -->
@@ -540,16 +575,19 @@
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     role="dialog"
-    aria-label="Share counter"
+    aria-modal="true"
+    aria-labelledby="share-counter-title"
   >
     <div
       class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 space-y-5"
     >
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-bold text-slate-900">Share Counter</h2>
+        <h2 id="share-counter-title" class="text-xl font-bold text-slate-900">
+          Share Counter
+        </h2>
         <button
           type="button"
-          onclick={() => (showShareModal = false)}
+          onclick={closeShareModal}
           class="text-slate-400 hover:text-slate-600"
           aria-label="Close"
         >
@@ -712,7 +750,7 @@
       <div class="flex justify-end pt-2">
         <button
           type="button"
-          onclick={() => (showShareModal = false)}
+          onclick={closeShareModal}
           class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
         >
           Done
@@ -727,11 +765,15 @@
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     role="dialog"
+    aria-modal="true"
+    aria-labelledby="edit-counter-title"
   >
     <div
       class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 space-y-4"
     >
-      <h2 class="text-xl font-bold text-slate-900">Edit Counter</h2>
+      <h2 id="edit-counter-title" class="text-xl font-bold text-slate-900">
+        Edit Counter
+      </h2>
 
       <div class="space-y-2">
         <label
@@ -791,7 +833,7 @@
       <div class="flex justify-end gap-3">
         <button
           type="button"
-          onclick={() => (showEditModal = false)}
+          onclick={closeEditModal}
           class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
         >
           Cancel
@@ -814,19 +856,24 @@
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     role="dialog"
+    aria-modal="true"
+    aria-labelledby="delete-counter-title"
+    aria-describedby="delete-counter-description"
   >
     <div
       class="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 p-6 space-y-4"
     >
-      <h2 class="text-xl font-bold text-slate-900">Delete Counter?</h2>
-      <p class="text-slate-600">
+      <h2 id="delete-counter-title" class="text-xl font-bold text-slate-900">
+        Delete Counter?
+      </h2>
+      <p id="delete-counter-description" class="text-slate-600">
         This action cannot be undone. The counter and its history will be
         permanently deleted.
       </p>
       <div class="flex justify-end gap-3">
         <button
           type="button"
-          onclick={() => (showDeleteConfirm = false)}
+          onclick={closeDeleteConfirm}
           class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
         >
           Cancel
