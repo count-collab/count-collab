@@ -41,7 +41,6 @@ mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
 
 import {
   createCounter,
-  generateShareToken,
   getCounterSparkline,
   getGlobalCounterSum,
   listRecentlyCreatedCounters,
