@@ -41,8 +41,10 @@ mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
 
 import {
   createCounter,
+  getCounterCount,
   getCounterSparkline,
   getGlobalCounterSum,
+  listAllCounters,
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
   sparklineCache,
@@ -395,5 +397,114 @@ describe("getGlobalCounterSum", () => {
     const result = await getGlobalCounterSum();
 
     expect(result).toBe(150);
+  });
+});
+
+describe("listAllCounters", () => {
+  const mockLeftJoin = vi.fn();
+  const mockOffset = vi.fn();
+  const mockCountFrom = vi.fn();
+  const mockCountWhere = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Main query chain: select().from().leftJoin().where().orderBy().limit().offset()
+    mockSelect.mockReturnValueOnce({ from: mockFrom });
+    mockFrom.mockReturnValue({ leftJoin: mockLeftJoin });
+    mockLeftJoin.mockReturnValue({ where: mockWhere });
+    mockWhere.mockReturnValue({ orderBy: mockOrderBy });
+    mockOrderBy.mockReturnValue({ limit: mockLimit });
+    mockLimit.mockReturnValue({ offset: mockOffset });
+
+    // Count query chain: select().from().where()
+    mockSelect.mockReturnValueOnce({ from: mockCountFrom });
+    mockCountFrom.mockReturnValue({ where: mockCountWhere });
+  });
+
+  it("returns counters with ownerName from username", async () => {
+    const counter = makeCounter({ title: "Test" });
+    mockOffset.mockResolvedValue([
+      { counter, ownerUsername: "johndoe", ownerDisplayName: "John Doe" },
+    ]);
+    mockCountWhere.mockResolvedValue([{ total: 1 }]);
+
+    const result = await listAllCounters();
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].ownerName).toBe("johndoe");
+    expect(result.items[0].title).toBe("Test");
+  });
+
+  it("returns counters with ownerName falling back to display name when username is null", async () => {
+    const counter = makeCounter({ title: "Fallback" });
+    mockOffset.mockResolvedValue([
+      { counter, ownerUsername: null, ownerDisplayName: "John Doe" },
+    ]);
+    mockCountWhere.mockResolvedValue([{ total: 1 }]);
+
+    const result = await listAllCounters();
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].ownerName).toBe("John Doe");
+  });
+
+  it("returns ownerName as null when no owner exists", async () => {
+    const counter = makeCounter({ title: "No Owner" });
+    mockOffset.mockResolvedValue([
+      { counter, ownerUsername: null, ownerDisplayName: null },
+    ]);
+    mockCountWhere.mockResolvedValue([{ total: 1 }]);
+
+    const result = await listAllCounters();
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].ownerName).toBeNull();
+  });
+
+  it("returns the total count", async () => {
+    const counter = makeCounter();
+    mockOffset.mockResolvedValue([
+      { counter, ownerUsername: "user1", ownerDisplayName: null },
+    ]);
+    mockCountWhere.mockResolvedValue([{ total: 42 }]);
+
+    const result = await listAllCounters();
+
+    expect(result.total).toBe(42);
+  });
+});
+
+describe("getCounterCount", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSelect.mockReturnValue({ from: mockFrom });
+  });
+
+  it("returns 0 when no counters exist", async () => {
+    mockFrom.mockResolvedValue([{ count: "0" }]);
+
+    const result = await getCounterCount();
+
+    expect(result).toBe(0);
+    expect(mockSelect).toHaveBeenCalledOnce();
+    expect(mockFrom).toHaveBeenCalledOnce();
+  });
+
+  it("returns correct count when counters exist", async () => {
+    mockFrom.mockResolvedValue([{ count: "5" }]);
+
+    const result = await getCounterCount();
+
+    expect(result).toBe(5);
+  });
+
+  it("returns a number even though the DB returns a string", async () => {
+    mockFrom.mockResolvedValue([{ count: "123" }]);
+
+    const result = await getCounterCount();
+
+    expect(typeof result).toBe("number");
+    expect(result).toBe(123);
   });
 });

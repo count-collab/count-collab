@@ -94,7 +94,7 @@
               {getVisibilityLabel(counter)}
             </span>
           </td>
-          <td class="px-4 py-3 text-slate-600">{counter.ownerId ?? "System"}</td
+          <td class="px-4 py-3 text-slate-600">{counter.ownerName ?? "System"}</td
           >
           <td class="px-4 py-3 text-right whitespace-nowrap">
             <a

@@ -98,7 +98,9 @@
       <p class="text-5xl sm:text-7xl font-extrabold text-blue-600">
         <RollingNumber value={data.globalSum} />
       </p>
-      
+      <p class="text-base text-slate-500">
+        across <span class="font-semibold text-slate-700"><RollingNumber value={data.counterCount} /></span> counters
+      </p>
     </div>
 
     <div class="hero-stagger mt-8 flex flex-wrap gap-4 justify-center" style="animation-delay: 350ms">

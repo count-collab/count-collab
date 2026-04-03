@@ -105,15 +105,15 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-        inArray(countersTable.visibilityMode, publicCounterVisibilityModes),
-        or(
-          ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-          ilike(
-            countersTable.description,
-            `%${escapeLikePattern(searchQuery)}%`,
-          ),
+      inArray(countersTable.visibilityMode, publicCounterVisibilityModes),
+      or(
+        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(
+          countersTable.description,
+          `%${escapeLikePattern(searchQuery)}%`,
         ),
-      )
+      ),
+    )
     : inArray(countersTable.visibilityMode, publicCounterVisibilityModes);
 
   const [items, [{ total }]] = await Promise.all([
@@ -354,25 +354,38 @@ export async function listAllCounters(
   limit = 50,
   query?: string,
   offset = 0,
-): Promise<{ items: Counter[]; total: number }> {
+): Promise<{
+  items: (Counter & { ownerName: string | null })[];
+  total: number;
+}> {
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
-      )
+      ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+      ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
+    )
     : undefined;
 
-  const [items, [{ total }]] = await Promise.all([
+  const [rows, [{ total }]] = await Promise.all([
     db
-      .select()
+      .select({
+        counter: countersTable,
+        ownerUsername: users.username,
+        ownerDisplayName: users.name,
+      })
       .from(countersTable)
+      .leftJoin(users, eq(countersTable.ownerId, users.id))
       .where(whereClause)
       .orderBy(desc(countersTable.updatedAt))
       .limit(limit)
       .offset(offset),
     db.select({ total: countFn() }).from(countersTable).where(whereClause),
   ]);
+
+  const items = rows.map((row) => ({
+    ...row.counter,
+    ownerName: row.ownerUsername ?? row.ownerDisplayName ?? null,
+  }));
 
   return { items, total: Number(total) };
 }
@@ -434,4 +447,11 @@ export async function getGlobalCounterSum(): Promise<number> {
     .select({ total: sql<string>`COALESCE(SUM(${countersTable.count}), 0)` })
     .from(countersTable);
   return Number(row.total);
+}
+
+export async function getCounterCount(): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<string>`COUNT(*)` })
+    .from(countersTable);
+  return Number(row.count);
 }

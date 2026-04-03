@@ -1,4 +1,5 @@
 import {
+  getCounterCount,
   getGlobalCounterSum,
   getUserCounters,
   listPublicCounters,
@@ -20,6 +21,7 @@ export const load: PageServerLoad = async ({ depends, parent }) => {
     recentlyCreated,
     recentlyUpdated,
     globalSum,
+    counterCount,
   ] = await Promise.all([
     listPublicCounters(12),
     userId
@@ -28,6 +30,7 @@ export const load: PageServerLoad = async ({ depends, parent }) => {
     listRecentlyCreatedCounters(),
     listRecentlyUpdatedCounters(),
     getGlobalCounterSum(),
+    getCounterCount(),
   ]);
 
   return {
@@ -36,5 +39,6 @@ export const load: PageServerLoad = async ({ depends, parent }) => {
     recentlyCreated,
     recentlyUpdated,
     globalSum,
+    counterCount,
   };
 };
