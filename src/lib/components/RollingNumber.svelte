@@ -115,6 +115,7 @@
   .rolling-number {
     display: inline-flex;
     justify-content: center;
+    vertical-align: middle;
     font-variant-numeric: tabular-nums;
     gap: 0;
   }
