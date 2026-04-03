@@ -16,7 +16,7 @@ vi.mock("$app/stores", async () => {
 
 // Mock stores
 vi.mock("$lib/stores/counters", () => ({
-  onCounterUpdated: vi.fn(() => () => { }),
+  onCounterUpdated: vi.fn(() => () => {}),
 }));
 vi.mock("$lib/stores/ratelimit", async () => {
   const { readable } = await import("svelte/store");
@@ -226,11 +226,15 @@ describe("Counter detail page", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(screen.getByRole("dialog", { name: "Delete Counter?" })).toBeTruthy();
+    expect(
+      screen.getByRole("dialog", { name: "Delete Counter?" }),
+    ).toBeTruthy();
 
     await fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByRole("dialog", { name: "Delete Counter?" })).toBeNull();
+    expect(
+      screen.queryByRole("dialog", { name: "Delete Counter?" }),
+    ).toBeNull();
   });
 
   it("shows Owner tag when user is owner", () => {
