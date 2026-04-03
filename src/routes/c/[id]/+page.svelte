@@ -489,7 +489,7 @@
         visibilityBadgeClasses={visibilityBadgeClasses}
       />
       <span class="text-xs text-slate-400">
-        Created {new Date(data.counter.createdAt).toLocaleDateString()}
+        Created {#if data.ownerUsername}by <span class="font-medium text-slate-500">@{data.ownerUsername}</span> · {/if} {new Date(data.counter.createdAt).toLocaleDateString()}
         · Updated {new Date(displayUpdatedAt).toLocaleString()}
       </span>
     </div>

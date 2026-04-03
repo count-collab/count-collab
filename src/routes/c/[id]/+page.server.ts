@@ -1,4 +1,7 @@
 import { error } from "@sveltejs/kit";
+import { eq } from "drizzle-orm";
+import { db } from "$lib/db";
+import { users } from "$lib/db/schema";
 import {
   canDeleteCounter,
   canEditCounter,
@@ -78,6 +81,15 @@ export const load: PageServerLoad = async ({
   const isOwner = userId ? counter.ownerId === userId : false;
   const members = canManage ? await getCounterMembers(counter.id) : [];
 
+  let ownerUsername: string | null = null;
+  if (counter.ownerId) {
+    const ownerResult = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, counter.ownerId));
+    ownerUsername = ownerResult[0]?.username ?? null;
+  }
+
   depends(`counter:${params.id}`);
 
   return {
@@ -88,6 +100,7 @@ export const load: PageServerLoad = async ({
     canManage,
     canIncrement,
     isOwner,
+    ownerUsername,
     members,
     // Only expose the share token to users who can manage the counter
     shareToken: canManage ? (counter.shareToken ?? null) : null,

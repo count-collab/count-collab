@@ -54,6 +54,7 @@ function makePageData(overrides: Record<string, unknown> = {}) {
     canManage: false,
     canIncrement: true,
     isOwner: false,
+    ownerUsername: null,
     members: [],
     shareToken: null,
     hasValidToken: false,
@@ -87,7 +88,7 @@ describe("Counter detail page", () => {
     const expectedDate = new Date(
       "2025-06-15T10:30:00.000Z",
     ).toLocaleDateString();
-    expect(text).toContain(`Created ${expectedDate}`);
+    expect(text).toContain(`Created  ${expectedDate}`);
   });
 
   it("displays the updated-at datetime", () => {
@@ -244,5 +245,21 @@ describe("Counter detail page", () => {
       props: { data: makePageData({ isOwner: false }) as never },
     });
     expect(container.textContent).not.toContain("Owner");
+  });
+
+  it("displays owner username when ownerUsername is provided", () => {
+    const { container } = render(Page, {
+      props: { data: makePageData({ ownerUsername: "janedoe" }) as never },
+    });
+    expect(container.textContent).toContain("by");
+    expect(container.textContent).toContain("@janedoe");
+  });
+
+  it("does not display owner attribution when ownerUsername is null", () => {
+    const { container } = render(Page, {
+      props: { data: makePageData({ ownerUsername: null }) as never },
+    });
+    expect(container.textContent).not.toContain("by");
+    expect(container.textContent).not.toContain("@");
   });
 });
