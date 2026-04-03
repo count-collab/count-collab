@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
-  import type { Counter } from "$lib/db/schema";
+  import CounterBadges from "$lib/components/CounterBadges.svelte";
+  import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
   import RollingNumber from "./RollingNumber.svelte";
   import Sparkline from "./Sparkline.svelte";
 
@@ -10,9 +11,20 @@
   };
 
   const { counter, showBadges = false }: Props = $props();
+  const visibilityBadgeClasses: Record<CounterVisibilityMode, string> = {
+    public: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60",
+    public_readonly: "bg-amber-50 text-amber-700 ring-1 ring-amber-200/70",
+    private: "bg-slate-50 text-slate-500 ring-1 ring-slate-200/60",
+  };
 
   let activateTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
   let isActive = $state(false);
+
+  function getVisibilityMode(counter: Counter): CounterVisibilityMode {
+    return counter.visibilityMode ?? (counter.isPublic ? "public" : "private");
+  }
+
+  const visibilityMode = $derived(getVisibilityMode(counter));
 
   function activate() {
     if (isActive) return;
@@ -58,25 +70,13 @@
     >{counter.description ?? ""}</span
   >
   {#if showBadges}
-    <div class="relative flex gap-1.5 mt-2">
-      <span
-        class="text-xs font-medium px-2 py-0.5 rounded-full {counter.isPublic
-          ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60'
-          : 'bg-slate-50 text-slate-500 ring-1 ring-slate-200/60'}"
-      >
-        {counter.isPublic ? "Public" : "Private"}
-      </span>
-      {#if counter.ownerId}
-        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"
-          >Owned</span
-        >
-      {:else}
-        <span
-          class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700"
-          >Shared</span
-        >
-      {/if}
-    </div>
+    <CounterBadges
+      visibilityMode={visibilityMode}
+      ownership={counter.ownerId ? "owner" : "shared"}
+      containerClass="relative flex gap-1.5 mt-2"
+      visibilityBadgeBaseClass="text-xs font-medium px-2 py-0.5 rounded-full"
+      visibilityBadgeClasses={visibilityBadgeClasses}
+    />
   {/if}
 </a>
 

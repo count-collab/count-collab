@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockCreateCounter, mockEmitCounterCreated } = vi.hoisted(() => ({
   mockCreateCounter: vi.fn(),
@@ -45,7 +45,33 @@ function makeLocals(userId: string | null) {
 }
 
 describe("POST /create", () => {
-  it("forces isPublic=true for anonymous users even when visibility is private", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("coerces anonymous public_readonly submissions to public", async () => {
+    mockCreateCounter.mockResolvedValue({ id: "test-id" });
+
+    const request = makeRequest({
+      title: "Read Only Counter",
+      description: "",
+      visibility: "public_readonly",
+    });
+
+    await POST({
+      request,
+      locals: makeLocals(null),
+    } as any);
+
+    expect(mockCreateCounter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visibilityMode: "public",
+        ownerId: null,
+      }),
+    );
+  });
+
+  it("coerces anonymous private submissions to public", async () => {
     mockCreateCounter.mockResolvedValue({ id: "test-id" });
 
     const request = makeRequest({
@@ -61,7 +87,7 @@ describe("POST /create", () => {
 
     expect(mockCreateCounter).toHaveBeenCalledWith(
       expect.objectContaining({
-        isPublic: true,
+        visibilityMode: "public",
         ownerId: null,
       }),
     );
@@ -83,8 +109,30 @@ describe("POST /create", () => {
 
     expect(mockCreateCounter).toHaveBeenCalledWith(
       expect.objectContaining({
-        isPublic: false,
+        visibilityMode: "private",
         ownerId: "user-123",
+      }),
+    );
+  });
+
+  it("allows authenticated users to create public read-only counters", async () => {
+    mockCreateCounter.mockResolvedValue({ id: "test-id" });
+
+    const request = makeRequest({
+      title: "Public Read Only Counter",
+      description: "",
+      visibility: "public_readonly",
+    });
+
+    await POST({
+      request,
+      locals: makeLocals("user-789"),
+    } as any);
+
+    expect(mockCreateCounter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visibilityMode: "public_readonly",
+        ownerId: "user-789",
       }),
     );
   });
@@ -105,7 +153,7 @@ describe("POST /create", () => {
 
     expect(mockCreateCounter).toHaveBeenCalledWith(
       expect.objectContaining({
-        isPublic: true,
+        visibilityMode: "public",
         ownerId: "user-456",
       }),
     );
@@ -127,7 +175,7 @@ describe("POST /create", () => {
 
     expect(mockCreateCounter).toHaveBeenCalledWith(
       expect.objectContaining({
-        isPublic: true,
+        visibilityMode: "public",
         ownerId: null,
       }),
     );

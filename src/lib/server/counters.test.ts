@@ -1,16 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Counter } from "$lib/db/schema";
 
+const mockInsert = vi.fn();
+const mockInsertValues = vi.fn();
+const mockInsertReturning = vi.fn();
 const mockSelect = vi.fn();
 const mockFrom = vi.fn();
 const mockWhere = vi.fn();
 const mockOrderBy = vi.fn();
 const mockLimit = vi.fn();
+const mockUpdate = vi.fn();
+const mockUpdateSet = vi.fn();
+const mockUpdateWhere = vi.fn();
+const mockUpdateReturning = vi.fn();
 const mockExecute = vi.fn();
 
 vi.mock("$lib/db", () => ({
   db: {
+    insert: (...args: unknown[]) => mockInsert(...args),
     select: (...args: unknown[]) => mockSelect(...args),
+    update: (...args: unknown[]) => mockUpdate(...args),
     execute: (...args: unknown[]) => mockExecute(...args),
   },
 }));
@@ -20,17 +29,25 @@ vi.mock("$lib/server/logger", () => ({
 }));
 
 // Chain: db.select().from().where().orderBy().limit()
+mockInsert.mockReturnValue({ values: mockInsertValues });
+mockInsertValues.mockReturnValue({ returning: mockInsertReturning });
 mockSelect.mockReturnValue({ from: mockFrom });
 mockFrom.mockReturnValue({ where: mockWhere });
 mockWhere.mockReturnValue({ orderBy: mockOrderBy });
 mockOrderBy.mockReturnValue({ limit: mockLimit });
+mockUpdate.mockReturnValue({ set: mockUpdateSet });
+mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
+mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
 
 import {
+  createCounter,
+  generateShareToken,
   getCounterSparkline,
   getGlobalCounterSum,
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
   sparklineCache,
+  updateCounter,
 } from "./counters";
 
 function makeCounter(overrides: Partial<Counter> = {}): Counter {
@@ -40,6 +57,7 @@ function makeCounter(overrides: Partial<Counter> = {}): Counter {
     description: null,
     count: 0,
     isPublic: 1,
+    visibilityMode: "public",
     shareToken: null,
     ownerId: null,
     createdAt: new Date(),
@@ -47,6 +65,55 @@ function makeCounter(overrides: Partial<Counter> = {}): Counter {
     ...overrides,
   };
 }
+
+describe("createCounter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInsert.mockReturnValue({ values: mockInsertValues });
+    mockInsertValues.mockReturnValue({ returning: mockInsertReturning });
+  });
+
+  it("stores public_readonly as the canonical visibility mode", async () => {
+    const counter = makeCounter({ visibilityMode: "public_readonly" });
+    mockInsertReturning.mockResolvedValue([counter]);
+
+    const result = await createCounter({
+      title: " Read only counter ",
+      visibilityMode: "public_readonly",
+    });
+
+    expect(result).toEqual(counter);
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Read only counter",
+        isPublic: 1,
+        visibilityMode: "public_readonly",
+        shareToken: null,
+      }),
+    );
+  });
+
+  it("derives private visibility from the legacy isPublic flag", async () => {
+    const counter = makeCounter({
+      isPublic: 0,
+      visibilityMode: "private",
+      shareToken: "private-token",
+    });
+    mockInsertReturning.mockResolvedValue([counter]);
+
+    await createCounter({ title: "Private counter", isPublic: false });
+
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isPublic: 0,
+        visibilityMode: "private",
+      }),
+    );
+    expect(mockInsertValues.mock.calls[0][0].shareToken).toMatch(
+      /^[0-9a-f]{32}$/,
+    );
+  });
+});
 
 describe("listRecentlyCreatedCounters", () => {
   beforeEach(() => {
@@ -166,6 +233,32 @@ describe("listRecentlyUpdatedCounters", () => {
     await listRecentlyUpdatedCounters();
 
     expect(mockLimit).toHaveBeenCalledWith(6);
+  });
+});
+
+describe("updateCounter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdate.mockReturnValue({ set: mockUpdateSet });
+    mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
+    mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
+  });
+
+  it("keeps isPublic in sync when visibilityMode becomes public_readonly", async () => {
+    const counter = makeCounter({ visibilityMode: "public_readonly" });
+    mockUpdateReturning.mockResolvedValue([counter]);
+
+    const result = await updateCounter(counter.id, {
+      visibilityMode: "public_readonly",
+    });
+
+    expect(result).toEqual(counter);
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        isPublic: 1,
+        visibilityMode: "public_readonly",
+      }),
+    );
   });
 });
 

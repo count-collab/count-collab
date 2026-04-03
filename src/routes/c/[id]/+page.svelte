@@ -1,16 +1,60 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
+  import CounterBadges from "$lib/components/CounterBadges.svelte";
   import Fireworks from "$lib/components/Fireworks.svelte";
   import HistoryEntry from "$lib/components/HistoryEntry.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import Sparkline from "$lib/components/Sparkline.svelte";
+  import type { CounterMemberRole, CounterVisibilityMode } from "$lib/db/schema";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
+  const visibilityLabels: Record<CounterVisibilityMode, string> = {
+    public: "Public",
+    public_readonly: "Public",
+    private: "Private",
+  };
+  const visibilityDescriptions: Record<CounterVisibilityMode, string> = {
+    public: "Anyone with the link can view and increment.",
+    public_readonly: "Anyone can view. Only invited members can increment.",
+    private: "Only invited members or people with the private link can access it.",
+  };
+  const visibilityBadgeClasses: Record<CounterVisibilityMode, string> = {
+    public: "bg-emerald-100 text-emerald-700",
+    public_readonly: "bg-amber-100 text-amber-700",
+    private: "bg-slate-100 text-slate-600",
+  };
+  const memberRoleLabels: Record<CounterMemberRole, string> = {
+    viewer: "Viewer",
+    incrementer: "Incrementer",
+    editor: "Editor",
+    admin: "Admin",
+  };
+
+  function getVisibilityMode(): CounterVisibilityMode {
+    return data.counter.visibilityMode ?? (data.counter.isPublic ? "public" : "private");
+  }
+
+  function getRoleLabel(role: string): string {
+    return memberRoleLabels[role as CounterMemberRole] ?? role;
+  }
+
+  const visibilityMode = $derived(getVisibilityMode());
+  const incrementUnavailableMessage = $derived.by(() => {
+    if (data.canIncrement) {
+      return null;
+    }
+
+    if (visibilityMode === "public_readonly") {
+      return visibilityDescriptions.public_readonly;
+    }
+
+    return "You can view this counter, but you can't increment it.";
+  });
 
   let optimisticCount = $state<number | null>(null);
   let optimisticUpdatedAt = $state<string | null>(null);
@@ -31,7 +75,7 @@
   let showEditModal = $state(false);
   let editTitle = $state("");
   let editDescription = $state("");
-  let editVisibility = $state<"public" | "private">("public");
+  let editVisibility = $state<CounterVisibilityMode>("public");
   let editError = $state<string | null>(null);
   let isSaving = $state(false);
 
@@ -68,7 +112,7 @@
 
   // Member invitation state
   let inviteUsername = $state("");
-  let inviteRole = $state<"viewer" | "editor" | "admin">("viewer");
+  let inviteRole = $state<CounterMemberRole>("viewer");
   let inviteError = $state<string | null>(null);
   let inviteSuccess = $state<string | null>(null);
   let isInviting = $state(false);
@@ -80,6 +124,11 @@
 
   async function handleIncrement() {
     if (isIncrementing) return;
+
+    if (!data.canIncrement) {
+      errorMessage = incrementUnavailableMessage;
+      return;
+    }
 
     if ($rateLimit.isLimited) {
       errorMessage = `Please wait ${$rateLimit.retryAfterSeconds}s before incrementing again.`;
@@ -108,6 +157,7 @@
         if (response.status === 429) {
           const retryAfter = body.retryAfterSeconds ?? 5;
           rateLimit.setLimit(`/api/counters/${data.counter.id}`, retryAfter);
+          errorMessage = `Please wait ${retryAfter}s before incrementing again.`;
           return;
         }
 
@@ -211,7 +261,7 @@
         return;
       }
 
-      inviteSuccess = `Invited ${inviteUsername} as ${inviteRole}`;
+      inviteSuccess = `Invited ${inviteUsername} as ${getRoleLabel(inviteRole)}`;
       inviteUsername = "";
       invalidate(`counter:${data.counter.id}`);
     } catch {
@@ -299,7 +349,7 @@
             onclick={() => {
               editTitle = data.counter.title;
               editDescription = data.counter.description ?? "";
-              editVisibility = data.counter.isPublic ? "public" : "private";
+              editVisibility = visibilityMode;
               showEditModal = true;
             }}
             class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
@@ -364,9 +414,7 @@
                     showActionsMenu = false;
                     editTitle = data.counter.title;
                     editDescription = data.counter.description ?? "";
-                    editVisibility = data.counter.isPublic
-                      ? "public"
-                      : "private";
+                    editVisibility = visibilityMode;
                     showEditModal = true;
                   }}
                   class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -398,18 +446,13 @@
 
     <!-- Tags row -->
     <div class="flex flex-wrap items-center gap-2 mt-2">
-      <span
-        class="text-xs px-2 py-0.5 rounded-full {data.counter.isPublic
-          ? 'bg-emerald-100 text-emerald-700'
-          : 'bg-slate-100 text-slate-600'}"
-      >
-        {data.counter.isPublic ? "Public" : "Private"}
-      </span>
-      {#if data.isOwner}
-        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full"
-          >Owner</span
-        >
-      {/if}
+      <CounterBadges
+        visibilityMode={visibilityMode}
+        ownership={data.isOwner ? "owner" : null}
+        containerClass="flex flex-wrap items-center gap-2"
+        visibilityLabels={visibilityLabels}
+        visibilityBadgeClasses={visibilityBadgeClasses}
+      />
       <span class="text-xs text-slate-400">
         Created {new Date(data.counter.createdAt).toLocaleDateString()}
         · Updated {new Date(displayUpdatedAt).toLocaleString()}
@@ -435,9 +478,10 @@
     <button
       type="button"
       onclick={handleIncrement}
-      class="mt-8 inline-flex items-center justify-center rounded-full w-16 h-16 text-2xl font-bold active:scale-95 transition shadow-lg {$rateLimit.isLimited
-        ? 'bg-slate-400 text-white cursor-not-allowed'
-        : 'bg-blue-600 text-white hover:bg-blue-700'}"
+      disabled={!data.canIncrement || isIncrementing || $rateLimit.isLimited}
+      aria-disabled={!data.canIncrement || isIncrementing || $rateLimit.isLimited}
+      aria-label={data.canIncrement ? "Increment counter" : "Increment unavailable"}
+      class="mt-8 inline-flex items-center justify-center rounded-full w-16 h-16 text-2xl font-bold active:scale-95 transition shadow-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
     >
       {#if $rateLimit.isLimited}
         <span class="text-base">{$rateLimit.retryAfterSeconds}s</span>
@@ -445,6 +489,12 @@
         +1
       {/if}
     </button>
+
+    {#if incrementUnavailableMessage}
+      <p class="mt-3 text-sm text-slate-500 text-center max-w-xs">
+        {incrementUnavailableMessage}
+      </p>
+    {/if}
 
     {#if errorMessage}
       <p class="mt-2 text-sm text-red-600">{errorMessage}</p>
@@ -507,6 +557,27 @@
         </button>
       </div>
 
+      <div class="space-y-1">
+        <p class="text-sm font-medium text-slate-700">Visibility</p>
+        <div class="flex flex-wrap items-center gap-2">
+          {#if visibilityMode === "public_readonly"}
+            <span class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public}">
+              {visibilityLabels.public}
+            </span>
+            <span class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public_readonly}">
+              read-only
+            </span>
+          {:else}
+            <span
+              class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses[visibilityMode]}"
+            >
+              {visibilityLabels[visibilityMode]}
+            </span>
+          {/if}
+          <p class="text-xs text-slate-500">{visibilityDescriptions[visibilityMode]}</p>
+        </div>
+      </div>
+
       <!-- Shareable link -->
       <div class="space-y-1">
         <p class="text-sm font-medium text-slate-700">Shareable link</p>
@@ -534,7 +605,7 @@
             {/if}
           </button>
         </div>
-        {#if !data.counter.isPublic && data.shareToken}
+        {#if visibilityMode === "private" && data.shareToken}
           <p class="text-xs text-amber-600">
             Anyone with this link can view and increment this private counter.
           </p>
@@ -568,6 +639,7 @@
               class="h-9 rounded-md border border-slate-300 px-3 text-sm bg-white focus:border-blue-500 focus:outline-none"
             >
               <option value="viewer">Viewer</option>
+              <option value="incrementer">Incrementer</option>
               <option value="editor">Editor</option>
               <option value="admin">Admin</option>
             </select>
@@ -615,8 +687,8 @@
                     <p class="text-sm font-medium text-slate-900">
                       {member.username ?? member.name ?? "Unknown"}
                     </p>
-                    <p class="text-xs text-slate-500 capitalize">
-                      {member.role}
+                    <p class="text-xs text-slate-500">
+                      {getRoleLabel(member.role)}
                     </p>
                   </div>
                 </div>
@@ -691,16 +763,25 @@
         <span class="block text-sm font-semibold text-slate-700"
           >Visibility</span
         >
-        <div class="flex items-center gap-4">
+        <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
           <label class="flex items-center gap-2 text-sm text-slate-700">
             <input type="radio" value="public" bind:group={editVisibility} />
             Public
           </label>
           <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="radio"
+              value="public_readonly"
+              bind:group={editVisibility}
+            />
+            Public (read-only)
+          </label>
+          <label class="flex items-center gap-2 text-sm text-slate-700">
             <input type="radio" value="private" bind:group={editVisibility} />
-            Private
+            Private (shareable link)
           </label>
         </div>
+        <p class="text-xs text-slate-500">{visibilityDescriptions[editVisibility]}</p>
       </div>
 
       {#if editError}

@@ -2,6 +2,7 @@ import { error } from "@sveltejs/kit";
 import {
   canDeleteCounter,
   canEditCounter,
+  canIncrementCounter,
   canManageMembers,
   canViewPrivateCounter,
 } from "$lib/server/authorize";
@@ -34,20 +35,23 @@ export const load: PageServerLoad = async ({
 
   const session = await locals.auth();
   const userId = session?.user?.id;
+  const isPrivate = counter.visibilityMode === "private";
 
   // Check if a valid share token was provided
   const token = url.searchParams.get("token");
   const hasValidToken =
-    !counter.isPublic &&
+    isPrivate &&
     !!token &&
     !!counter.shareToken &&
     token === counter.shareToken;
 
+  let canViewPrivate = false;
+
   // Private counter access check
-  if (!counter.isPublic && !hasValidToken) {
+  if (isPrivate && !hasValidToken) {
     if (userId) {
-      const canView = await canViewPrivateCounter(userId, counter.id);
-      if (!canView) {
+      canViewPrivate = await canViewPrivateCounter(userId, counter.id);
+      if (!canViewPrivate) {
         throw error(403, "You don't have access to this counter");
       }
     } else {
@@ -58,6 +62,18 @@ export const load: PageServerLoad = async ({
   const canEdit = userId ? await canEditCounter(userId, counter.id) : false;
   const canDelete = userId ? await canDeleteCounter(userId, counter.id) : false;
   const canManage = userId ? await canManageMembers(userId, counter.id) : false;
+
+  let canIncrement = false;
+
+  if (counter.visibilityMode === "public") {
+    canIncrement = true;
+  } else if (counter.visibilityMode === "public_readonly") {
+    canIncrement = userId
+      ? await canIncrementCounter(userId, counter.id)
+      : false;
+  } else {
+    canIncrement = hasValidToken || canViewPrivate;
+  }
 
   const isOwner = userId ? counter.ownerId === userId : false;
   const members = canManage ? await getCounterMembers(counter.id) : [];
@@ -70,6 +86,7 @@ export const load: PageServerLoad = async ({
     canEdit,
     canDelete,
     canManage,
+    canIncrement,
     isOwner,
     members,
     // Only expose the share token to users who can manage the counter

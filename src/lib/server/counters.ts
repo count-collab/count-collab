@@ -1,8 +1,18 @@
 import crypto from "node:crypto";
-import { and, count as countFn, desc, eq, ilike, or, sql } from "drizzle-orm";
+import {
+  and,
+  count as countFn,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  or,
+  sql,
+} from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
   Counter,
+  CounterVisibilityMode,
   NewCounter,
   NewCounterHistory,
   SparklinePoint,
@@ -29,22 +39,46 @@ function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
 }
 
+const publicCounterVisibilityModes: CounterVisibilityMode[] = [
+  "public",
+  "public_readonly",
+];
+
+function deriveLegacyIsPublic(visibilityMode: CounterVisibilityMode): 0 | 1 {
+  return visibilityMode === "private" ? 0 : 1;
+}
+
+function resolveCounterVisibility(input: {
+  visibilityMode?: CounterVisibilityMode;
+  isPublic?: boolean;
+}): CounterVisibilityMode {
+  if (input.visibilityMode !== undefined) {
+    return input.visibilityMode;
+  }
+
+  return input.isPublic === false ? "private" : "public";
+}
+
 type CreateCounterInput = {
   title: string;
   description?: string | null;
-  isPublic: boolean;
+  isPublic?: boolean;
+  visibilityMode?: CounterVisibilityMode;
   ownerId?: string | null;
 };
 
 export async function createCounter(
   input: CreateCounterInput,
 ): Promise<Counter> {
+  const visibilityMode = resolveCounterVisibility(input);
+
   const newCounter: NewCounter = {
     title: input.title.trim(),
     description: input.description?.trim() || null,
     count: 0,
-    isPublic: input.isPublic ? 1 : 0,
-    shareToken: input.isPublic ? null : generateShareToken(),
+    isPublic: deriveLegacyIsPublic(visibilityMode),
+    visibilityMode,
+    shareToken: visibilityMode === "private" ? generateShareToken() : null,
     ownerId: input.ownerId ?? null,
   };
 
@@ -57,6 +91,7 @@ export async function createCounter(
     id: counter.id,
     title: counter.title,
     isPublic: counter.isPublic,
+    visibilityMode: counter.visibilityMode,
   });
 
   return counter;
@@ -70,7 +105,7 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-        eq(countersTable.isPublic, 1),
+        inArray(countersTable.visibilityMode, publicCounterVisibilityModes),
         or(
           ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
           ilike(
@@ -79,7 +114,7 @@ export async function listPublicCounters(
           ),
         ),
       )
-    : eq(countersTable.isPublic, 1);
+    : inArray(countersTable.visibilityMode, publicCounterVisibilityModes);
 
   const [items, [{ total }]] = await Promise.all([
     db
@@ -101,7 +136,7 @@ export async function listRecentlyCreatedCounters(
   return db
     .select()
     .from(countersTable)
-    .where(eq(countersTable.isPublic, 1))
+    .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes))
     .orderBy(desc(countersTable.createdAt))
     .limit(limit);
 }
@@ -112,7 +147,7 @@ export async function listRecentlyUpdatedCounters(
   return db
     .select()
     .from(countersTable)
-    .where(eq(countersTable.isPublic, 1))
+    .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes))
     .orderBy(desc(countersTable.updatedAt))
     .limit(limit);
 }
@@ -214,6 +249,7 @@ type UpdateCounterInput = {
   title?: string;
   description?: string;
   isPublic?: boolean;
+  visibilityMode?: CounterVisibilityMode;
 };
 
 export async function updateCounter(
@@ -225,10 +261,14 @@ export async function updateCounter(
   if (input.title !== undefined) set.title = input.title.trim();
   if (input.description !== undefined)
     set.description = input.description.trim() || null;
-  if (input.isPublic !== undefined) {
-    set.isPublic = input.isPublic ? 1 : 0;
+  if (input.isPublic !== undefined || input.visibilityMode !== undefined) {
+    const visibilityMode = resolveCounterVisibility(input);
+
+    set.isPublic = deriveLegacyIsPublic(visibilityMode);
+    set.visibilityMode = visibilityMode;
+
     // Generate a share token when switching to private (if not already set)
-    if (!input.isPublic) {
+    if (visibilityMode === "private") {
       const existing = await getCounter(counterId);
       if (existing && !existing.shareToken) {
         set.shareToken = generateShareToken();
@@ -285,6 +325,7 @@ export async function getUserCounters(
       description: countersTable.description,
       count: countersTable.count,
       isPublic: countersTable.isPublic,
+      visibilityMode: countersTable.visibilityMode,
       shareToken: countersTable.shareToken,
       ownerId: countersTable.ownerId,
       createdAt: countersTable.createdAt,

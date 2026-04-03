@@ -1,7 +1,19 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "$lib/db";
-import { counterMembers, counters } from "$lib/db/schema";
+import {
+  type CounterMemberRole,
+  counterMembers,
+  counters,
+} from "$lib/db/schema";
 import { hasPermission } from "$lib/server/permissions";
+
+const counterIncrementRoles: CounterMemberRole[] = [
+  "incrementer",
+  "editor",
+  "admin",
+];
+
+const counterEditRoles: CounterMemberRole[] = ["editor", "admin"];
 
 /**
  * Get the counter-level role for a user (from counter_members table).
@@ -9,7 +21,7 @@ import { hasPermission } from "$lib/server/permissions";
 async function getCounterMemberRole(
   userId: string,
   counterId: string,
-): Promise<string | null> {
+): Promise<CounterMemberRole | null> {
   const [row] = await db
     .select({ role: counterMembers.role })
     .from(counterMembers)
@@ -39,6 +51,22 @@ async function isCounterOwner(
 }
 
 /**
+ * Check if a user can increment a counter.
+ * Allowed if: owner, counter member with incrementer/editor/admin role, or global counter:edit_any permission.
+ */
+export async function canIncrementCounter(
+  userId: string,
+  counterId: string,
+): Promise<boolean> {
+  if (await isCounterOwner(userId, counterId)) return true;
+
+  const memberRole = await getCounterMemberRole(userId, counterId);
+  if (memberRole && counterIncrementRoles.includes(memberRole)) return true;
+
+  return hasPermission(userId, "counter:edit_any");
+}
+
+/**
  * Check if a user can edit a counter.
  * Allowed if: owner, counter member with editor/admin role, or global counter:edit_any permission.
  */
@@ -49,7 +77,7 @@ export async function canEditCounter(
   if (await isCounterOwner(userId, counterId)) return true;
 
   const memberRole = await getCounterMemberRole(userId, counterId);
-  if (memberRole === "editor" || memberRole === "admin") return true;
+  if (memberRole && counterEditRoles.includes(memberRole)) return true;
 
   return hasPermission(userId, "counter:edit_any");
 }

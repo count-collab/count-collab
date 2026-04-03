@@ -1,17 +1,29 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import type { CounterVisibilityMode } from "$lib/db/schema";
   import { rateLimit } from "$lib/stores/ratelimit";
   import type { PageProps } from "./$types";
 
   let { data }: PageProps = $props();
   const isLoggedIn = $derived(!!data.session?.user);
+  const visibilityHelpText: Record<CounterVisibilityMode, string> = {
+    public: "Anyone with the link can view and increment.",
+    public_readonly: "Only invited members can increment.",
+    private: "Only invited members or people with the private link can access it.",
+  };
 
   let title = $state("");
   let description = $state("");
-  let visibility = $state<"public" | "private">("public");
+  let visibility = $state<CounterVisibilityMode>("public");
   let errors = $state<Record<string, string>>({});
   let isSubmitting = $state(false);
+
+  $effect(() => {
+    if (!isLoggedIn && visibility !== "public") {
+      visibility = "public";
+    }
+  });
 
   async function handleSubmit() {
     if (isSubmitting) return;
@@ -103,19 +115,27 @@
 
     <div class="space-y-2">
       <span class="block text-sm font-semibold text-slate-700">Visibility</span>
-      <div class="flex items-center gap-4">
+      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
         <label class="flex items-center gap-2 text-sm text-slate-700">
           <input type="radio" value="public" bind:group={visibility} />
           Public
         </label>
-        <label class="flex items-center gap-2 text-sm" class:text-slate-700={isLoggedIn} class:text-slate-400={!isLoggedIn}>
-          <input type="radio" value="private" bind:group={visibility} disabled={!isLoggedIn} />
-          Private (shareable link)
-        </label>
-        {#if !isLoggedIn}
-          <p class="text-xs text-slate-500">Sign in to create private counters.</p>
+        {#if isLoggedIn}
+          <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input type="radio" value="public_readonly" bind:group={visibility} />
+            Public (read-only)
+          </label>
+          <label class="flex items-center gap-2 text-sm text-slate-700">
+            <input type="radio" value="private" bind:group={visibility} />
+            Private (shareable link)
+          </label>
+        {:else}
+          <p class="text-xs text-slate-500">
+            Sign in to create public read-only or private counters.
+          </p>
         {/if}
       </div>
+      <p class="text-xs text-slate-500">{visibilityHelpText[visibility]}</p>
     </div>
 
     {#if errors.general}

@@ -1,6 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "$lib/db";
-import { type CounterMember, counterMembers, users } from "$lib/db/schema";
+import {
+  type CounterMember,
+  type CounterMemberRole,
+  counterMembers,
+  users,
+} from "$lib/db/schema";
 import { logger } from "$lib/server/logger";
 
 type MemberWithUser = CounterMember & {
@@ -15,7 +20,7 @@ type MemberWithUser = CounterMember & {
 export async function inviteUserByUsername(
   counterId: string,
   username: string,
-  role: "viewer" | "editor" | "admin",
+  role: CounterMemberRole,
 ): Promise<CounterMember | null> {
   const [user] = await db
     .select({ id: users.id })
@@ -74,7 +79,7 @@ export async function removeMember(
 export async function updateMemberRole(
   counterId: string,
   userId: string,
-  role: "viewer" | "editor" | "admin",
+  role: CounterMemberRole,
 ): Promise<CounterMember | null> {
   const [updated] = await db
     .update(counterMembers)
@@ -122,7 +127,7 @@ export async function getCounterMembers(
 export async function getUserCounterRole(
   userId: string,
   counterId: string,
-): Promise<string | null> {
+): Promise<CounterMemberRole | null> {
   const [row] = await db
     .select({ role: counterMembers.role })
     .from(counterMembers)

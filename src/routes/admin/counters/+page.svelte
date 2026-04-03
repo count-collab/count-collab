@@ -2,15 +2,38 @@
   import { invalidateAll } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
+  import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
+  const visibilityLabels: Record<CounterVisibilityMode, string> = {
+    public: "Public",
+    public_readonly: "Public (read-only)",
+    private: "Private",
+  };
+  const visibilityBadgeClasses: Record<CounterVisibilityMode, string> = {
+    public: "bg-green-100 text-green-700",
+    public_readonly: "bg-amber-100 text-amber-700",
+    private: "bg-slate-100 text-slate-600",
+  };
 
   const initialQuery = $derived(data.query ?? "");
   let searchQuery = $state("");
   $effect(() => {
     searchQuery = initialQuery;
   });
+
+  function getVisibilityMode(counter: Pick<Counter, "visibilityMode" | "isPublic">): CounterVisibilityMode {
+    return counter.visibilityMode ?? (counter.isPublic ? "public" : "private");
+  }
+
+  function getVisibilityLabel(counter: Pick<Counter, "visibilityMode" | "isPublic">): string {
+    return visibilityLabels[getVisibilityMode(counter)];
+  }
+
+  function getVisibilityBadgeClass(counter: Pick<Counter, "visibilityMode" | "isPublic">): string {
+    return visibilityBadgeClasses[getVisibilityMode(counter)];
+  }
 
   async function handleDelete(counterId: string) {
     if (!confirm("Are you sure you want to delete this counter?")) return;
@@ -66,11 +89,9 @@
           <td class="px-4 py-3 font-bold text-slate-900">{counter.count}</td>
           <td class="px-4 py-3">
             <span
-              class="text-xs px-2 py-0.5 rounded-full {counter.isPublic
-                ? 'bg-green-100 text-green-700'
-                : 'bg-slate-100 text-slate-600'}"
+              class="text-xs px-2 py-0.5 rounded-full {getVisibilityBadgeClass(counter)}"
             >
-              {counter.isPublic ? "Public" : "Private"}
+              {getVisibilityLabel(counter)}
             </span>
           </td>
           <td class="px-4 py-3 text-slate-600">{counter.ownerId ?? "System"}</td

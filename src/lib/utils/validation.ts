@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+export const counterVisibilityEnum = z.enum([
+  "public",
+  "public_readonly",
+  "private",
+]);
+
 /**
  * Validation schema for counter creation
  */
@@ -15,7 +21,7 @@ export const createCounterSchema = z.object({
     .optional()
     .default("")
     .transform((val) => val?.trim() || ""),
-  visibility: z.enum(["public", "private"]).default("public").optional(),
+  visibility: counterVisibilityEnum.default("public").optional(),
 });
 
 export type CreateCounterInput = z.infer<typeof createCounterSchema>;
@@ -35,7 +41,7 @@ export const updateCounterSchema = z.object({
     .max(1000, "Description must be less than 1000 characters")
     .transform((val) => val?.trim() || "")
     .optional(),
-  visibility: z.enum(["public", "private"]).optional(),
+  visibility: counterVisibilityEnum.optional(),
 });
 
 export type UpdateCounterInput = z.infer<typeof updateCounterSchema>;
@@ -79,7 +85,12 @@ export type Username = z.infer<typeof usernameSchema>;
 /**
  * Counter member roles
  */
-export const counterMemberRoleEnum = z.enum(["viewer", "editor", "admin"]);
+export const counterMemberRoleEnum = z.enum([
+  "viewer",
+  "incrementer",
+  "editor",
+  "admin",
+]);
 
 /**
  * Validation schema for inviting a member to a counter

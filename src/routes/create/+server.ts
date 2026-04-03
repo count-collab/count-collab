@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const counter = await createCounter({
     title,
     description,
-    isPublic: isAuthenticated ? visibility === "public" : true,
+    visibilityMode: isAuthenticated ? visibility : "public",
     ownerId: session?.user?.id ?? null,
   });
 

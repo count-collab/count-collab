@@ -1,5 +1,5 @@
-import { render } from "@testing-library/svelte";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/svelte";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock SvelteKit modules
 vi.mock("$app/environment", () => ({ browser: false }));
@@ -42,6 +42,7 @@ function makePageData(overrides: Record<string, unknown> = {}) {
       description: "A test counter",
       count: 42,
       isPublic: true,
+      visibilityMode: "public",
       ownerId: "owner-1",
       createdAt: "2025-06-15T10:30:00.000Z",
       updatedAt: "2026-03-20T14:00:00.000Z",
@@ -51,6 +52,7 @@ function makePageData(overrides: Record<string, unknown> = {}) {
     canEdit: false,
     canDelete: false,
     canManage: false,
+    canIncrement: true,
     isOwner: false,
     members: [],
     shareToken: null,
@@ -64,6 +66,10 @@ function makePageData(overrides: Record<string, unknown> = {}) {
 describe("Counter detail page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("displays the counter title", () => {
@@ -108,12 +114,80 @@ describe("Counter detail page", () => {
         data: makePageData({
           counter: {
             ...makePageData().counter,
+            visibilityMode: "private",
             isPublic: false,
           },
         }) as never,
       },
     });
     expect(container.textContent).toContain("Private");
+  });
+
+  it("shows separate Public and read-only badges", () => {
+    render(Page, {
+      props: {
+        data: makePageData({
+          counter: {
+            ...makePageData().counter,
+            visibilityMode: "public_readonly",
+          },
+          canIncrement: true,
+        }) as never,
+      },
+    });
+
+    expect(screen.getAllByText("Public").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("read-only").length).toBeGreaterThan(0);
+  });
+
+  it("disables increment controls and shows unavailable messaging when canIncrement is false", () => {
+    render(Page, {
+      props: {
+        data: makePageData({
+          counter: {
+            ...makePageData().counter,
+            visibilityMode: "public_readonly",
+          },
+          canIncrement: false,
+        }) as never,
+      },
+    });
+
+    const button = screen.getByRole("button", {
+      name: "Increment unavailable",
+    });
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(button.textContent).toContain("+1");
+    expect(
+      screen.getAllByText(
+        "Anyone can view. Only invited members can increment.",
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("renders the incrementer role label in the members list", async () => {
+    render(Page, {
+      props: {
+        data: makePageData({
+          canManage: true,
+          members: [
+            {
+              id: "member-1",
+              userId: "user-2",
+              username: "alice",
+              name: null,
+              image: null,
+              role: "incrementer",
+            },
+          ],
+        }) as never,
+      },
+    });
+
+    await fireEvent.click(screen.getByRole("button", { name: "Share" }));
+
+    expect(screen.getByText("alice")).toBeTruthy();
+    expect(screen.getAllByText("Incrementer").length).toBeGreaterThan(0);
   });
 
   it("shows Owner tag when user is owner", () => {

@@ -103,12 +103,32 @@ export const rolePermissions = pgTable(
 
 // ── Counters ────────────────────────────────────────────────────
 
+export const counterVisibilityModes = [
+  "private",
+  "public",
+  "public_readonly",
+] as const;
+
+export type CounterVisibilityMode = (typeof counterVisibilityModes)[number];
+
+export const counterMemberRoles = [
+  "viewer",
+  "incrementer",
+  "editor",
+  "admin",
+] as const;
+
+export type CounterMemberRole = (typeof counterMemberRoles)[number];
+
 export const counters = pgTable("counters", {
   id: uuid("id").defaultRandom().primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
   count: integer("count").default(0).notNull(),
-  isPublic: integer("is_public").default(1).notNull(), // 1 for public, 0 for private
+  isPublic: integer("is_public").default(1).notNull(), // Legacy compatibility flag: 1 for publicly viewable, 0 for private
+  visibilityMode: text("visibility_mode", { enum: counterVisibilityModes })
+    .default("public")
+    .notNull(),
   shareToken: text("share_token").unique(),
   ownerId: text("owner_id").references(() => users.id, {
     onDelete: "set null",
@@ -157,7 +177,9 @@ export const counterMembers = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role").notNull().default("viewer"), // "viewer" | "editor" | "admin"
+    role: text("role", { enum: counterMemberRoles })
+      .notNull()
+      .default("viewer"), // "viewer" | "incrementer" | "editor" | "admin"; incrementer can add to the count without broader edit access
     invitedAt: timestamp("invited_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
