@@ -20,6 +20,7 @@
     logoTwitch,
     menuOutline,
     personOutline,
+    settingsOutline,
     shareSocialOutline,
     shieldOutline,
     sparklesOutline,
@@ -53,6 +54,7 @@
       "logo-discord": logoDiscord,
       "logo-twitch": logoTwitch,
       "person-outline": personOutline,
+      "settings-outline": settingsOutline,
       "trending-up-outline": trendingUpOutline,
       "sparkles-outline": sparklesOutline,
       "time-outline": timeOutline,
@@ -161,6 +163,13 @@
                   <ion-icon name="list-outline" style="font-size: 16px;"></ion-icon>
                   My Counters
                 </a>
+                <a
+                  href="/settings"
+                  class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition"
+                >
+                  <ion-icon name="settings-outline" style="font-size: 16px;"></ion-icon>
+                  Settings
+                </a>
                 <div class="border-t border-slate-100 my-1"></div>
                 <button
                   type="button"
@@ -216,6 +225,14 @@
             >
               <ion-icon name="list-outline" style="font-size: 18px;"></ion-icon>
               <span>My Counters</span>
+            </a>
+            <a
+              href="/settings"
+              onclick={() => (mobileMenuOpen = false)}
+              class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 hover:bg-slate-50 transition"
+            >
+              <ion-icon name="settings-outline" style="font-size: 18px;"></ion-icon>
+              <span>Settings</span>
             </a>
             {#if isAdmin}
               <a

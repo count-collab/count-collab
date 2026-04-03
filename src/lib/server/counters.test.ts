@@ -44,6 +44,7 @@ import {
   getCounterCount,
   getCounterSparkline,
   getGlobalCounterSum,
+  getOwnedCounterCount,
   listAllCounters,
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
@@ -506,5 +507,40 @@ describe("getCounterCount", () => {
 
     expect(typeof result).toBe("number");
     expect(result).toBe(123);
+  });
+});
+
+describe("getOwnedCounterCount", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockFrom.mockReturnValue({ where: mockWhere });
+  });
+
+  it("returns the count of owned counters", async () => {
+    mockWhere.mockResolvedValue([{ count: "3" }]);
+
+    const result = await getOwnedCounterCount("user-1");
+
+    expect(result).toBe(3);
+    expect(mockSelect).toHaveBeenCalledOnce();
+    expect(mockFrom).toHaveBeenCalledOnce();
+    expect(mockWhere).toHaveBeenCalledOnce();
+  });
+
+  it("returns 0 when user owns no counters", async () => {
+    mockWhere.mockResolvedValue([{ count: "0" }]);
+
+    const result = await getOwnedCounterCount("user-1");
+
+    expect(result).toBe(0);
+  });
+
+  it("returns 0 when row is undefined", async () => {
+    mockWhere.mockResolvedValue([]);
+
+    const result = await getOwnedCounterCount("user-1");
+
+    expect(result).toBe(0);
   });
 });

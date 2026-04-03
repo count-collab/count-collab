@@ -105,15 +105,15 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-      inArray(countersTable.visibilityMode, publicCounterVisibilityModes),
-      or(
-        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(
-          countersTable.description,
-          `%${escapeLikePattern(searchQuery)}%`,
+        inArray(countersTable.visibilityMode, publicCounterVisibilityModes),
+        or(
+          ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+          ilike(
+            countersTable.description,
+            `%${escapeLikePattern(searchQuery)}%`,
+          ),
         ),
-      ),
-    )
+      )
     : inArray(countersTable.visibilityMode, publicCounterVisibilityModes);
 
   const [items, [{ total }]] = await Promise.all([
@@ -361,9 +361,9 @@ export async function listAllCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-      ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-      ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
-    )
+        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
+      )
     : undefined;
 
   const [rows, [{ total }]] = await Promise.all([
@@ -454,4 +454,15 @@ export async function getCounterCount(): Promise<number> {
     .select({ count: sql<string>`COUNT(*)` })
     .from(countersTable);
   return Number(row.count);
+}
+
+/**
+ * Count how many counters a user owns.
+ */
+export async function getOwnedCounterCount(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: countFn() })
+    .from(countersTable)
+    .where(eq(countersTable.ownerId, userId));
+  return Number(row?.count ?? 0);
 }

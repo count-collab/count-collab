@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, count as countFn, eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import {
   type CounterMember,
@@ -139,4 +139,15 @@ export async function getUserCounterRole(
       ),
     );
   return row?.role ?? null;
+}
+
+/**
+ * Count how many counters a user is a member of (excluding ownership).
+ */
+export async function getMembershipCount(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: countFn() })
+    .from(counterMembers)
+    .where(eq(counterMembers.userId, userId));
+  return Number(row?.count ?? 0);
 }

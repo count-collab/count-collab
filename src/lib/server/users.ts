@@ -1,6 +1,6 @@
 import { count as countFn, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "$lib/db";
-import { counters, roles, users } from "$lib/db/schema";
+import { accounts, counters, roles, users } from "$lib/db/schema";
 
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
@@ -76,11 +76,8 @@ export async function updateUserRole(
  * Delete a user and cascade their data.
  */
 export async function deleteUser(userId: string): Promise<boolean> {
-  // Set owned counters to ownerless
-  await db
-    .update(counters)
-    .set({ ownerId: null })
-    .where(eq(counters.ownerId, userId));
+  // Delete all counters owned by this user (cascades to counter_history and counter_members)
+  await db.delete(counters).where(eq(counters.ownerId, userId));
 
   const result = await db.delete(users).where(eq(users.id, userId)).returning();
 
@@ -142,4 +139,15 @@ export async function getAdminStats(): Promise<{
     userCount: userRow?.count ?? 0,
     counterCount: counterRow?.count ?? 0,
   };
+}
+
+/**
+ * Get the OAuth providers connected to a user's account.
+ */
+export async function getConnectedProviders(userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ provider: accounts.provider })
+    .from(accounts)
+    .where(eq(accounts.userId, userId));
+  return rows.map((r) => r.provider);
 }

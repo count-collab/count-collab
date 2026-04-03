@@ -43,6 +43,7 @@ mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
 mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
 
 import {
+  getMembershipCount,
   getUserCounterRole,
   inviteUserByUsername,
   updateMemberRole,
@@ -119,5 +120,40 @@ describe("members service", () => {
     await expect(getUserCounterRole("user-1", "counter-1")).resolves.toBe(
       "incrementer",
     );
+  });
+});
+
+describe("getMembershipCount", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockFrom.mockReturnValue({ where: mockWhere });
+  });
+
+  it("returns the count of memberships", async () => {
+    mockWhere.mockResolvedValue([{ count: "5" }]);
+
+    const result = await getMembershipCount("user-1");
+
+    expect(result).toBe(5);
+    expect(mockSelect).toHaveBeenCalledOnce();
+    expect(mockFrom).toHaveBeenCalledOnce();
+    expect(mockWhere).toHaveBeenCalledOnce();
+  });
+
+  it("returns 0 when user has no memberships", async () => {
+    mockWhere.mockResolvedValue([{ count: "0" }]);
+
+    const result = await getMembershipCount("user-1");
+
+    expect(result).toBe(0);
+  });
+
+  it("returns 0 when row is undefined", async () => {
+    mockWhere.mockResolvedValue([]);
+
+    const result = await getMembershipCount("user-1");
+
+    expect(result).toBe(0);
   });
 });
