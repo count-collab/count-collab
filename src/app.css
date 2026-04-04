@@ -6,13 +6,28 @@
   color-scheme: light;
 }
 
+html.dark {
+  color-scheme: dark;
+}
+
 html,
 body {
   height: 100%;
 }
 
 body {
-  @apply text-slate-900 bg-slate-50;
+  @apply text-slate-900 bg-slate-50 dark:text-slate-100 dark:bg-slate-900;
+}
+
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    /* biome-ignore lint/complexity/noImportantStyles: needed to override inline transitions during theme switch */
+    border-color 200ms ease !important;
 }
 
 .full-bleed {

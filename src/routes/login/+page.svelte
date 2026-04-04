@@ -22,8 +22,8 @@
       id: "google",
       name: "Google",
       icon: "logo-google",
-      bg: "bg-white border border-slate-300 hover:bg-slate-50",
-      text: "text-slate-900",
+      bg: "bg-white border border-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-600 dark:hover:bg-slate-700",
+      text: "text-slate-900 dark:text-slate-100",
     },
     {
       id: "discord",
@@ -50,13 +50,13 @@
 
 <div class="max-w-sm mx-auto pt-16 space-y-8">
   <header class="text-center space-y-2">
-    <h1 class="text-3xl font-bold text-slate-900">Sign in</h1>
-    <p class="text-slate-600">Sign in to create and manage counters.</p>
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-slate-100">Sign in</h1>
+    <p class="text-slate-600 dark:text-slate-400">Sign in to create and manage counters.</p>
   </header>
 
   {#if errorMessage}
     <div
-      class="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700"
+      class="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300"
     >
       {errorMessage}
     </div>
@@ -75,8 +75,8 @@
     {/each}
   </div>
 
-  <p class="text-center text-sm text-slate-500">
-    You can also <a href="/" class="text-blue-600 hover:underline"
+  <p class="text-center text-sm text-slate-500 dark:text-slate-400">
+    You can also <a href="/" class="text-blue-600 dark:text-blue-400 hover:underline"
       >browse and use counters</a
     > without signing in.
   </p>

@@ -15,7 +15,7 @@
 
 <div class="space-y-8">
   <header class="flex items-center justify-between">
-    <h1 class="text-3xl font-bold text-slate-900">My Counters</h1>
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-slate-100">My Counters</h1>
     <a
       href="/create"
       class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold"
@@ -26,7 +26,7 @@
 
   {#if data.counters.length === 0}
     <div class="text-center py-12">
-      <p class="text-slate-500 mb-4">You don't have any counters yet.</p>
+      <p class="text-slate-500 dark:text-slate-400 mb-4">You don't have any counters yet.</p>
       <a
         href="/create"
         class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"

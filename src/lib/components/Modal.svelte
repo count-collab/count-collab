@@ -53,14 +53,14 @@
 		}}
 	>
 		<div
-			class="bg-white rounded-lg shadow-xl {maxWidth} w-full mx-4 p-6 space-y-4"
+			class="bg-white dark:bg-slate-800 rounded-lg shadow-xl dark:shadow-slate-900/50 {maxWidth} w-full mx-4 p-6 space-y-4"
 		>
 			<div class="flex items-center justify-between">
-				<h2 id={titleId} class="text-xl font-bold text-slate-900">{title}</h2>
+				<h2 id={titleId} class="text-xl font-bold text-slate-900 dark:text-slate-100">{title}</h2>
 				<button
 					type="button"
 					onclick={close}
-					class="text-slate-400 hover:text-slate-600"
+					class="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
 					aria-label="Close"
 				>
 					<ion-icon name="close-outline" style="font-size: 20px;"></ion-icon>

@@ -25,9 +25,9 @@
     private: "Only invited members or people with the private link can access it.",
   };
   const visibilityBadgeClasses: Record<CounterVisibilityMode, string> = {
-    public: "bg-emerald-100 text-emerald-700",
-    public_readonly: "bg-amber-100 text-amber-700",
-    private: "bg-slate-100 text-slate-600",
+    public: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    public_readonly: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    private: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
   };
   const memberRoleLabels: Record<CounterMemberRole, string> = {
     viewer: "Viewer",
@@ -324,11 +324,11 @@
   <header class="pb-4">
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0 flex-1">
-        <h1 class="text-xl font-bold text-slate-900 break-words">
+        <h1 class="text-xl font-bold text-slate-900 dark:text-slate-100 break-words">
           {data.counter.title}
         </h1>
         {#if data.counter.description}
-          <p class="text-sm text-slate-500 mt-0.5 break-words">
+          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5 break-words">
             {data.counter.description}
           </p>
         {/if}
@@ -340,7 +340,7 @@
           <button
             type="button"
             onclick={() => (showShareModal = true)}
-            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
           >
             <ion-icon name="share-social-outline" style="font-size: 16px;"
             ></ion-icon>
@@ -356,7 +356,7 @@
               editVisibility = visibilityMode;
               showEditModal = true;
             }}
-            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+            class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
           >
             <ion-icon name="create-outline" style="font-size: 16px;"></ion-icon>
             Edit
@@ -366,7 +366,7 @@
           <button
             type="button"
             onclick={() => (showDeleteConfirm = true)}
-            class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition inline-flex items-center gap-1.5"
+            class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition inline-flex items-center gap-1.5 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
           >
             <ion-icon name="trash-outline" style="font-size: 16px;"></ion-icon>
             Delete
@@ -380,7 +380,7 @@
           <button
             type="button"
             onclick={() => (showActionsMenu = !showActionsMenu)}
-            class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 transition"
+            class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 transition dark:text-slate-400 dark:hover:bg-slate-800"
             aria-label="Counter actions"
           >
             <ion-icon name="ellipsis-vertical" style="font-size: 20px;"
@@ -395,7 +395,7 @@
               onclick={() => (showActionsMenu = false)}
             ></button>
             <div
-              class="absolute right-0 top-full mt-1 z-50 w-44 bg-white rounded-lg shadow-lg border border-slate-200 py-1"
+              class="absolute right-0 top-full mt-1 z-50 w-44 bg-white rounded-lg shadow-lg border border-slate-200 py-1 dark:bg-slate-800 dark:shadow-slate-900/50 dark:border-slate-700"
             >
               {#if data.canManage}
                 <button
@@ -404,7 +404,7 @@
                     showActionsMenu = false;
                     showShareModal = true;
                   }}
-                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   <ion-icon name="share-social-outline" style="font-size: 16px;"
                   ></ion-icon>
@@ -421,7 +421,7 @@
                     editVisibility = visibilityMode;
                     showEditModal = true;
                   }}
-                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
                   <ion-icon name="create-outline" style="font-size: 16px;"
                   ></ion-icon>
@@ -435,7 +435,7 @@
                     showActionsMenu = false;
                     showDeleteConfirm = true;
                   }}
-                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  class="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                 >
                   <ion-icon name="trash-outline" style="font-size: 16px;"
                   ></ion-icon>
@@ -457,8 +457,8 @@
         visibilityLabels={visibilityLabels}
         visibilityBadgeClasses={visibilityBadgeClasses}
       />
-      <span class="text-xs text-slate-400">
-        Created {#if data.ownerUsername}by <span class="font-medium text-slate-500">@{data.ownerUsername}</span> · {/if} {new Date(data.counter.createdAt).toLocaleDateString()}
+      <span class="text-xs text-slate-400 dark:text-slate-500">
+        Created {#if data.ownerUsername}by <span class="font-medium text-slate-500 dark:text-slate-400">@{data.ownerUsername}</span> · {/if} {new Date(data.counter.createdAt).toLocaleDateString()}
         · Updated {new Date(displayUpdatedAt).toLocaleString()}
       </span>
     </div>
@@ -475,7 +475,7 @@
     </div>
 
     <Fireworks trigger={fireworkTrigger} />
-    <p class="text-8xl sm:text-9xl font-extrabold tabular-nums text-blue-600">
+    <p class="text-8xl sm:text-9xl font-extrabold tabular-nums text-blue-600 dark:text-blue-400">
       <RollingNumber value={displayCount} />
     </p>
 
@@ -485,7 +485,7 @@
       disabled={!data.canIncrement || isIncrementing || $rateLimit.isLimited}
       aria-disabled={!data.canIncrement || isIncrementing || $rateLimit.isLimited}
       aria-label={data.canIncrement ? "Increment counter" : "Increment unavailable"}
-      class="mt-8 inline-flex items-center justify-center rounded-full w-16 h-16 text-2xl font-bold active:scale-95 transition shadow-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+      class="mt-8 inline-flex items-center justify-center rounded-full w-16 h-16 text-2xl font-bold active:scale-95 transition shadow-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:bg-slate-600"
     >
       {#if $rateLimit.isLimited}
         <span class="text-base">{$rateLimit.retryAfterSeconds}s</span>
@@ -495,21 +495,21 @@
     </button>
 
     {#if incrementUnavailableMessage}
-      <p class="mt-3 text-sm text-slate-500 text-center max-w-xs">
+      <p class="mt-3 text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs">
         {incrementUnavailableMessage}
       </p>
     {/if}
 
     {#if errorMessage}
-      <p class="mt-2 text-sm text-red-600">{errorMessage}</p>
+      <p class="mt-2 text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
     {/if}
   </section>
 
   <!-- History — subtle footer -->
   {#if data.history.length > 0}
-    <footer class="border-t border-slate-200 pt-4 pb-2">
+    <footer class="border-t border-slate-200 dark:border-slate-700 pt-4 pb-2">
       <h2
-        class="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2"
+        class="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-2"
       >
         Recent activity
       </h2>
@@ -528,7 +528,7 @@
         <button
           type="button"
           onclick={() => (historyExpanded = !historyExpanded)}
-          class="mt-2 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          class="mt-2 text-xs text-slate-400 hover:text-slate-600 transition-colors dark:text-slate-500 dark:hover:text-slate-300"
         >
           {historyExpanded
             ? "Show less"
@@ -543,7 +543,7 @@
 <Modal bind:open={showShareModal} title="Share Counter">
   <div class="space-y-5">
     <div class="space-y-1">
-      <p class="text-sm font-medium text-slate-700">Visibility</p>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Visibility</p>
       <div class="flex flex-wrap items-center gap-2">
         {#if visibilityMode === "public_readonly"}
           <span class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public}">
@@ -559,29 +559,29 @@
             {visibilityLabels[visibilityMode]}
           </span>
         {/if}
-        <p class="text-xs text-slate-500">{visibilityDescriptions[visibilityMode]}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">{visibilityDescriptions[visibilityMode]}</p>
       </div>
     </div>
 
     <!-- Shareable link -->
     <div class="space-y-1">
-      <p class="text-sm font-medium text-slate-700">Shareable link</p>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Shareable link</p>
       <div class="flex items-center gap-2">
         <p
-          class="flex-1 text-sm text-slate-500 bg-slate-50 rounded-md px-3 py-2 font-mono select-all truncate"
+          class="flex-1 text-sm text-slate-500 bg-slate-50 rounded-md px-3 py-2 font-mono select-all truncate dark:text-slate-400 dark:bg-slate-700"
         >
           {shareUrl}
         </p>
         <button
           type="button"
           onclick={copyShareLink}
-          class="shrink-0 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5"
+          class="shrink-0 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
         >
           {#if copySuccess}
             <ion-icon
               name="checkmark-outline"
               style="font-size: 16px;"
-              class="text-green-600"
+              class="text-green-600 dark:text-green-400"
             ></ion-icon>
             Copied
           {:else}
@@ -591,7 +591,7 @@
         </button>
       </div>
       {#if visibilityMode === "private" && data.shareToken}
-        <p class="text-xs text-amber-600">
+        <p class="text-xs text-amber-600 dark:text-amber-400">
           Anyone with this link can view and increment this private counter.
         </p>
       {/if}
@@ -599,11 +599,11 @@
 
     <!-- Invite form -->
     <div class="space-y-2">
-      <p class="text-sm font-medium text-slate-700">Invite member</p>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Invite member</p>
       <div class="flex gap-2 items-end">
         <div class="flex-1">
           <label
-            class="block text-xs text-slate-500 mb-1"
+            class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
             for="invite-username">Username</label
           >
           <input
@@ -611,17 +611,17 @@
             type="text"
             bind:value={inviteUsername}
             placeholder="username"
-            class="w-full h-9 rounded-md border border-slate-300 px-3 text-sm focus:border-blue-500 focus:outline-none"
+            class="w-full h-9 rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 text-sm focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:placeholder:text-slate-500 dark:focus:border-blue-400"
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 mb-1" for="invite-role"
+          <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1" for="invite-role"
             >Role</label
           >
           <select
             id="invite-role"
             bind:value={inviteRole}
-            class="h-9 rounded-md border border-slate-300 px-3 text-sm bg-white focus:border-blue-500 focus:outline-none"
+            class="h-9 rounded-md border border-slate-300 px-3 text-sm bg-white text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400"
           >
             <option value="viewer">Viewer</option>
             <option value="incrementer">Incrementer</option>
@@ -640,18 +640,18 @@
       </div>
 
       {#if inviteError}
-        <p class="text-sm text-red-600">{inviteError}</p>
+        <p class="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
       {/if}
       {#if inviteSuccess}
-        <p class="text-sm text-green-600">{inviteSuccess}</p>
+        <p class="text-sm text-green-600 dark:text-green-400">{inviteSuccess}</p>
       {/if}
     </div>
 
     <!-- Member list -->
     {#if data.members.length > 0}
       <div class="space-y-2">
-        <p class="text-sm font-medium text-slate-700">Members</p>
-        <ul class="divide-y divide-slate-200">
+        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Members</p>
+        <ul class="divide-y divide-slate-200 dark:divide-slate-700">
           {#each data.members as member (member.id)}
             <li class="flex items-center justify-between py-3">
               <div class="flex items-center gap-3">
@@ -663,16 +663,16 @@
                   />
                 {:else}
                   <div
-                    class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600"
+                    class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400"
                   >
                     {(member.username ?? "?")[0]}
                   </div>
                 {/if}
                 <div>
-                  <p class="text-sm font-medium text-slate-900">
+                  <p class="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {member.username ?? member.name ?? "Unknown"}
                   </p>
-                  <p class="text-xs text-slate-500">
+                  <p class="text-xs text-slate-500 dark:text-slate-400">
                     {getRoleLabel(member.role)}
                   </p>
                 </div>
@@ -680,7 +680,7 @@
               <button
                 type="button"
                 onclick={() => handleRemoveMember(member.userId)}
-                class="text-sm text-red-600 hover:text-red-800"
+                class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
               >
                 Remove
               </button>
@@ -689,7 +689,7 @@
         </ul>
       </div>
     {:else}
-      <p class="text-sm text-slate-500">
+      <p class="text-sm text-slate-500 dark:text-slate-400">
         No members yet. Invite someone above.
       </p>
     {/if}
@@ -698,7 +698,7 @@
       <button
         type="button"
         onclick={() => (showShareModal = false)}
-        class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
+        class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
       >
         Done
       </button>
@@ -711,40 +711,40 @@
   <div class="space-y-4">
     <div class="space-y-2">
       <label
-        class="block text-sm font-semibold text-slate-700"
+        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
         for="edit-title">Title</label
       >
       <input
         id="edit-title"
         type="text"
         bind:value={editTitle}
-        class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+        class="w-full rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 py-2 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400 dark:placeholder:text-slate-500"
       />
     </div>
 
     <div class="space-y-2">
       <label
-        class="block text-sm font-semibold text-slate-700"
+        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
         for="edit-description">Description</label
       >
       <textarea
         id="edit-description"
         rows="3"
         bind:value={editDescription}
-        class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+        class="w-full rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 py-2 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400 dark:placeholder:text-slate-500"
       ></textarea>
     </div>
 
     <div class="space-y-2">
-      <span class="block text-sm font-semibold text-slate-700"
+      <span class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
         >Visibility</span
       >
       <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-        <label class="flex items-center gap-2 text-sm text-slate-700">
+        <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
           <input type="radio" value="public" bind:group={editVisibility} />
           Public
         </label>
-        <label class="flex items-center gap-2 text-sm text-slate-700">
+        <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
           <input
             type="radio"
             value="public_readonly"
@@ -752,23 +752,23 @@
           />
           Public (read-only)
         </label>
-        <label class="flex items-center gap-2 text-sm text-slate-700">
+        <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
           <input type="radio" value="private" bind:group={editVisibility} />
           Private (shareable link)
         </label>
       </div>
-      <p class="text-xs text-slate-500">{visibilityDescriptions[editVisibility]}</p>
+      <p class="text-xs text-slate-500 dark:text-slate-400">{visibilityDescriptions[editVisibility]}</p>
     </div>
 
     {#if editError}
-      <p class="text-sm text-red-600">{editError}</p>
+      <p class="text-sm text-red-600 dark:text-red-400">{editError}</p>
     {/if}
 
     <div class="flex justify-end gap-3">
       <button
         type="button"
         onclick={() => (showEditModal = false)}
-        class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
+        class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
       >
         Cancel
       </button>
@@ -786,7 +786,7 @@
 
 <!-- Delete Confirmation -->
 <Modal bind:open={showDeleteConfirm} title="Delete Counter?" maxWidth="max-w-sm" describedBy="delete-counter-description">
-  <p id="delete-counter-description" class="text-slate-600">
+  <p id="delete-counter-description" class="text-slate-600 dark:text-slate-400">
     This action cannot be undone. The counter and its history will be
     permanently deleted.
   </p>
@@ -794,7 +794,7 @@
     <button
       type="button"
       onclick={() => (showDeleteConfirm = false)}
-      class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50"
+      class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
     >
       Cancel
     </button>

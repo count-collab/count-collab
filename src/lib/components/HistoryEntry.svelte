@@ -34,17 +34,17 @@
   }
 </script>
 
-<li class="inline-flex items-center gap-1 text-xs text-slate-400" in:slideIn>
-  <span class="font-medium text-slate-500">{displayName}</span>
+<li class="inline-flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500" in:slideIn>
+  <span class="font-medium text-slate-500 dark:text-slate-400">{displayName}</span>
   <span
     class="inline-flex items-center rounded-full px-1 py-px text-[10px] font-semibold leading-tight {delta >= 0
-      ? 'bg-green-100 text-green-700'
-      : 'bg-red-100 text-red-700'}"
+      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}"
   >
     {deltaLabel}
   </span>
   <span>&rarr; {newValue}</span>
-  <span class="text-slate-300">
+  <span class="text-slate-300 dark:text-slate-600">
     @ {time}{isToday ? "" : ` ${dateStr}`}
   </span>
 </li>
