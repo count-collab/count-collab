@@ -74,7 +74,6 @@
   const isAdmin = $derived(data.isAdmin);
 
   let mobileMenuOpen = $state(false);
-
 </script>
 
 <div
@@ -87,7 +86,10 @@
       class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between"
     >
       <h1 class="text-2xl font-bold">
-        <a href="/" class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
+        <a
+          href="/"
+          class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent"
+        >
           Count Collab
         </a>
       </h1>
@@ -121,13 +123,20 @@
       <div class="hidden md:flex items-center gap-4 flex-1 ml-8">
         <a
           href="/counters"
-          class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition">Browse</a
+          class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
+          >Browse</a
+        >
+        <a
+          href="/dashboards"
+          class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
+          >Dashboards</a
         >
         {#if session?.user}
           {#if isAdmin}
             <a
               href="/admin"
-              class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition">Admin</a
+              class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
+              >Admin</a
             >
           {/if}
         {/if}
@@ -140,7 +149,7 @@
             <ion-icon name="add-outline" style="font-size: 16px;"></ion-icon>
             Create
           </a>
-          
+
           {#if session?.user}
             <div
               class="relative pl-3 border-l border-slate-200 dark:border-slate-700 group"
@@ -156,10 +165,18 @@
                     class="w-7 h-7 rounded-full"
                   />
                 {/if}
-                <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <span
+                  class="text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
                   {session.user.username ?? session.user.name ?? "User"}
                 </span>
-                <svg class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M19 9l-7 7-7-7" /></svg>
+                <svg
+                  class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform group-hover:rotate-180"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  stroke-width="2.5"><path d="M19 9l-7 7-7-7" /></svg
+                >
               </button>
               <div
                 class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute right-0 top-full mt-1 w-48 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg dark:shadow-slate-900/50 py-1 transition-all duration-150 z-50"
@@ -168,23 +185,36 @@
                   href="/my-counters"
                   class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                 >
-                  <ion-icon name="list-outline" style="font-size: 16px;"></ion-icon>
+                  <ion-icon name="list-outline" style="font-size: 16px;"
+                  ></ion-icon>
                   My Counters
+                </a>
+                <a
+                  href="/create/dashboard"
+                  class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                >
+                  <ion-icon name="grid-outline" style="font-size: 16px;"
+                  ></ion-icon>
+                  Create Dashboard
                 </a>
                 <a
                   href="/settings"
                   class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                 >
-                  <ion-icon name="settings-outline" style="font-size: 16px;"></ion-icon>
+                  <ion-icon name="settings-outline" style="font-size: 16px;"
+                  ></ion-icon>
                   Settings
                 </a>
-                <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                <div
+                  class="border-t border-slate-100 dark:border-slate-700 my-1"
+                ></div>
                 <button
                   type="button"
                   onclick={() => signOut()}
                   class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"
                 >
-                  <ion-icon name="log-out-outline" style="font-size: 16px;"></ion-icon>
+                  <ion-icon name="log-out-outline" style="font-size: 16px;"
+                  ></ion-icon>
                   Sign out
                 </button>
               </div>
@@ -218,6 +248,14 @@
             <span>Browse</span>
           </a>
           <a
+            href="/dashboards"
+            onclick={() => (mobileMenuOpen = false)}
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
+            <span>Dashboards</span>
+          </a>
+          <a
             href="/create"
             onclick={() => (mobileMenuOpen = false)}
             class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
@@ -225,6 +263,14 @@
             <ion-icon name="add-circle-outline" style="font-size: 18px;"
             ></ion-icon>
             <span>Create</span>
+          </a>
+          <a
+            href="/create/dashboard"
+            onclick={() => (mobileMenuOpen = false)}
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
+            <span>Create Dashboard</span>
           </a>
 
           {#if session?.user}
@@ -241,7 +287,8 @@
               onclick={() => (mobileMenuOpen = false)}
               class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
             >
-              <ion-icon name="settings-outline" style="font-size: 18px;"></ion-icon>
+              <ion-icon name="settings-outline" style="font-size: 18px;"
+              ></ion-icon>
               <span>Settings</span>
             </a>
             {#if isAdmin}
@@ -255,7 +302,9 @@
                 <span>Admin</span>
               </a>
             {/if}
-            <div class="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2">
+            <div
+              class="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2"
+            >
               <a
                 href="/my-counters"
                 onclick={() => (mobileMenuOpen = false)}
@@ -268,7 +317,9 @@
                     class="w-7 h-7 rounded-full"
                   />
                 {/if}
-                <span class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <span
+                  class="text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
                   {session.user.username ?? session.user.name ?? "User"}
                 </span>
               </a>
@@ -286,7 +337,9 @@
               </button>
             </div>
           {:else}
-            <div class="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2">
+            <div
+              class="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2"
+            >
               <a
                 href="/login"
                 onclick={() => (mobileMenuOpen = false)}
@@ -307,7 +360,9 @@
     {@render children()}
   </main>
 
-  <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 mt-12 py-8">
+  <footer
+    class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 mt-12 py-8"
+  >
     <div
       class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-slate-600 dark:text-slate-400"
     >

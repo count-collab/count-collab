@@ -1,5 +1,6 @@
 import { redirect } from "@sveltejs/kit";
 import { getUserCounters } from "$lib/server/counters";
+import { getUserDashboards } from "$lib/server/dashboards";
 import type { PageServerLoad } from "./$types";
 
 const PER_PAGE = 16;
@@ -19,8 +20,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     offset,
   );
 
+  const { items: dashboardItems } = await getUserDashboards(session.user.id);
+
   return {
     counters: items,
+    dashboards: dashboardItems,
     page,
     totalPages: Math.max(1, Math.ceil(total / PER_PAGE)),
   };

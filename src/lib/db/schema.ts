@@ -192,6 +192,84 @@ export const counterMembers = pgTable(
   }),
 );
 
+// ── Dashboards ───────────────────────────────────────────────────
+
+export const dashboardVisibilityModes = [
+  "private",
+  "public",
+  "public_readonly",
+] as const;
+
+export type DashboardVisibilityMode = (typeof dashboardVisibilityModes)[number];
+
+export const dashboardMemberRoles = ["viewer", "editor", "admin"] as const;
+
+export type DashboardMemberRole = (typeof dashboardMemberRoles)[number];
+
+export const dashboards = pgTable("dashboards", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  visibilityMode: text("visibility_mode", { enum: dashboardVisibilityModes })
+    .default("public")
+    .notNull(),
+  shareToken: text("share_token").unique(),
+  ownerId: text("owner_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const dashboardItems = pgTable(
+  "dashboard_items",
+  {
+    id: serial("id").primaryKey(),
+    dashboardId: uuid("dashboard_id")
+      .notNull()
+      .references(() => dashboards.id, { onDelete: "cascade" }),
+    counterId: uuid("counter_id")
+      .notNull()
+      .references(() => counters.id, { onDelete: "cascade" }),
+    positionX: integer("position_x").notNull().default(0),
+    positionY: integer("position_y").notNull().default(0),
+    sizeColumns: integer("size_columns").notNull().default(1),
+    sizeRows: integer("size_rows").notNull().default(1),
+  },
+  (di) => ({
+    dashboardIdx: index("dashboard_items_dashboard_id_idx").on(di.dashboardId),
+  }),
+);
+
+export const dashboardMembers = pgTable(
+  "dashboard_members",
+  {
+    id: serial("id").primaryKey(),
+    dashboardId: uuid("dashboard_id")
+      .notNull()
+      .references(() => dashboards.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role", { enum: dashboardMemberRoles })
+      .notNull()
+      .default("viewer"),
+    invitedAt: timestamp("invited_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (dm) => ({
+    uniqueMember: uniqueIndex("dashboard_members_dashboard_user_idx").on(
+      dm.dashboardId,
+      dm.userId,
+    ),
+  }),
+);
+
 // ── Type exports ────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -207,6 +285,13 @@ export type NewCounterHistory = typeof counterHistory.$inferInsert;
 
 export type CounterMember = typeof counterMembers.$inferSelect;
 export type NewCounterMember = typeof counterMembers.$inferInsert;
+
+export type Dashboard = typeof dashboards.$inferSelect;
+export type NewDashboard = typeof dashboards.$inferInsert;
+export type DashboardItem = typeof dashboardItems.$inferSelect;
+export type NewDashboardItem = typeof dashboardItems.$inferInsert;
+export type DashboardMember = typeof dashboardMembers.$inferSelect;
+export type NewDashboardMember = typeof dashboardMembers.$inferInsert;
 
 export type SparklinePoint = {
   value: number;

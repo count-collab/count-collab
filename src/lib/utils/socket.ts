@@ -15,3 +15,25 @@ export function emitCounterUpdate(
 export function emitCounterCreated(counterId: string): void {
   getIO()?.emit("counter:created", { counterId });
 }
+
+export function emitDashboardCreated(dashboardId: string): void {
+  getIO()?.emit("dashboard:created", { dashboardId });
+}
+
+export function emitDashboardUpdated(dashboardId: string): void {
+  getIO()?.emit("dashboard:updated", { dashboardId });
+}
+
+export function emitDashboardItemAdded(
+  dashboardId: string,
+  itemId: number,
+): void {
+  getIO()?.emit("dashboard:item-added", { dashboardId, itemId });
+}
+
+export function emitDashboardItemRemoved(
+  dashboardId: string,
+  itemId: number,
+): void {
+  getIO()?.emit("dashboard:item-removed", { dashboardId, itemId });
+}
