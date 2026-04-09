@@ -112,11 +112,7 @@ export const updateMemberRoleSchema = z.object({
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
 
 // Dashboard validation
-export const dashboardVisibilityEnum = z.enum([
-  "public",
-  "public_readonly",
-  "private",
-]);
+export const dashboardVisibilityEnum = z.enum(["public", "private"]);
 
 export const createDashboardSchema = z.object({
   title: z

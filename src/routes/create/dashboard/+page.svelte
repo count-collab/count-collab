@@ -9,7 +9,6 @@
   const isLoggedIn = $derived(!!data.session?.user);
   const visibilityHelpText: Record<DashboardVisibilityMode, string> = {
     public: "Anyone with the link can view.",
-    public_readonly: "Anyone can view. Only members can edit.",
     private:
       "Only invited members or people with the private link can access it.",
   };
@@ -136,17 +135,6 @@
           Public
         </label>
         {#if isLoggedIn}
-          <label
-            class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-          >
-            <input
-              type="radio"
-              value="public_readonly"
-              bind:group={visibility}
-              class="accent-blue-600"
-            />
-            Public (read-only)
-          </label>
           <label
             class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
           >

@@ -194,11 +194,7 @@ export const counterMembers = pgTable(
 
 // ── Dashboards ───────────────────────────────────────────────────
 
-export const dashboardVisibilityModes = [
-  "private",
-  "public",
-  "public_readonly",
-] as const;
+export const dashboardVisibilityModes = ["private", "public"] as const;
 
 export type DashboardVisibilityMode = (typeof dashboardVisibilityModes)[number];
 

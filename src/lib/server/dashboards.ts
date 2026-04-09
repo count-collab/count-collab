@@ -22,10 +22,7 @@ import { logger } from "$lib/server/logger";
 
 export type DashboardWithMemberCount = Dashboard & { memberCount: number };
 
-const publicDashboardVisibilityModes: DashboardVisibilityMode[] = [
-  "public",
-  "public_readonly",
-];
+const publicDashboardVisibilityModes: DashboardVisibilityMode[] = ["public"];
 
 type CreateDashboardInput = {
   title: string;

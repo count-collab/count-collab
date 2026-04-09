@@ -17,15 +17,12 @@
   const visibilityBadgeClasses: Record<string, string> = {
     public:
       "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-700/60",
-    public_readonly:
-      "bg-amber-50 text-amber-700 ring-1 ring-amber-200/70 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-700/70",
     private:
       "bg-slate-50 text-slate-500 ring-1 ring-slate-200/60 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-600/60",
   };
 
   const visibilityLabels: Record<string, string> = {
     public: "Public",
-    public_readonly: "Public",
     private: "Private",
   };
 
@@ -91,31 +88,13 @@
 
   {#if showBadges}
     <div class="relative flex gap-1.5 mt-2">
-      {#if dashboard.visibilityMode === "public_readonly"}
-        <span
-          class="text-xs font-medium px-2 py-0.5 rounded-full {visibilityBadgeClasses[
-            'public'
-          ]}"
-        >
-          {visibilityLabels["public"]}
-        </span>
-        <span
-          class="text-xs font-medium px-2 py-0.5 rounded-full {visibilityBadgeClasses[
-            'public_readonly'
-          ]}"
-        >
-          read-only
-        </span>
-      {:else}
-        <span
-          class="text-xs font-medium px-2 py-0.5 rounded-full {visibilityBadgeClasses[
-            dashboard.visibilityMode
-          ] ?? ''}"
-        >
-          {visibilityLabels[dashboard.visibilityMode] ??
-            dashboard.visibilityMode}
-        </span>
-      {/if}
+      <span
+        class="text-xs font-medium px-2 py-0.5 rounded-full {visibilityBadgeClasses[
+          dashboard.visibilityMode
+        ] ?? ''}"
+      >
+        {visibilityLabels[dashboard.visibilityMode] ?? dashboard.visibilityMode}
+      </span>
     </div>
   {/if}
 </a>

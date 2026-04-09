@@ -50,7 +50,7 @@ describe("dashboard validation", () => {
     });
 
     it("accepts all visibility modes", () => {
-      for (const vis of ["public", "public_readonly", "private"]) {
+      for (const vis of ["public", "private"]) {
         const result = createDashboardSchema.parse({
           title: "Test",
           visibility: vis,

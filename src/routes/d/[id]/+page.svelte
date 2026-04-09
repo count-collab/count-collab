@@ -22,20 +22,16 @@
 
   const visibilityLabels: Record<DashboardVisibilityMode, string> = {
     public: "Public",
-    public_readonly: "Public",
     private: "Private",
   };
   const visibilityDescriptions: Record<DashboardVisibilityMode, string> = {
     public: "Anyone with the link can view.",
-    public_readonly: "Anyone can view. Only members can edit.",
     private:
       "Only invited members or people with the private link can access it.",
   };
   const visibilityBadgeClasses: Record<DashboardVisibilityMode, string> = {
     public:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    public_readonly:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
     private:
       "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
   };
@@ -319,7 +315,7 @@
         body: JSON.stringify({
           title: editTitle,
           description: editDescription,
-          visibilityMode: editVisibility,
+          visibility: editVisibility,
         }),
       });
 
@@ -768,13 +764,6 @@
       >
         {visibilityLabels[visibilityMode]}
       </span>
-      {#if visibilityMode === "public_readonly"}
-        <span
-          class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public_readonly}"
-        >
-          read-only
-        </span>
-      {/if}
       {#if data.isOwner}
         <span
           class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
@@ -1067,26 +1056,13 @@
         Visibility
       </p>
       <div class="flex flex-wrap items-center gap-2">
-        {#if visibilityMode === "public_readonly"}
-          <span
-            class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public}"
-          >
-            {visibilityLabels.public}
-          </span>
-          <span
-            class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public_readonly}"
-          >
-            read-only
-          </span>
-        {:else}
-          <span
-            class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses[
-              visibilityMode
-            ]}"
-          >
-            {visibilityLabels[visibilityMode]}
-          </span>
-        {/if}
+        <span
+          class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses[
+            visibilityMode
+          ]}"
+        >
+          {visibilityLabels[visibilityMode]}
+        </span>
         <p class="text-xs text-slate-500 dark:text-slate-400">
           {visibilityDescriptions[visibilityMode]}
         </p>
@@ -1290,16 +1266,6 @@
         >
           <input type="radio" value="public" bind:group={editVisibility} />
           Public
-        </label>
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input
-            type="radio"
-            value="public_readonly"
-            bind:group={editVisibility}
-          />
-          Public (read-only)
         </label>
         <label
           class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
