@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import {
   and,
   count as countFn,
@@ -24,20 +23,13 @@ import {
   users,
 } from "$lib/db/schema";
 import { createCache } from "$lib/server/cache";
+import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
 import { logger } from "$lib/server/logger";
 
 export const sparklineCache = createCache<SparklinePoint[]>({
   ttlMs: 300_000,
   maxSize: 500,
 });
-
-export function generateShareToken(): string {
-  return crypto.randomBytes(16).toString("hex");
-}
-
-function escapeLikePattern(input: string): string {
-  return input.replace(/[%_\\]/g, "\\$&");
-}
 
 const publicCounterVisibilityModes: CounterVisibilityMode[] = [
   "public",

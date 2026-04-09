@@ -2,6 +2,7 @@
   import { browser } from "$app/environment";
   import { invalidate } from "$app/navigation";
   import CounterCard from "$lib/components/CounterCard.svelte";
+  import DashboardCard from "$lib/components/DashboardCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
@@ -9,7 +10,28 @@
 
   const { data }: { data: PageData } = $props();
 
-  const userSlice = $derived(data.userCounters.slice(0, 6));
+  // Merge owned/shared + followed counters, deduplicate, sort by count desc
+  const allMyCounters = $derived.by(() => {
+    const ownedIds = new Set(data.userCounters.map((c) => c.id));
+    const followed = data.followedCounters.filter((c) => !ownedIds.has(c.id));
+    const merged = [
+      ...data.userCounters.map((c) => ({ counter: c, followed: false })),
+      ...followed.map((c) => ({ counter: c, followed: true })),
+    ];
+    merged.sort((a, b) => b.counter.count - a.counter.count);
+    return merged.slice(0, 6);
+  });
+
+  // Merge owned/shared + followed dashboards, deduplicate
+  const allMyDashboards = $derived.by(() => {
+    const ownedIds = new Set(data.userDashboards.map((d) => d.id));
+    const followed = data.followedDashboards.filter((d) => !ownedIds.has(d.id));
+    return [
+      ...data.userDashboards.map((d) => ({ dashboard: d, followed: false })),
+      ...followed.map((d) => ({ dashboard: d, followed: true })),
+    ].slice(0, 6);
+  });
+
   const popularSlice = $derived(data.popularCounters.slice(0, 6));
 
   let scrollY = $state(0);
@@ -50,7 +72,7 @@
   path="/"
 />
 
-<svelte:window bind:scrollY={scrollY} />
+<svelte:window bind:scrollY />
 
 <div class="relative pb-16">
   <!-- Page-wide background orbs with ambient drift + scroll parallax -->
@@ -71,78 +93,142 @@
   >
     <div
       class="flex flex-col items-center"
-      style="opacity: {1 - scrollProgress * 0.6}; transform: translateY({scrollY * 0.25}px)"
+      style="opacity: {1 -
+        scrollProgress * 0.6}; transform: translateY({scrollY * 0.25}px)"
     >
       <p
         class="hero-stagger mb-3 inline-block rounded-full bg-blue-100 dark:bg-blue-900 px-4 py-1 text-sm font-medium text-blue-700 dark:text-blue-300 tracking-wide"
       >
-      Real-time collaborative counting
-    </p>
-    <h1
-      class="hero-stagger text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight"
-      style="animation-delay: 100ms"
-    >
-      Count together,
-      <span
-        class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent"
-      >
-        in real time
-      </span>
-    </h1>
-    <p class="hero-stagger mt-4 text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-xl mx-auto" style="animation-delay: 200ms">
-      Create a counter, share the link, and let anyone increment it instantly.
-      No sign-up required.
-    </p>
-
-    <div class="hero-stagger mt-10 flex flex-col items-center gap-1" style="animation-delay: 250ms">
-      <p class="text-5xl sm:text-7xl font-extrabold text-blue-600 dark:text-blue-400">
-        <RollingNumber value={data.globalSum} />
+        Real-time collaborative counting
       </p>
-      <p class="text-base text-slate-500 dark:text-slate-400">
-        across <span class="font-semibold"><RollingNumber value={data.counterCount} /></span> counters
-      </p>
-    </div>
-
-    <div class="hero-stagger mt-8 flex flex-wrap gap-4 justify-center" style="animation-delay: 350ms">
-      <a
-        href="/create"
-        class="group inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-white font-semibold shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+      <h1
+        class="hero-stagger text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight"
+        style="animation-delay: 100ms"
       >
-        Create Counter
+        Count together,
         <span
-          class="inline-block transition-transform group-hover:translate-x-0.5"
-          >&rarr;</span
+          class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent"
         >
-      </a>
-      <a
-        href="/counters"
-        class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-7 py-3.5 font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition-all hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+          in real time
+        </span>
+      </h1>
+      <p
+        class="hero-stagger mt-4 text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-xl mx-auto"
+        style="animation-delay: 200ms"
       >
-        Browse Counters
-      </a>
-    </div>
+        Create a counter, share the link, and let anyone increment it instantly.
+        No sign-up required.
+      </p>
+
+      <div
+        class="hero-stagger mt-10 flex flex-col items-center gap-1"
+        style="animation-delay: 250ms"
+      >
+        <p
+          class="text-5xl sm:text-7xl font-extrabold text-blue-600 dark:text-blue-400"
+        >
+          <RollingNumber value={data.globalSum} />
+        </p>
+        <p
+          class="text-base text-slate-500 dark:text-slate-400 text-center inline-flex items-center justify-center gap-1 w-full"
+        >
+          across <span class="font-semibold inline-flex items-center"
+            ><RollingNumber value={data.counterCount} /></span
+          > counters
+        </p>
+      </div>
+
+      <div
+        class="hero-stagger mt-8 flex flex-wrap gap-4 justify-center"
+        style="animation-delay: 350ms"
+      >
+        <a
+          href="/create"
+          class="group inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-white font-semibold shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+        >
+          Create Counter
+          <span
+            class="inline-block transition-transform group-hover:translate-x-0.5"
+            >&rarr;</span
+          >
+        </a>
+        <a
+          href="/counters"
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-7 py-3.5 font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition-all hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+        >
+          Browse Counters
+        </a>
+      </div>
     </div>
   </section>
 
-  {#if data.userCounters.length > 0}
+  {#if allMyCounters.length > 0}
     <section aria-labelledby="your-counters-heading" class="relative z-10">
       <div class="flex items-center justify-between mb-6">
-        <h2 id="your-counters-heading" class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <ion-icon name="person-outline" style="font-size: 24px;" aria-hidden="true"></ion-icon>
-          Your Counters
+        <h2
+          id="your-counters-heading"
+          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+        >
+          <ion-icon
+            name="person-outline"
+            style="font-size: 24px;"
+            aria-hidden="true"
+          ></ion-icon>
+          My Counters
         </h2>
         <a
           href="/my-counters"
           class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
         >
           View all
-          <span class="inline-block transition-transform group-hover:translate-x-0.5">&rarr;</span>
+          <span
+            class="inline-block transition-transform group-hover:translate-x-0.5"
+            >&rarr;</span
+          >
         </a>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-        {#each userSlice as counter, i (counter.id)}
+        {#each allMyCounters as { counter, followed }, i (counter.id)}
           <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
-            <CounterCard {counter} showBadges />
+            <CounterCard {counter} showBadges {followed} />
+          </div>
+        {/each}
+      </div>
+    </section>
+  {/if}
+
+  {#if allMyDashboards.length > 0}
+    <section
+      aria-labelledby="your-dashboards-heading"
+      class="relative z-10 mt-16"
+    >
+      <div class="flex items-center justify-between mb-6">
+        <h2
+          id="your-dashboards-heading"
+          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+        >
+          <ion-icon
+            name="grid-outline"
+            style="font-size: 24px;"
+            aria-hidden="true"
+          ></ion-icon>
+          My Dashboards
+        </h2>
+        <a
+          href="/my-counters"
+          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
+        >
+          View all
+          <span
+            class="inline-block transition-transform group-hover:translate-x-0.5"
+            >&rarr;</span
+          >
+        </a>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+        {#each allMyDashboards as { dashboard, followed }, i (dashboard.id)}
+          <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
+            <DashboardCard {dashboard} showBadges {followed} />
           </div>
         {/each}
       </div>
@@ -150,10 +236,20 @@
   {/if}
 
   {#if data.popularCounters.length > 0}
-    <section aria-labelledby="popular-counters-heading" class="relative z-10 mt-16">
+    <section
+      aria-labelledby="popular-counters-heading"
+      class="relative z-10 mt-16"
+    >
       <div class="mb-6">
-        <h2 id="popular-counters-heading" class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <ion-icon name="trending-up-outline" style="font-size: 24px;" aria-hidden="true"></ion-icon>
+        <h2
+          id="popular-counters-heading"
+          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+        >
+          <ion-icon
+            name="trending-up-outline"
+            style="font-size: 24px;"
+            aria-hidden="true"
+          ></ion-icon>
           Popular Counters
         </h2>
       </div>
@@ -165,13 +261,25 @@
         {/each}
       </div>
     </section>
-  {:else if data.userCounters.length === 0}
-    <section class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 bg-white/60 dark:bg-slate-800/60 p-12 text-center">
-      <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-        <ion-icon name="add-circle-outline" style="font-size: 32px; color: rgb(37 99 235);" aria-hidden="true"></ion-icon>
+  {:else if allMyCounters.length === 0 && allMyDashboards.length === 0}
+    <section
+      class="rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 bg-white/60 dark:bg-slate-800/60 p-12 text-center"
+    >
+      <div
+        class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900"
+      >
+        <ion-icon
+          name="add-circle-outline"
+          style="font-size: 32px; color: rgb(37 99 235);"
+          aria-hidden="true"
+        ></ion-icon>
       </div>
-      <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">No counters yet</h3>
-      <p class="mt-1 text-slate-500 dark:text-slate-400">Be the first to create one and start counting together.</p>
+      <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        No counters yet
+      </h3>
+      <p class="mt-1 text-slate-500 dark:text-slate-400">
+        Be the first to create one and start counting together.
+      </p>
       <a
         href="/create"
         class="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
@@ -182,10 +290,20 @@
   {/if}
 
   {#if data.recentlyCreated.length > 0}
-    <section aria-labelledby="recently-created-heading" class="relative z-10 mt-16">
+    <section
+      aria-labelledby="recently-created-heading"
+      class="relative z-10 mt-16"
+    >
       <div class="mb-6">
-        <h2 id="recently-created-heading" class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <ion-icon name="sparkles-outline" style="font-size: 24px;" aria-hidden="true"></ion-icon>
+        <h2
+          id="recently-created-heading"
+          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+        >
+          <ion-icon
+            name="sparkles-outline"
+            style="font-size: 24px;"
+            aria-hidden="true"
+          ></ion-icon>
           Recently Created
         </h2>
       </div>
@@ -200,10 +318,20 @@
   {/if}
 
   {#if data.recentlyUpdated.length > 0}
-    <section aria-labelledby="recently-updated-heading" class="relative z-10 mt-16">
+    <section
+      aria-labelledby="recently-updated-heading"
+      class="relative z-10 mt-16"
+    >
       <div class="mb-6">
-        <h2 id="recently-updated-heading" class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <ion-icon name="time-outline" style="font-size: 24px;" aria-hidden="true"></ion-icon>
+        <h2
+          id="recently-updated-heading"
+          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+        >
+          <ion-icon
+            name="time-outline"
+            style="font-size: 24px;"
+            aria-hidden="true"
+          ></ion-icon>
           Recently Updated
         </h2>
       </div>

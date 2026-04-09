@@ -1,6 +1,17 @@
 import { cleanup, render, screen } from "@testing-library/svelte";
-import { afterEach, describe, expect, it } from "vitest";
-import CounterCard from "./CounterCard.svelte";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("$app/stores", async () => {
+  const { readable } = await import("svelte/store");
+  return {
+    page: readable({
+      data: { session: { user: { id: "owner-1" } } },
+      url: new URL("http://localhost"),
+    }),
+  };
+});
+
+const { default: CounterCard } = await import("./CounterCard.svelte");
 
 describe("CounterCard", () => {
   afterEach(() => {

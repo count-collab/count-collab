@@ -1,7 +1,7 @@
 import { error } from "@sveltejs/kit";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "$lib/db";
-import { users } from "$lib/db/schema";
+import { counterMembers, users } from "$lib/db/schema";
 import {
   canDeleteCounter,
   canEditCounter,
@@ -10,6 +10,10 @@ import {
   canViewPrivateCounter,
 } from "$lib/server/authorize";
 import { getCounter, getCounterHistory } from "$lib/server/counters";
+import {
+  getCounterFollowerCount,
+  isFollowingCounter,
+} from "$lib/server/followers";
 import { logger } from "$lib/server/logger";
 import { getCounterMembers } from "$lib/server/members";
 import { counterIdSchema } from "$lib/utils/validation";
@@ -81,6 +85,27 @@ export const load: PageServerLoad = async ({
   const isOwner = userId ? counter.ownerId === userId : false;
   const members = canManage ? await getCounterMembers(counter.id) : [];
 
+  // Check membership directly for follow button visibility (independent of admin permissions)
+  let isMember = false;
+  if (userId && !isOwner) {
+    const [memberRow] = await db
+      .select({ id: counterMembers.id })
+      .from(counterMembers)
+      .where(
+        and(
+          // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+          eq(counterMembers.counterId, counter.id as any),
+          eq(counterMembers.userId, userId),
+        ),
+      );
+    isMember = !!memberRow;
+  }
+
+  const isFollowing = userId
+    ? await isFollowingCounter(userId, counter.id)
+    : false;
+  const followerCount = await getCounterFollowerCount(counter.id);
+
   let ownerUsername: string | null = null;
   if (counter.ownerId) {
     const ownerResult = await db
@@ -100,8 +125,11 @@ export const load: PageServerLoad = async ({
     canManage,
     canIncrement,
     isOwner,
+    isMember,
     ownerUsername,
     members,
+    isFollowing,
+    followerCount,
     // Only expose the share token to users who can manage the counter
     shareToken: canManage ? (counter.shareToken ?? null) : null,
     hasValidToken,
