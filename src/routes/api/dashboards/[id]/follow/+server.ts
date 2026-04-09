@@ -5,7 +5,7 @@ import { followDashboard, unfollowDashboard } from "$lib/server/followers";
 import { dashboardIdSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ params, locals }) => {
+export const POST: RequestHandler = async ({ params, locals, url }) => {
   const idValidation = dashboardIdSchema.safeParse(params.id);
   if (!idValidation.success) {
     throw error(400, "Invalid dashboard ID format");
@@ -21,8 +21,15 @@ export const POST: RequestHandler = async ({ params, locals }) => {
     throw error(404, "Dashboard not found");
   }
 
+  // Private dashboards require a valid share token to follow
   if (dashboard.visibilityMode === "private") {
-    throw error(403, "Cannot follow a private dashboard");
+    const token = url.searchParams.get("token");
+    if (!token || !dashboard.shareToken || token !== dashboard.shareToken) {
+      throw error(
+        403,
+        "Cannot follow a private dashboard without a valid share token",
+      );
+    }
   }
 
   if (dashboard.ownerId === session.user.id) {

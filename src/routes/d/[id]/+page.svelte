@@ -115,7 +115,7 @@
     !!data.session?.user?.id &&
       !data.isOwner &&
       !data.memberRole &&
-      data.dashboard.visibilityMode !== "private",
+      (data.dashboard.visibilityMode !== "private" || data.hasValidToken),
   );
 
   async function handleFollow() {
@@ -123,12 +123,14 @@
     isProcessingFollow = true;
 
     try {
-      const response = await fetch(
-        `/api/dashboards/${data.dashboard.id}/follow`,
-        {
-          method: "POST",
-        },
-      );
+      let followUrl = `/api/dashboards/${data.dashboard.id}/follow`;
+      if (browser && data.hasValidToken) {
+        const token = new URL(window.location.href).searchParams.get("token");
+        if (token) followUrl += `?token=${encodeURIComponent(token)}`;
+      }
+      const response = await fetch(followUrl, {
+        method: "POST",
+      });
       if (response.ok) {
         await invalidate(`dashboard:${data.dashboard.id}`);
       } else {
@@ -813,6 +815,9 @@
       style="--grid-cols: {GRID_COLS}; --grid-rows: {editMode
         ? Math.max(gridRows + 1, 2)
         : gridRows};"
+      ondragover={(e) => {
+        if (editMode && draggedItemId !== null) e.preventDefault();
+      }}
     >
       {#each data.items as { item, counter, canIncrement } (item.id)}
         {@const displayCount = counter
@@ -823,7 +828,7 @@
           role={editMode ? "button" : undefined}
           class="min-w-0 dashboard-item {editMode
             ? draggedItemId === item.id
-              ? 'opacity-50 cursor-grabbing pointer-events-none'
+              ? 'opacity-50 cursor-grabbing'
               : 'cursor-grab'
             : ''}"
           style="--col-start: {item.positionX +
@@ -832,7 +837,10 @@
           ondragstart={(e) => {
             if (!editMode) return;
             draggedItemId = item.id;
-            if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", String(item.id));
+            }
           }}
           ondragend={() => {
             draggedItemId = null;
@@ -880,7 +888,10 @@
               <!-- Counter title -->
               <a
                 href="/c/{counter.id}"
-                class="relative font-semibold text-slate-900 dark:text-slate-100 truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                draggable={editMode ? "false" : undefined}
+                class="relative font-semibold text-slate-900 dark:text-slate-100 truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors {editMode
+                  ? 'pointer-events-none'
+                  : ''}"
                 title={counter.title}
               >
                 {counter.title}

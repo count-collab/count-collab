@@ -7,7 +7,7 @@ import { followCounter, unfollowCounter } from "$lib/server/followers";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ params, locals }) => {
+export const POST: RequestHandler = async ({ params, locals, url }) => {
   const idValidation = counterIdSchema.safeParse(params.id);
   if (!idValidation.success) {
     throw error(400, "Invalid counter ID format");
@@ -21,6 +21,17 @@ export const POST: RequestHandler = async ({ params, locals }) => {
   const counter = await getCounter(params.id);
   if (!counter) {
     throw error(404, "Counter not found");
+  }
+
+  // Private counters require a valid share token to follow
+  if (counter.visibilityMode === "private") {
+    const token = url.searchParams.get("token");
+    if (!token || !counter.shareToken || token !== counter.shareToken) {
+      throw error(
+        403,
+        "Cannot follow a private counter without a valid share token",
+      );
+    }
   }
 
   // Owners don't need to follow their own counters

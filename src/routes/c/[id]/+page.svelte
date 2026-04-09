@@ -105,7 +105,10 @@
   let isProcessingFollow = $state(false);
 
   const canFollow = $derived(
-    !!data.session?.user?.id && !data.isOwner && !data.isMember,
+    !!data.session?.user?.id &&
+      !data.isOwner &&
+      !data.isMember &&
+      (visibilityMode !== "private" || data.hasValidToken),
   );
 
   const shareUrl = $derived.by(() => {
@@ -306,7 +309,12 @@
     if (isProcessingFollow) return;
     isProcessingFollow = true;
     try {
-      const response = await fetch(`/api/counters/${data.counter.id}/follow`, {
+      let followUrl = `/api/counters/${data.counter.id}/follow`;
+      if (browser && data.hasValidToken) {
+        const token = new URL(window.location.href).searchParams.get("token");
+        if (token) followUrl += `?token=${encodeURIComponent(token)}`;
+      }
+      const response = await fetch(followUrl, {
         method: "POST",
       });
       if (response.ok) {
