@@ -874,28 +874,30 @@
                 </span>
               {/if}
 
-              <!-- Count display with inline increment -->
-              <div class="flex items-baseline gap-3 mt-3">
+              <!-- Count display -->
+              <div class="flex items-baseline mt-3">
                 <span
                   class="text-4xl sm:text-5xl font-extrabold tabular-nums text-blue-600 dark:text-blue-400 leading-none"
                 >
                   <RollingNumber value={displayCount} />
                 </span>
-                {#if !editMode && canIncrement}
-                  <button
-                    type="button"
-                    onclick={() =>
-                      handleCounterChange(counter.id, displayCount, 1)}
-                    disabled={incrementingCounters[counter.id] ||
-                      $rateLimit.isLimited}
-                    aria-label="Increment {counter.title}"
-                    class="inline-flex items-center justify-center w-9 h-9 rounded-full font-bold transition bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm -translate-y-[3px]"
-                  >
-                    <ion-icon name="add-outline" style="font-size: 18px;"
-                    ></ion-icon>
-                  </button>
-                {/if}
               </div>
+
+              <!-- Increment button (right side, visible on hover) -->
+              {#if !editMode && canIncrement}
+                <button
+                  type="button"
+                  onclick={() =>
+                    handleCounterChange(counter.id, displayCount, 1)}
+                  disabled={incrementingCounters[counter.id] ||
+                    $rateLimit.isLimited}
+                  aria-label="Increment {counter.title}"
+                  class="absolute right-3 top-0 bottom-0 w-14 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 text-slate-300 hover:text-blue-500 dark:text-slate-600 dark:hover:text-blue-400 hover:drop-shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ion-icon name="add-circle-outline" style="font-size: 40px;"
+                  ></ion-icon>
+                </button>
+              {/if}
 
               <!-- Edit mode: resize + delete controls -->
               {#if editMode}
