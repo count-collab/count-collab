@@ -132,7 +132,7 @@ export const load: PageServerLoad = async ({
     isFollowing,
     followerCount,
     hasValidToken,
-    title: `${dashboard.title} | Count Collab`,
+    title: `${dashboard.title} | Dashboard | Count Collab`,
     description:
       dashboard.description || `${dashboard.title} dashboard on Count Collab`,
   };

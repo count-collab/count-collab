@@ -134,7 +134,7 @@
         <a
           href="/counters"
           class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
-          >Browse</a
+          >Counters</a
         >
         <a
           href="/dashboards"
@@ -251,7 +251,7 @@
             class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
           >
             <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
-            <span>Browse</span>
+            <span>Counters</span>
           </a>
           <a
             href="/dashboards"
