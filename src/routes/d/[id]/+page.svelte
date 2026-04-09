@@ -81,9 +81,11 @@
   let editMode = $state(false);
   let draggedItemId = $state<number | null>(null);
   let dragDropTarget = $state<{ x: number; y: number } | null>(null);
+  let hoveredEmptyCell = $state<{ x: number; y: number } | null>(null);
 
   // Add counter modal
   let showAddCounterModal = $state(false);
+  let addCounterTargetCell = $state<{ x: number; y: number } | null>(null);
 
   // Member invitation state
   let inviteUsername = $state("");
@@ -101,19 +103,13 @@
       : null,
   );
 
-  const dragPreviewCells = $derived.by(() => {
-    const cells = new Set<string>();
-    if (!draggedItem || !dragDropTarget) return cells;
+  const dragPreviewPosition = $derived.by(() => {
+    if (!draggedItem || !dragDropTarget) return null;
     const w = draggedItem.sizeColumns;
     const h = draggedItem.sizeRows;
-    const clampedX = Math.min(dragDropTarget.x, GRID_COLS - w);
-    const clampedY = dragDropTarget.y;
-    for (let dx = 0; dx < w; dx++) {
-      for (let dy = 0; dy < h; dy++) {
-        cells.add(`${clampedX + dx},${clampedY + dy}`);
-      }
-    }
-    return cells;
+    const clampedX = Math.min(Math.max(0, dragDropTarget.x), GRID_COLS - w);
+    const clampedY = Math.max(0, dragDropTarget.y);
+    return { x: clampedX, y: clampedY, w, h };
   });
 
   // Follow/unfollow state
@@ -197,11 +193,23 @@
   });
 
   const emptyCells = $derived.by(() => {
+    // When dragging, treat the dragged item's cells as empty
+    const draggedCells = new Set<string>();
+    if (draggedItem) {
+      for (let dx = 0; dx < draggedItem.sizeColumns; dx++) {
+        for (let dy = 0; dy < draggedItem.sizeRows; dy++) {
+          draggedCells.add(
+            `${draggedItem.positionX + dx},${draggedItem.positionY + dy}`,
+          );
+        }
+      }
+    }
     const cells: Array<{ x: number; y: number }> = [];
     const rows = Math.max(gridRows + 1, 2);
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < GRID_COLS; x++) {
-        if (!occupiedCells.has(`${x},${y}`)) {
+        const key = `${x},${y}`;
+        if (!occupiedCells.has(key) || draggedCells.has(key)) {
           cells.push({ x, y });
         }
       }
@@ -436,17 +444,22 @@
   }
 
   async function handleAddCounter(counterId: string) {
-    const occupied = new Set(
-      data.items.map(({ item }) => `${item.positionX},${item.positionY}`),
-    );
-    let posX = 0,
-      posY = 0;
-    outer: for (let y = 0; y <= gridRows + 1; y++) {
-      for (let x = 0; x < GRID_COLS; x++) {
-        if (!occupied.has(`${x},${y}`)) {
-          posX = x;
-          posY = y;
-          break outer;
+    let posX = 0;
+    let posY = 0;
+
+    if (addCounterTargetCell) {
+      posX = addCounterTargetCell.x;
+      posY = addCounterTargetCell.y;
+      addCounterTargetCell = null;
+    } else {
+      // Fallback: find the earliest free cell, accounting for multi-cell items
+      outer: for (let y = 0; y <= gridRows + 1; y++) {
+        for (let x = 0; x < GRID_COLS; x++) {
+          if (!occupiedCells.has(`${x},${y}`)) {
+            posX = x;
+            posY = y;
+            break outer;
+          }
         }
       }
     }
@@ -591,16 +604,7 @@
             ></ion-icon>
             {editMode ? "Done" : "Edit Layout"}
           </button>
-          {#if editMode}
-            <button
-              type="button"
-              onclick={() => (showAddCounterModal = true)}
-              class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-1.5"
-            >
-              <ion-icon name="add-outline" style="font-size: 16px;"></ion-icon>
-              Add Counter
-            </button>
-          {/if}
+
           <button
             type="button"
             onclick={() => {
@@ -809,7 +813,7 @@
           role={editMode ? "button" : undefined}
           class="min-w-0 {editMode
             ? draggedItemId === item.id
-              ? 'opacity-50 cursor-grabbing'
+              ? 'opacity-50 cursor-grabbing pointer-events-none'
               : 'cursor-grab'
             : ''}"
           style="grid-column: {item.positionX +
@@ -965,11 +969,15 @@
         {#each emptyCells as cell (`empty-${cell.x}-${cell.y}`)}
           <div
             style="grid-column: {cell.x + 1}; grid-row: {cell.y + 1};"
-            class="rounded-xl transition-colors min-h-[140px] {dragPreviewCells.has(
-              `${cell.x},${cell.y}`,
-            )
-              ? 'border-2 border-dashed border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-950/20'
-              : ''}"
+            class="group/cell rounded-xl transition-colors min-h-[140px] hover:border-2 hover:border-dashed hover:border-slate-300 dark:hover:border-slate-600"
+            onmouseenter={() => (hoveredEmptyCell = { x: cell.x, y: cell.y })}
+            onmouseleave={() => {
+              if (
+                hoveredEmptyCell?.x === cell.x &&
+                hoveredEmptyCell?.y === cell.y
+              )
+                hoveredEmptyCell = null;
+            }}
             ondragover={(e) => {
               if (draggedItemId === null) return;
               e.preventDefault();
@@ -991,8 +999,28 @@
               dragDropTarget = null;
             }}
             role="presentation"
-          ></div>
+          >
+            <button
+              type="button"
+              onclick={() => {
+                addCounterTargetCell = { x: cell.x, y: cell.y };
+                showAddCounterModal = true;
+              }}
+              class="hidden group-hover/cell:flex w-full h-full items-center justify-center gap-1.5 text-sm text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            >
+              <ion-icon name="add-outline" style="font-size: 18px;"></ion-icon>
+              Add Counter
+            </button>
+          </div>
         {/each}
+        {#if dragPreviewPosition}
+          <div
+            style="grid-column: {dragPreviewPosition.x +
+              1} / span {dragPreviewPosition.w}; grid-row: {dragPreviewPosition.y +
+              1} / span {dragPreviewPosition.h};"
+            class="rounded-xl border-2 border-dashed border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 pointer-events-none z-10"
+          ></div>
+        {/if}
       {/if}
     </section>
   {:else}

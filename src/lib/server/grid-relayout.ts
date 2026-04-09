@@ -187,19 +187,26 @@ function resolveOverlaps(
       }
     }
 
-    // Displace: push all overlapped items down
+    // Displace: try shifting each overlapped item to the right first, then push down
     for (const overlapItem of overlapped) {
       if (iterations >= MAX_ITERATIONS) return;
 
       const itemRef = items.find((i) => i.id === overlapItem.id);
       if (!itemRef) continue;
 
-      // Displace to next row below the active item, at X=0
-      const displaceY = activeItem.positionY + activeItem.sizeRows;
-      itemRef.positionX = 0;
-      itemRef.positionY = displaceY;
+      // Try shifting right: place just after the active item's right edge
+      const shiftedX = activeItem.positionX + activeItem.sizeColumns;
+      if (shiftedX + itemRef.sizeColumns <= GRID_COLS) {
+        // Fits within grid width — shift right in the same row
+        itemRef.positionX = shiftedX;
+      } else {
+        // Doesn't fit — displace to next row at X=0
+        const displaceY = activeItem.positionY + activeItem.sizeRows;
+        itemRef.positionX = 0;
+        itemRef.positionY = displaceY;
+      }
 
-      // Recursively resolve any new overlaps (displaced items have no vacated rect)
+      // Recursively resolve any new overlaps
       processItem(itemRef, null);
     }
   };

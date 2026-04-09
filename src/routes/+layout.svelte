@@ -179,23 +179,19 @@
                 >
               </button>
               <div
-                class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute right-0 top-full mt-1 w-48 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg dark:shadow-slate-900/50 py-1 transition-all duration-150 z-50"
+                class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute right-0 top-full mt-1 w-60 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg dark:shadow-slate-900/50 py-1 transition-all duration-150 z-50"
               >
                 <a
                   href="/my-counters"
                   class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                 >
-                  <ion-icon name="list-outline" style="font-size: 16px;"
+                  <ion-icon
+                    name="list-outline"
+                    class="shrink-0"
+                    style="font-size: 18px;"
                   ></ion-icon>
-                  My Counters
-                </a>
-                <a
-                  href="/create/dashboard"
-                  class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-                >
-                  <ion-icon name="grid-outline" style="font-size: 16px;"
-                  ></ion-icon>
-                  Create Dashboard
+                  <span class="whitespace-nowrap">My Counters & Dashboards</span
+                  >
                 </a>
                 <a
                   href="/settings"
@@ -264,14 +260,6 @@
             ></ion-icon>
             <span>Create</span>
           </a>
-          <a
-            href="/create/dashboard"
-            onclick={() => (mobileMenuOpen = false)}
-            class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-          >
-            <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
-            <span>Create Dashboard</span>
-          </a>
 
           {#if session?.user}
             <a
@@ -280,7 +268,7 @@
               class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
             >
               <ion-icon name="list-outline" style="font-size: 18px;"></ion-icon>
-              <span>My Counters</span>
+              <span class="whitespace-nowrap">My Counters & Dashboards</span>
             </a>
             <a
               href="/settings"

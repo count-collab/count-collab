@@ -100,8 +100,9 @@ describe("relayoutGrid", () => {
       const item2 = findItem(result, 2);
       expect(item1.positionX).toBe(2);
       expect(item1.positionY).toBe(0);
-      // Item 2 was displaced (pushed down)
-      expect(item2.positionY).toBeGreaterThan(0);
+      // Item 2 was shifted right to make room (x=3, fits 2-wide within 5 cols)
+      expect(item2.positionX).toBe(3);
+      expect(item2.positionY).toBe(0);
     });
 
     it("handles cascading displacement", () => {
@@ -247,6 +248,34 @@ describe("relayoutGrid", () => {
       // Item 3 should be displaced to next row, not swapped
       expect(item3.positionY).toBe(1);
       expect(item3.positionX).toBe(0);
+    });
+
+    it("resize shifts overlapped card right, cascading pushes next card down", () => {
+      // [2x1, 2x1, 1x1] — resize first to 3x1
+      const items = [
+        makeItem(1, 0, 0, 2, 1),
+        makeItem(2, 2, 0, 2, 1),
+        makeItem(3, 4, 0, 1, 1),
+      ];
+      const result = relayoutGrid(items, {
+        type: "resize",
+        itemId: 1,
+        sizeColumns: 3,
+        sizeRows: 1,
+      });
+      const item1 = findItem(result, 1);
+      const item2 = findItem(result, 2);
+      const item3 = findItem(result, 3);
+      // Item 1: resized to 3x1, stays at x=0
+      expect(item1.positionX).toBe(0);
+      expect(item1.positionY).toBe(0);
+      expect(item1.sizeColumns).toBe(3);
+      // Item 2: shifted right to x=3 (just past item 1's right edge)
+      expect(item2.positionX).toBe(3);
+      expect(item2.positionY).toBe(0);
+      // Item 3: can't shift right (x=5 out of bounds), displaced to y=1, x=0
+      expect(item3.positionX).toBe(0);
+      expect(item3.positionY).toBe(1);
     });
 
     it("caps sizeColumns to grid width", () => {
