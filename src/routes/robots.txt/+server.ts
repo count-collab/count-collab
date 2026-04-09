@@ -10,8 +10,12 @@ const ALLOW_ALL = `User-agent: *
 Disallow:
 `;
 
-export const GET: RequestHandler = () => {
-  return new Response(noindex ? DISALLOW_ALL : ALLOW_ALL, {
+export const GET: RequestHandler = ({ url }) => {
+  const body =
+    (noindex ? DISALLOW_ALL : ALLOW_ALL) +
+    `Sitemap: ${url.origin}/sitemap.xml\n`;
+
+  return new Response(body, {
     headers: {
       "Content-Type": "text/plain",
       "Cache-Control": "public, max-age=86400",

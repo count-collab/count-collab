@@ -97,15 +97,15 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-        inArray(countersTable.visibilityMode, publicCounterVisibilityModes),
-        or(
-          ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-          ilike(
-            countersTable.description,
-            `%${escapeLikePattern(searchQuery)}%`,
-          ),
+      inArray(countersTable.visibilityMode, publicCounterVisibilityModes),
+      or(
+        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(
+          countersTable.description,
+          `%${escapeLikePattern(searchQuery)}%`,
         ),
-      )
+      ),
+    )
     : inArray(countersTable.visibilityMode, publicCounterVisibilityModes);
 
   const [items, [{ total }]] = await Promise.all([
@@ -142,6 +142,15 @@ export async function listRecentlyUpdatedCounters(
     .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes))
     .orderBy(desc(countersTable.updatedAt))
     .limit(limit);
+}
+
+export async function listPublicCounterSitemapEntries(): Promise<
+  { id: string; updatedAt: Date | null }[]
+> {
+  return db
+    .select({ id: countersTable.id, updatedAt: countersTable.updatedAt })
+    .from(countersTable)
+    .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes));
 }
 
 export async function getCounter(counterId: string): Promise<Counter | null> {
@@ -353,9 +362,9 @@ export async function listAllCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-        ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
-      )
+      ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
+      ilike(countersTable.description, `%${escapeLikePattern(searchQuery)}%`),
+    )
     : undefined;
 
   const [rows, [{ total }]] = await Promise.all([
