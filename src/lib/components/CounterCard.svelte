@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  
   import { fade } from "svelte/transition";
+import { page } from "$app/stores";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
   import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
   import RollingNumber from "./RollingNumber.svelte";

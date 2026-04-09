@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { page } from "$app/stores";
+  
   import { fade } from "svelte/transition";
+import { page } from "$app/stores";
 
   type Props = {
     dashboard: {
