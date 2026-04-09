@@ -54,7 +54,7 @@
         return;
       }
 
-      const result: { id: string } = await response.json();
+      const result: { id: string; title: string } = await response.json();
       await goto(`/c/${result.id}`);
     } catch {
       errors = { general: "Network error. Please try again." };

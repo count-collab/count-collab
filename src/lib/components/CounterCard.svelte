@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
 import { page } from "$app/stores";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
+  import { counterUrl } from "$lib/counter";
   import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
   import RollingNumber from "./RollingNumber.svelte";
   import Sparkline from "./Sparkline.svelte";
@@ -52,7 +53,7 @@ import { page } from "$app/stores";
 </script>
 
 <a
-  href={`/c/${counter.id}`}
+  href={counterUrl(counter.id, counter.title)}
   class="group relative flex flex-col overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-5 shadow-sm ring-1 ring-transparent transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-lg hover:ring-blue-100 dark:hover:ring-blue-900 hover:-translate-y-0.5 will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
   onmouseenter={activate}
   onmouseleave={deactivate}

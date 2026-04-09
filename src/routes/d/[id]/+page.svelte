@@ -5,6 +5,7 @@
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
+  import { counterUrl } from "$lib/counter";
   import type {
     DashboardMemberRole,
     DashboardVisibilityMode,
@@ -887,7 +888,7 @@
             >
               <!-- Counter title -->
               <a
-                href="/c/{counter.id}"
+                href={counterUrl(counter.id, counter.title)}
                 draggable={editMode ? "false" : undefined}
                 class="relative font-semibold text-slate-900 dark:text-slate-100 truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors {editMode
                   ? 'pointer-events-none'

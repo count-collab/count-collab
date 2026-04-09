@@ -10,7 +10,9 @@ vi.mock("$app/navigation", () => ({
 vi.mock("$app/stores", async () => {
   const { readable } = await import("svelte/store");
   return {
-    page: readable({ url: new URL("http://localhost/c/test-counter-id") }),
+    page: readable({
+      url: new URL("http://localhost/c/test-counter-id/test-counter"),
+    }),
   };
 });
 

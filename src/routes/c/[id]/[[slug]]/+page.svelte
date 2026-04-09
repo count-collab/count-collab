@@ -8,6 +8,7 @@
   import Modal from "$lib/components/Modal.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import Sparkline from "$lib/components/Sparkline.svelte";
+  import { counterUrl } from "$lib/counter";
   import type {
     CounterMemberRole,
     CounterVisibilityMode,
@@ -112,9 +113,10 @@
   );
 
   const shareUrl = $derived.by(() => {
+    const path = counterUrl(data.counter.id, data.counter.title);
     const base = browser
-      ? `${window.location.origin}/c/${data.counter.id}`
-      : `/c/${data.counter.id}`;
+      ? `${window.location.origin}${path}`
+      : path;
     if (!data.counter.isPublic && data.shareToken) {
       return `${base}?token=${data.shareToken}`;
     }

@@ -2,6 +2,7 @@
   import { invalidateAll } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
+  import { slugify } from "$lib/counter";
   import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
   import type { PageData } from "./$types";
 
@@ -80,7 +81,7 @@
         <tr>
           <td class="px-4 py-3">
             <a
-              href="/c/{counter.id}"
+              href="/c/{counter.id}/{slugify(counter.title)}"
               class="font-medium text-blue-600 dark:text-blue-400 hover:underline"
             >
               {counter.title}
@@ -98,7 +99,7 @@
           >
           <td class="px-4 py-3 text-right whitespace-nowrap">
             <a
-              href="/c/{counter.id}"
+              href="/c/{counter.id}/{slugify(counter.title)}"
               class="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm mr-3">View</a
             >
             <button

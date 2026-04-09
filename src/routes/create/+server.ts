@@ -30,5 +30,5 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
   emitCounterCreated(counter.id);
 
-  return json({ id: counter.id }, { status: 201 });
+  return json({ id: counter.id, title: counter.title }, { status: 201 });
 };

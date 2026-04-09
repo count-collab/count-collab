@@ -1,5 +1,6 @@
-import { error } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
 import { and, eq } from "drizzle-orm";
+import { slugify } from "$lib/counter";
 import { db } from "$lib/db";
 import { counterMembers, users } from "$lib/db/schema";
 import {
@@ -38,6 +39,14 @@ export const load: PageServerLoad = async ({
   if (!counter) {
     logger.warn("Counter not found", { id: params.id });
     throw error(404, "Counter not found");
+  }
+
+  // Redirect to canonical URL with slug
+  const expectedSlug = slugify(counter.title);
+  if (expectedSlug && params.slug !== expectedSlug) {
+    const target = `/c/${params.id}/${expectedSlug}`;
+    const query = url.search;
+    throw redirect(301, `${target}${query}`);
   }
 
   const session = await locals.auth();
