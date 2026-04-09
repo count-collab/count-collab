@@ -9,6 +9,7 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
   import { browser } from "$app/environment";
+  import { getResolvedTheme } from "$lib/stores/theme.svelte";
 
   type Props = {
     counterId: string;
@@ -55,8 +56,13 @@
       .join(" ");
   });
 
-  const strokeColor = "rgba(99,102,241,0.18)";
-  const fillColor = "rgba(99,102,241,0.03)";
+  const isDark = $derived(getResolvedTheme() === "dark");
+  const strokeColor = $derived(
+    isDark ? "rgba(129,140,248,0.30)" : "rgba(99,102,241,0.18)",
+  );
+  const fillColor = $derived(
+    isDark ? "rgba(129,140,248,0.06)" : "rgba(99,102,241,0.03)",
+  );
 
   const areaPoints = $derived.by(() => {
     if (points.length < 2) return "";

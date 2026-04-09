@@ -34,7 +34,7 @@ function loadBoldFont(): ArrayBuffer {
 }
 
 function formatCount(count: number): string {
-  return String(count);
+  return count.toLocaleString("en-US");
 }
 
 export const GET: RequestHandler = async ({ params }) => {
@@ -48,7 +48,7 @@ export const GET: RequestHandler = async ({ params }) => {
     throw error(404, "Counter not found");
   }
 
-  if (!counter.isPublic) {
+  if (counter.visibilityMode === "private") {
     throw error(403, "Cannot generate preview for private counters");
   }
 

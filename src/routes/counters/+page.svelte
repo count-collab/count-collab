@@ -77,14 +77,14 @@
 
 <div class="space-y-6">
   <header class="flex flex-col gap-2">
-    <h1 class="text-3xl font-bold text-slate-900">Counter Browser</h1>
-    <p class="text-slate-600">
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-slate-100">Counter Browser</h1>
+    <p class="text-slate-600 dark:text-slate-400">
       Explore public counters and follow the latest activity.
     </p>
     <div class="max-w-lg pt-2">
       <label
         for="counter-search"
-        class="mb-1 block text-sm font-medium text-slate-700"
+        class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
         >Search counters</label
       >
       <input
@@ -92,7 +92,7 @@
         type="search"
         placeholder="Search by title or description"
         bind:value={search}
-        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-800"
       />
     </div>
   </header>
@@ -100,16 +100,16 @@
   {#if data.counters.length === 0}
     {#if data.query}
       <div
-        class="rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-600"
+        class="rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-600 dark:border-slate-600 dark:text-slate-400"
       >
         No counters match "<span class="font-semibold">{data.query}</span>".
-        <a href="/counters" class="text-blue-600">Clear search</a>.
+        <a href="/counters" class="text-blue-600 dark:text-blue-400">Clear search</a>.
       </div>
     {:else}
       <div
-        class="rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-600"
+        class="rounded-lg border border-dashed border-slate-300 p-8 text-center text-slate-600 dark:border-slate-600 dark:text-slate-400"
       >
-        No public counters yet. <a href="/create" class="text-blue-600"
+        No public counters yet. <a href="/create" class="text-blue-600 dark:text-blue-400"
           >Create one</a
         > to get started.
       </div>

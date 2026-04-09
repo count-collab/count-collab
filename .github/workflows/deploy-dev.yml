@@ -1,4 +1,4 @@
-name: Test, Build, and Deploy (DEV)
+name: DEV | Test, Build, and Deploy
 
 on:
   push:
@@ -39,6 +39,9 @@ jobs:
         with:
           push: true
           tags: ghcr.io/count-collab/count-collab:develop
+          build-args: |
+            BUILD_COMMIT=${{ github.sha }}
+            BUILD_BRANCH=${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -47,6 +50,9 @@ jobs:
     runs-on: self-hosted
     needs: docker-build
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    environment:
+      name: development
+      url: ${{ vars.ENVIRONMENT_URL }}
 
     steps:
       - uses: actions/checkout@v4

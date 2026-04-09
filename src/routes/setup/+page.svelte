@@ -51,17 +51,17 @@
 
 <div class="max-w-md mx-auto space-y-8 pt-12">
   <header class="text-center space-y-2">
-    <h1 class="text-3xl font-bold text-slate-900">Welcome!</h1>
-    <p class="text-slate-600">Choose a username to get started.</p>
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-slate-100">Welcome!</h1>
+    <p class="text-slate-600 dark:text-slate-400">Choose a username to get started.</p>
   </header>
 
   <form
     method="POST"
     use:enhance
-    class="space-y-6 bg-white rounded-lg shadow p-6"
+    class="space-y-6 bg-white rounded-lg shadow p-6 dark:bg-slate-800 dark:shadow-slate-900/50"
   >
     <div class="space-y-2">
-      <label class="block text-sm font-semibold text-slate-700" for="username">
+      <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300" for="username">
         Username
       </label>
       <input
@@ -76,22 +76,22 @@
         oninput={handleInput}
         placeholder="your_username"
         autocomplete="off"
-        class="w-full rounded-md border border-slate-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
+        class="w-full rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 py-2 focus:border-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
       />
-      <p class="text-xs text-slate-500">
+      <p class="text-xs text-slate-500 dark:text-slate-400">
         3–30 characters, letters, numbers, and underscores only.
       </p>
 
       {#if checking}
-        <p class="text-sm text-slate-500">Checking availability...</p>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Checking availability...</p>
       {:else if available === true}
-        <p class="text-sm text-green-600">Username is available!</p>
+        <p class="text-sm text-green-600 dark:text-green-400">Username is available!</p>
       {:else if available === false}
-        <p class="text-sm text-red-600">Username is already taken.</p>
+        <p class="text-sm text-red-600 dark:text-red-400">Username is already taken.</p>
       {/if}
 
       {#if form?.error}
-        <p class="text-sm text-red-600">{form.error}</p>
+        <p class="text-sm text-red-600 dark:text-red-400">{form.error}</p>
       {/if}
     </div>
 

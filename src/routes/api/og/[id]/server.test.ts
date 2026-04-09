@@ -64,7 +64,7 @@ describe("GET /api/og/[id]", () => {
       title: "Private Counter",
       description: null,
       count: 42,
-      isPublic: false,
+      visibilityMode: "private",
     });
 
     await expect(
@@ -78,7 +78,7 @@ describe("GET /api/og/[id]", () => {
       title: "Test Counter",
       description: "A test description",
       count: 42,
-      isPublic: true,
+      visibilityMode: "public",
     });
 
     const response = await GET(
@@ -96,7 +96,7 @@ describe("GET /api/og/[id]", () => {
       title: "Popular Counter",
       description: null,
       count: 1_500_000,
-      isPublic: true,
+      visibilityMode: "public",
     });
 
     const response = await GET(
@@ -113,7 +113,7 @@ describe("GET /api/og/[id]", () => {
       title: "A".repeat(100),
       description: "B".repeat(200),
       count: 7,
-      isPublic: true,
+      visibilityMode: "public",
     });
 
     const response = await GET(

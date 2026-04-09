@@ -24,11 +24,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const counter = await createCounter({
     title,
     description,
-    isPublic: isAuthenticated ? visibility === "public" : true,
+    visibilityMode: isAuthenticated ? visibility : "public",
     ownerId: session?.user?.id ?? null,
   });
 
   emitCounterCreated(counter.id);
 
-  return json({ id: counter.id }, { status: 201 });
+  return json({ id: counter.id, title: counter.title }, { status: 201 });
 };

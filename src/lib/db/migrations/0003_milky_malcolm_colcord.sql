@@ -1,0 +1,1 @@
+ALTER TABLE "counters" ADD COLUMN "visibility_mode" text DEFAULT 'public' NOT NULL;

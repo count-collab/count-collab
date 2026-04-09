@@ -2,6 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import {
   canDeleteCounter,
   canEditCounter,
+  canIncrementCounter,
   canViewPrivateCounter,
 } from "$lib/server/authorize";
 import {
@@ -39,7 +40,16 @@ export const POST: RequestHandler = async ({ params, locals, url }) => {
     throw error(404, "Counter not found");
   }
 
-  if (!counter.isPublic) {
+  if (counter.visibilityMode === "public_readonly") {
+    if (!userId) {
+      throw error(403, "Sign in to increment this counter");
+    }
+
+    const canIncrement = await canIncrementCounter(userId, counter.id);
+    if (!canIncrement) {
+      throw error(403, "You don't have permission to increment this counter");
+    }
+  } else if (counter.visibilityMode === "private") {
     const token = url.searchParams.get("token");
     const hasValidToken =
       !!token && !!counter.shareToken && token === counter.shareToken;
@@ -112,12 +122,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   const counter = await updateCounter(params.id, {
     title,
     description,
-    isPublic:
-      visibility === "public"
-        ? true
-        : visibility === "private"
-          ? false
-          : undefined,
+    visibilityMode: visibility,
   });
 
   if (!counter) {

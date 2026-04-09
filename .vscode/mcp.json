@@ -5,6 +5,10 @@
       "args": ["@playwright/mcp@latest", "--browser", "chromium"],
       "env": {}
     },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@latest"]
+    },
     "docker": {
       "command": "docker",
       "args": ["mcp", "gateway", "run"],

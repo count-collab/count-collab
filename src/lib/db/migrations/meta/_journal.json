@@ -22,6 +22,27 @@
       "when": 1774517014971,
       "tag": "0002_public_onslaught",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1775238119837,
+      "tag": "0003_milky_malcolm_colcord",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1775661871565,
+      "tag": "0004_wide_snowbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1775732541908,
+      "tag": "0005_burly_kabuki",
+      "breakpoints": true
     }
   ]
 }

@@ -1,10 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockGetCounter,
   mockIncrementCounter,
   mockUpdateCounter,
   mockDeleteCounter,
+  mockCanIncrementCounter,
   mockCanEditCounter,
   mockCanDeleteCounter,
   mockCanViewPrivateCounter,
@@ -15,6 +16,7 @@ const {
   mockIncrementCounter: vi.fn(),
   mockUpdateCounter: vi.fn(),
   mockDeleteCounter: vi.fn(),
+  mockCanIncrementCounter: vi.fn(),
   mockCanEditCounter: vi.fn(),
   mockCanDeleteCounter: vi.fn(),
   mockCanViewPrivateCounter: vi.fn(),
@@ -30,6 +32,7 @@ vi.mock("$lib/server/counters", () => ({
 }));
 
 vi.mock("$lib/server/authorize", () => ({
+  canIncrementCounter: mockCanIncrementCounter,
   canEditCounter: mockCanEditCounter,
   canDeleteCounter: mockCanDeleteCounter,
   canViewPrivateCounter: mockCanViewPrivateCounter,
@@ -96,6 +99,11 @@ function makeEvent(id: string, overrides: Record<string, unknown> = {}) {
   } as any;
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockGetUserRole.mockResolvedValue("user");
+});
+
 describe("POST /api/counters/[id] (increment)", () => {
   it("returns 400 for invalid counter ID", async () => {
     await expect(POST(makeEvent("not-a-uuid"))).rejects.toMatchObject({
@@ -113,7 +121,7 @@ describe("POST /api/counters/[id] (increment)", () => {
   it("increments and returns updated counter", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
-      isPublic: 1,
+      visibilityMode: "public",
       shareToken: null,
     });
     mockIncrementCounter.mockResolvedValue({
@@ -140,7 +148,7 @@ describe("POST /api/counters/[id] (increment)", () => {
   it("returns cooldownSeconds=0 for admin users", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
-      isPublic: 1,
+      visibilityMode: "public",
       shareToken: null,
     });
     mockIncrementCounter.mockResolvedValue({
@@ -158,10 +166,77 @@ describe("POST /api/counters/[id] (increment)", () => {
     expect(body.cooldownSeconds).toBe(0);
   });
 
+  it("allows anonymous increment for public counters", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      visibilityMode: "public",
+      shareToken: null,
+    });
+    mockIncrementCounter.mockResolvedValue({
+      id: VALID_ID,
+      count: 9,
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+
+    const response = await POST(makeEvent(VALID_ID));
+    const body = await response.json();
+
+    expect(body.count).toBe(9);
+    expect(mockCanIncrementCounter).not.toHaveBeenCalled();
+  });
+
+  it("denies anonymous increment for public read-only counters", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      visibilityMode: "public_readonly",
+      shareToken: null,
+    });
+
+    await expect(POST(makeEvent(VALID_ID))).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(mockCanIncrementCounter).not.toHaveBeenCalled();
+  });
+
+  it("allows public read-only increment for members with increment rights", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      visibilityMode: "public_readonly",
+      shareToken: null,
+    });
+    mockCanIncrementCounter.mockResolvedValue(true);
+    mockIncrementCounter.mockResolvedValue({
+      id: VALID_ID,
+      count: 12,
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+
+    const response = await POST(
+      makeEvent(VALID_ID, { locals: makeLocals("member-1") }),
+    );
+    const body = await response.json();
+
+    expect(body.count).toBe(12);
+    expect(mockCanIncrementCounter).toHaveBeenCalledWith("member-1", VALID_ID);
+  });
+
+  it("denies logged-in users without increment rights on public read-only counters", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      visibilityMode: "public_readonly",
+      shareToken: null,
+    });
+    mockCanIncrementCounter.mockResolvedValue(false);
+
+    await expect(
+      POST(makeEvent(VALID_ID, { locals: makeLocals("viewer-1") })),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
   it("returns 403 for private counter without token and not logged in", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
-      isPublic: 0,
+      visibilityMode: "private",
       shareToken: "abc123",
     });
 
@@ -173,7 +248,7 @@ describe("POST /api/counters/[id] (increment)", () => {
   it("returns 403 for private counter with invalid token", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
-      isPublic: 0,
+      visibilityMode: "private",
       shareToken: "abc123",
     });
 
@@ -189,7 +264,7 @@ describe("POST /api/counters/[id] (increment)", () => {
   it("allows private counter increment with valid share token", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
-      isPublic: 0,
+      visibilityMode: "private",
       shareToken: "valid-token-123",
     });
     mockIncrementCounter.mockResolvedValue({
@@ -213,7 +288,7 @@ describe("POST /api/counters/[id] (increment)", () => {
   it("allows private counter increment for authorized member", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
-      isPublic: 0,
+      visibilityMode: "private",
       shareToken: "abc123",
     });
     mockCanViewPrivateCounter.mockResolvedValue(true);
@@ -235,7 +310,7 @@ describe("POST /api/counters/[id] (increment)", () => {
   it("returns 403 for private counter when logged-in user lacks access", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
-      isPublic: 0,
+      visibilityMode: "private",
       shareToken: "abc123",
     });
     mockCanViewPrivateCounter.mockResolvedValue(false);
@@ -289,7 +364,7 @@ describe("PATCH /api/counters/[id] (update)", () => {
     mockUpdateCounter.mockResolvedValue({
       id: VALID_ID,
       title: "Updated",
-      isPublic: true,
+      visibilityMode: "public_readonly",
     });
 
     const response = await PATCH(
@@ -309,6 +384,41 @@ describe("PATCH /api/counters/[id] (update)", () => {
     const body = await response.json();
 
     expect(body.title).toBe("Updated");
+    expect(mockUpdateCounter).toHaveBeenCalledWith(VALID_ID, {
+      title: "Updated",
+      description: "",
+      visibilityMode: "public",
+    });
+  });
+
+  it("maps visibility to visibilityMode when updating the counter", async () => {
+    mockCanEditCounter.mockResolvedValue(true);
+    mockUpdateCounter.mockResolvedValue({
+      id: VALID_ID,
+      title: "Read only counter",
+      visibilityMode: "public_readonly",
+    });
+
+    await PATCH(
+      makeEvent(VALID_ID, {
+        locals: makeLocals("user-1"),
+        request: new Request("http://localhost", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "Read only counter",
+            description: "Locked for viewers",
+            visibility: "public_readonly",
+          }),
+        }),
+      }),
+    );
+
+    expect(mockUpdateCounter).toHaveBeenCalledWith(VALID_ID, {
+      title: "Read only counter",
+      description: "Locked for viewers",
+      visibilityMode: "public_readonly",
+    });
   });
 });
 

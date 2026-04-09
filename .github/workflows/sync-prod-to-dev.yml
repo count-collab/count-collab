@@ -1,0 +1,154 @@
+name: DEV | Sync PROD Database to DEV
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Backup PROD & Import to DEV
+    runs-on: self-hosted
+
+    steps:
+      - name: Sync database via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+
+            PROD_CONTAINER="count-collab-db"
+            DEV_DB_CONTAINER="count-collab-dev-db"
+            DEV_APP_CONTAINER="count-collab-dev"
+            DUMP_FILE="/tmp/count-collab-prod-backup-$(date +%Y%m%d-%H%M%S).dump"
+
+            PROD_USER="${{ secrets.POSTGRES_USER }}"
+            PROD_DB="${{ secrets.POSTGRES_DB }}"
+            DEV_USER="${{ secrets.POSTGRES_USER_DEV }}"
+            DEV_DB="${{ secrets.POSTGRES_DB_DEV }}"
+
+            cleanup() {
+              echo "=== Cleaning up dump file ==="
+              rm -f "$DUMP_FILE"
+            }
+            trap cleanup EXIT
+
+            # ── 1. Pre-flight checks ──
+            echo "=== Pre-flight checks ==="
+            for ctr in "$PROD_CONTAINER" "$DEV_DB_CONTAINER" "$DEV_APP_CONTAINER"; do
+              if ! docker ps --format '{{.Names}}' | grep -q "^${ctr}$"; then
+                echo "ERROR: Container ${ctr} is not running"
+                exit 1
+              fi
+              echo "  ✓ ${ctr} is running"
+            done
+
+            # ── 2. Dump PROD database ──
+            echo ""
+            echo "=== Dumping PROD database ==="
+            docker exec "$PROD_CONTAINER" pg_dump \
+              -U "$PROD_USER" \
+              -d "$PROD_DB" \
+              --format=custom \
+              --no-owner \
+              --no-privileges \
+              > "$DUMP_FILE"
+            echo "  Dump size: $(du -h "$DUMP_FILE" | cut -f1)"
+
+            # ── 3. Drop & recreate DEV database ──
+            echo ""
+            echo "=== Terminating active DEV database connections ==="
+            docker exec "$DEV_DB_CONTAINER" psql -U "$DEV_USER" -d postgres -c \
+              "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DEV_DB' AND pid <> pg_backend_pid();" \
+              || true
+
+            echo "=== Dropping DEV database ==="
+            docker exec "$DEV_DB_CONTAINER" dropdb -U "$DEV_USER" --if-exists "$DEV_DB"
+
+            echo "=== Creating fresh DEV database ==="
+            docker exec "$DEV_DB_CONTAINER" createdb -U "$DEV_USER" "$DEV_DB"
+
+            # ── 4. Restore dump into DEV ──
+            echo ""
+            echo "=== Restoring PROD dump into DEV ==="
+            cat "$DUMP_FILE" | docker exec -i "$DEV_DB_CONTAINER" pg_restore \
+              -U "$DEV_USER" \
+              -d "$DEV_DB" \
+              --no-owner \
+              --no-privileges
+            echo "  Restore complete"
+
+            # ── 5. Sanitize sensitive data ──
+            echo ""
+            echo "=== Sanitizing sensitive data ==="
+            docker exec "$DEV_DB_CONTAINER" psql -U "$DEV_USER" -d "$DEV_DB" <<'EOSQL'
+            BEGIN;
+
+            -- Wipe all sessions
+            DELETE FROM "session";
+
+            -- Wipe all OAuth account data (tokens, provider links)
+            DELETE FROM "account";
+
+            -- Wipe verification tokens
+            DELETE FROM "verificationToken";
+
+            -- Anonymize user data
+            UPDATE "user" SET
+              email = 'user_' || SUBSTRING(id, 1, 8) || '@dev.local',
+              name = 'Dev User ' || SUBSTRING(id, 1, 8),
+              image = NULL;
+
+            COMMIT;
+            EOSQL
+
+            echo "  Deleted: sessions, accounts, verification tokens"
+            echo "  Anonymized: user emails, names, images"
+
+            # ── 6. Post-import steps ──
+            echo ""
+            echo "=== Running migrations ==="
+            docker exec "$DEV_APP_CONTAINER" bun run db:migrate
+
+            echo ""
+            echo "=== Seeding roles & permissions ==="
+            docker exec "$DEV_APP_CONTAINER" bun run db:seed-roles
+
+            # ── 7. Health check ──
+            echo ""
+            echo "=== Waiting for DEV app to become healthy ==="
+            HEALTH_TIMEOUT=60
+            POLL_INTERVAL=5
+            ELAPSED=0
+
+            set +e
+            while [ $ELAPSED -lt $HEALTH_TIMEOUT ]; do
+              HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$DEV_APP_CONTAINER" 2>/dev/null)
+              if [ "$HEALTH_STATUS" = "healthy" ]; then
+                echo "  DEV app is healthy after ${ELAPSED}s"
+                break
+              fi
+              echo "  Health status: ${HEALTH_STATUS:-unknown} (${ELAPSED}s/${HEALTH_TIMEOUT}s)"
+              sleep $POLL_INTERVAL
+              ELAPSED=$((ELAPSED + POLL_INTERVAL))
+            done
+            set -e
+
+            if [ "$HEALTH_STATUS" != "healthy" ]; then
+              echo "WARNING: DEV app did not become healthy within ${HEALTH_TIMEOUT}s"
+              docker logs "$DEV_APP_CONTAINER" --tail 20
+              exit 1
+            fi
+
+            # ── Summary ──
+            echo ""
+            echo "=== Sync complete ==="
+            COUNTER_COUNT=$(docker exec "$DEV_DB_CONTAINER" psql -U "$DEV_USER" -d "$DEV_DB" -tAc "SELECT count(*) FROM counters;")
+            USER_COUNT=$(docker exec "$DEV_DB_CONTAINER" psql -U "$DEV_USER" -d "$DEV_DB" -tAc "SELECT count(*) FROM \"user\";")
+            echo "  Counters: ${COUNTER_COUNT}"
+            echo "  Users: ${USER_COUNT} (anonymized)"
+            echo "  Sessions: 0 (wiped)"
+            echo "  Accounts: 0 (wiped)"
+            echo "Done — DEV database is now a sanitized copy of PROD."

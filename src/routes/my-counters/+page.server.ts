@@ -1,5 +1,10 @@
 import { redirect } from "@sveltejs/kit";
 import { getUserCounters } from "$lib/server/counters";
+import { getUserDashboards } from "$lib/server/dashboards";
+import {
+  getFollowedCounters,
+  getFollowedDashboards,
+} from "$lib/server/followers";
 import type { PageServerLoad } from "./$types";
 
 const PER_PAGE = 16;
@@ -19,8 +24,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     offset,
   );
 
+  const { items: dashboardItems } = await getUserDashboards(session.user.id);
+
+  const followedCounters = await getFollowedCounters(session.user.id);
+  const followedDashboards = await getFollowedDashboards(session.user.id);
+
   return {
     counters: items,
+    dashboards: dashboardItems,
+    followedCounters,
+    followedDashboards,
     page,
     totalPages: Math.max(1, Math.ceil(total / PER_PAGE)),
   };

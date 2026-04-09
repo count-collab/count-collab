@@ -37,7 +37,7 @@
     {#if page > 1}
       <a
         href={buildHref(page - 1)}
-        class="px-3 py-1.5 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 transition"
+        class="px-3 py-1.5 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 transition"
       >
         &larr; Prev
       </a>
@@ -45,7 +45,7 @@
 
     {#each pages as item}
       {#if item === "..."}
-        <span class="px-2 py-1.5 text-sm text-slate-400">&hellip;</span>
+        <span class="px-2 py-1.5 text-sm text-slate-400 dark:text-slate-500">&hellip;</span>
       {:else if item === page}
         <span
           class="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white font-medium"
@@ -55,7 +55,7 @@
       {:else}
         <a
           href={buildHref(item)}
-          class="px-3 py-1.5 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 transition"
+          class="px-3 py-1.5 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 transition"
         >
           {item}
         </a>
@@ -65,7 +65,7 @@
     {#if page < totalPages}
       <a
         href={buildHref(page + 1)}
-        class="px-3 py-1.5 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 transition"
+        class="px-3 py-1.5 text-sm rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 transition"
       >
         Next &rarr;
       </a>

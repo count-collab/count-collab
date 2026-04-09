@@ -17,20 +17,21 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders }) => {
 
   const session = await locals.auth();
   const userId = session?.user?.id;
+  const isPrivate = counter.visibilityMode === "private";
 
-  if (!counter.isPublic && userId) {
+  if (isPrivate && userId) {
     const canView = await canViewPrivateCounter(userId, counter.id);
     if (!canView) {
       throw error(403, "You don't have access to this counter");
     }
-  } else if (!counter.isPublic && !userId) {
+  } else if (isPrivate && !userId) {
     throw error(403, "Sign in to view this private counter");
   }
 
   const points = await getCounterSparkline(params.id);
 
   setHeaders({
-    "cache-control": counter.isPublic
+    "cache-control": !isPrivate
       ? "public, max-age=300"
       : "private, max-age=300",
   });

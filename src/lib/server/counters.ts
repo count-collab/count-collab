@@ -1,8 +1,17 @@
-import crypto from "node:crypto";
-import { and, count as countFn, desc, eq, ilike, or } from "drizzle-orm";
+import {
+  and,
+  count as countFn,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  or,
+  sql,
+} from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
   Counter,
+  CounterVisibilityMode,
   NewCounter,
   NewCounterHistory,
   SparklinePoint,
@@ -14,6 +23,7 @@ import {
   users,
 } from "$lib/db/schema";
 import { createCache } from "$lib/server/cache";
+import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
 import { logger } from "$lib/server/logger";
 
 export const sparklineCache = createCache<SparklinePoint[]>({
@@ -21,30 +31,46 @@ export const sparklineCache = createCache<SparklinePoint[]>({
   maxSize: 500,
 });
 
-export function generateShareToken(): string {
-  return crypto.randomBytes(16).toString("hex");
+const publicCounterVisibilityModes: CounterVisibilityMode[] = [
+  "public",
+  "public_readonly",
+];
+
+function deriveLegacyIsPublic(visibilityMode: CounterVisibilityMode): 0 | 1 {
+  return visibilityMode === "private" ? 0 : 1;
 }
 
-function escapeLikePattern(input: string): string {
-  return input.replace(/[%_\\]/g, "\\$&");
+function resolveCounterVisibility(input: {
+  visibilityMode?: CounterVisibilityMode;
+  isPublic?: boolean;
+}): CounterVisibilityMode {
+  if (input.visibilityMode !== undefined) {
+    return input.visibilityMode;
+  }
+
+  return input.isPublic === false ? "private" : "public";
 }
 
 type CreateCounterInput = {
   title: string;
   description?: string | null;
-  isPublic: boolean;
+  isPublic?: boolean;
+  visibilityMode?: CounterVisibilityMode;
   ownerId?: string | null;
 };
 
 export async function createCounter(
   input: CreateCounterInput,
 ): Promise<Counter> {
+  const visibilityMode = resolveCounterVisibility(input);
+
   const newCounter: NewCounter = {
     title: input.title.trim(),
     description: input.description?.trim() || null,
     count: 0,
-    isPublic: input.isPublic ? 1 : 0,
-    shareToken: input.isPublic ? null : generateShareToken(),
+    isPublic: deriveLegacyIsPublic(visibilityMode),
+    visibilityMode,
+    shareToken: visibilityMode === "private" ? generateShareToken() : null,
     ownerId: input.ownerId ?? null,
   };
 
@@ -57,6 +83,7 @@ export async function createCounter(
     id: counter.id,
     title: counter.title,
     isPublic: counter.isPublic,
+    visibilityMode: counter.visibilityMode,
   });
 
   return counter;
@@ -70,7 +97,7 @@ export async function listPublicCounters(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-        eq(countersTable.isPublic, 1),
+        inArray(countersTable.visibilityMode, publicCounterVisibilityModes),
         or(
           ilike(countersTable.title, `%${escapeLikePattern(searchQuery)}%`),
           ilike(
@@ -79,7 +106,7 @@ export async function listPublicCounters(
           ),
         ),
       )
-    : eq(countersTable.isPublic, 1);
+    : inArray(countersTable.visibilityMode, publicCounterVisibilityModes);
 
   const [items, [{ total }]] = await Promise.all([
     db
@@ -101,7 +128,7 @@ export async function listRecentlyCreatedCounters(
   return db
     .select()
     .from(countersTable)
-    .where(eq(countersTable.isPublic, 1))
+    .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes))
     .orderBy(desc(countersTable.createdAt))
     .limit(limit);
 }
@@ -112,9 +139,22 @@ export async function listRecentlyUpdatedCounters(
   return db
     .select()
     .from(countersTable)
-    .where(eq(countersTable.isPublic, 1))
+    .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes))
     .orderBy(desc(countersTable.updatedAt))
     .limit(limit);
+}
+
+export async function listPublicCounterSitemapEntries(): Promise<
+  { id: string; title: string; updatedAt: Date | null }[]
+> {
+  return db
+    .select({
+      id: countersTable.id,
+      title: countersTable.title,
+      updatedAt: countersTable.updatedAt,
+    })
+    .from(countersTable)
+    .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes));
 }
 
 export async function getCounter(counterId: string): Promise<Counter | null> {
@@ -189,7 +229,7 @@ export type CounterHistoryWithUser = {
 
 export async function getCounterHistory(
   counterId: string,
-  limit = 10,
+  limit = 20,
 ): Promise<CounterHistoryWithUser[]> {
   const rows = await db
     .select({
@@ -214,6 +254,7 @@ type UpdateCounterInput = {
   title?: string;
   description?: string;
   isPublic?: boolean;
+  visibilityMode?: CounterVisibilityMode;
 };
 
 export async function updateCounter(
@@ -225,10 +266,14 @@ export async function updateCounter(
   if (input.title !== undefined) set.title = input.title.trim();
   if (input.description !== undefined)
     set.description = input.description.trim() || null;
-  if (input.isPublic !== undefined) {
-    set.isPublic = input.isPublic ? 1 : 0;
+  if (input.isPublic !== undefined || input.visibilityMode !== undefined) {
+    const visibilityMode = resolveCounterVisibility(input);
+
+    set.isPublic = deriveLegacyIsPublic(visibilityMode);
+    set.visibilityMode = visibilityMode;
+
     // Generate a share token when switching to private (if not already set)
-    if (!input.isPublic) {
+    if (visibilityMode === "private") {
       const existing = await getCounter(counterId);
       if (existing && !existing.shareToken) {
         set.shareToken = generateShareToken();
@@ -285,6 +330,7 @@ export async function getUserCounters(
       description: countersTable.description,
       count: countersTable.count,
       isPublic: countersTable.isPublic,
+      visibilityMode: countersTable.visibilityMode,
       shareToken: countersTable.shareToken,
       ownerId: countersTable.ownerId,
       createdAt: countersTable.createdAt,
@@ -313,7 +359,10 @@ export async function listAllCounters(
   limit = 50,
   query?: string,
   offset = 0,
-): Promise<{ items: Counter[]; total: number }> {
+): Promise<{
+  items: (Counter & { ownerName: string | null })[];
+  total: number;
+}> {
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
@@ -322,10 +371,15 @@ export async function listAllCounters(
       )
     : undefined;
 
-  const [items, [{ total }]] = await Promise.all([
+  const [rows, [{ total }]] = await Promise.all([
     db
-      .select()
+      .select({
+        counter: countersTable,
+        ownerUsername: users.username,
+        ownerDisplayName: users.name,
+      })
       .from(countersTable)
+      .leftJoin(users, eq(countersTable.ownerId, users.id))
       .where(whereClause)
       .orderBy(desc(countersTable.updatedAt))
       .limit(limit)
@@ -333,69 +387,87 @@ export async function listAllCounters(
     db.select({ total: countFn() }).from(countersTable).where(whereClause),
   ]);
 
+  const items = rows.map((row) => ({
+    ...row.counter,
+    ownerName: row.ownerUsername ?? row.ownerDisplayName ?? null,
+  }));
+
   return { items, total: Number(total) };
 }
 
 export async function getCounterSparkline(
   counterId: string,
-  maxPoints = 100,
 ): Promise<SparklinePoint[]> {
   const cached = sparklineCache.get(counterId);
   if (cached) return cached;
 
-  const [counterRows, rows] = await Promise.all([
-    db
-      .select({
-        createdAt: countersTable.createdAt,
-        count: countersTable.count,
-      })
-      .from(countersTable)
-      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
-      .where(eq(countersTable.id, counterId as any)),
-    db
-      .select({
-        newValue: counterHistoryTable.newValue,
-        changedAt: counterHistoryTable.changedAt,
-      })
-      .from(counterHistoryTable)
-      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
-      .where(eq(counterHistoryTable.counterId, counterId as any))
-      .orderBy(desc(counterHistoryTable.changedAt))
-      .limit(2000),
-  ]);
+  const rows = await db.execute<{ day: string; value: number }>(sql`
+    WITH counter_info AS (
+      SELECT created_at, count
+      FROM counters
+      WHERE id = ${counterId}::uuid
+    ),
+    days AS (
+      SELECT d::date AS day
+      FROM counter_info,
+           generate_series(
+             (SELECT created_at::date FROM counter_info),
+             CURRENT_DATE,
+             '1 day'::interval
+           ) AS d
+    ),
+    daily_values AS (
+      SELECT
+        d.day,
+        (
+          SELECT h.new_value
+          FROM counter_history h
+          WHERE h.counter_id = ${counterId}::uuid
+            AND h.changed_at < (d.day + '1 day'::interval)
+          ORDER BY h.changed_at DESC
+          LIMIT 1
+        ) AS value
+      FROM days d
+    )
+    SELECT
+      day::text,
+      COALESCE(value, 0) AS value
+    FROM daily_values
+    ORDER BY day
+  `);
 
-  const counter = counterRows[0] ?? null;
-  if (!counter) return [];
+  if (rows.length === 0) return [];
 
-  // Reverse to chronological order (query fetches most recent first)
-  rows.reverse();
+  const points: SparklinePoint[] = rows.map((r) => ({
+    value: Number(r.value),
+    timestamp: new Date(`${r.day}T00:00:00.000Z`).toISOString(),
+  }));
 
-  // Start with creation point (value 0)
-  const createdAt = new Date(counter.createdAt);
-  const rawPoints: SparklinePoint[] = [
-    { value: 0, timestamp: createdAt.toISOString() },
-  ];
+  sparklineCache.set(counterId, points);
+  return points;
+}
 
-  for (const r of rows) {
-    rawPoints.push({
-      value: r.newValue,
-      timestamp: r.changedAt.toISOString(),
-    });
-  }
+export async function getGlobalCounterSum(): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<string>`COALESCE(SUM(${countersTable.count}), 0)` })
+    .from(countersTable);
+  return Number(row.total);
+}
 
-  // If sparse enough, return raw points directly — no bucketing needed
-  if (rawPoints.length <= maxPoints) {
-    sparklineCache.set(counterId, rawPoints);
-    return rawPoints;
-  }
+export async function getCounterCount(): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<string>`COUNT(*)` })
+    .from(countersTable);
+  return Number(row.count);
+}
 
-  // Too many points — sample evenly, always keeping first and last
-  const sampled: SparklinePoint[] = [];
-  const step = (rawPoints.length - 1) / (maxPoints - 1);
-  for (let i = 0; i < maxPoints; i++) {
-    const idx = Math.round(i * step);
-    sampled.push(rawPoints[idx]);
-  }
-  sparklineCache.set(counterId, sampled);
-  return sampled;
+/**
+ * Count how many counters a user owns.
+ */
+export async function getOwnedCounterCount(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: countFn() })
+    .from(countersTable)
+    .where(eq(countersTable.ownerId, userId));
+  return Number(row?.count ?? 0);
 }

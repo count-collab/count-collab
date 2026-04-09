@@ -3,20 +3,20 @@
 </script>
 
 <div class="space-y-6">
-  <nav class="flex gap-4 border-b border-slate-200 pb-4">
+  <nav class="flex gap-4 border-b border-slate-200 dark:border-slate-700 pb-4">
     <a
       href="/admin"
-      class="text-slate-700 hover:text-slate-900 font-semibold transition"
+      class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 font-semibold transition"
       >Dashboard</a
     >
     <a
       href="/admin/users"
-      class="text-slate-700 hover:text-slate-900 font-semibold transition"
+      class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 font-semibold transition"
       >Users</a
     >
     <a
       href="/admin/counters"
-      class="text-slate-700 hover:text-slate-900 font-semibold transition"
+      class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 font-semibold transition"
       >Counters</a
     >
   </nav>
