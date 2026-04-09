@@ -17,6 +17,10 @@ import {
   getUserDashboardRole,
 } from "$lib/server/dashboard-members";
 import { getDashboard } from "$lib/server/dashboards";
+import {
+  getDashboardFollowerCount,
+  isFollowingDashboard,
+} from "$lib/server/followers";
 import { logger } from "$lib/server/logger";
 import { dashboardIdSchema } from "$lib/utils/validation";
 import type { PageServerLoad } from "./$types";
@@ -108,6 +112,11 @@ export const load: PageServerLoad = async ({
     ? await getUserDashboardRole(userId, dashboard.id)
     : null;
 
+  const isFollowing = userId
+    ? await isFollowingDashboard(userId, dashboard.id)
+    : false;
+  const followerCount = await getDashboardFollowerCount(dashboard.id);
+
   depends(`dashboard:${params.id}`);
 
   return {
@@ -120,6 +129,8 @@ export const load: PageServerLoad = async ({
     shareToken: canManage ? (dashboard.shareToken ?? null) : null,
     members,
     memberRole,
+    isFollowing,
+    followerCount,
     title: `${dashboard.title} | Count Collab`,
     description:
       dashboard.description || `${dashboard.title} dashboard on Count Collab`,

@@ -8,7 +8,10 @@
   import Modal from "$lib/components/Modal.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import Sparkline from "$lib/components/Sparkline.svelte";
-  import type { CounterMemberRole, CounterVisibilityMode } from "$lib/db/schema";
+  import type {
+    CounterMemberRole,
+    CounterVisibilityMode,
+  } from "$lib/db/schema";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
   import type { PageData } from "./$types";
@@ -22,12 +25,16 @@
   const visibilityDescriptions: Record<CounterVisibilityMode, string> = {
     public: "Anyone with the link can view and increment.",
     public_readonly: "Anyone can view. Only invited members can increment.",
-    private: "Only invited members or people with the private link can access it.",
+    private:
+      "Only invited members or people with the private link can access it.",
   };
   const visibilityBadgeClasses: Record<CounterVisibilityMode, string> = {
-    public: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    public_readonly: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-    private: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+    public:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    public_readonly:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    private:
+      "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
   };
   const memberRoleLabels: Record<CounterMemberRole, string> = {
     viewer: "Viewer",
@@ -37,7 +44,10 @@
   };
 
   function getVisibilityMode(): CounterVisibilityMode {
-    return data.counter.visibilityMode ?? (data.counter.isPublic ? "public" : "private");
+    return (
+      data.counter.visibilityMode ??
+      (data.counter.isPublic ? "public" : "private")
+    );
   }
 
   function getRoleLabel(role: string): string {
@@ -91,7 +101,12 @@
   // Actions dropdown state
   let showActionsMenu = $state(false);
 
+  // Follow state
+  let isProcessingFollow = $state(false);
 
+  const canFollow = $derived(
+    !!data.session?.user?.id && !data.isOwner && !data.isMember,
+  );
 
   const shareUrl = $derived.by(() => {
     const base = browser
@@ -287,6 +302,40 @@
     }
   }
 
+  async function handleFollow() {
+    if (isProcessingFollow) return;
+    isProcessingFollow = true;
+    try {
+      const response = await fetch(`/api/counters/${data.counter.id}/follow`, {
+        method: "POST",
+      });
+      if (response.ok) {
+        await invalidate(`counter:${data.counter.id}`);
+      }
+    } catch {
+      errorMessage = "Network error. Please try again.";
+    } finally {
+      isProcessingFollow = false;
+    }
+  }
+
+  async function handleUnfollow() {
+    if (isProcessingFollow) return;
+    isProcessingFollow = true;
+    try {
+      const response = await fetch(`/api/counters/${data.counter.id}/follow`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        await invalidate(`counter:${data.counter.id}`);
+      }
+    } catch {
+      errorMessage = "Network error. Please try again.";
+    } finally {
+      isProcessingFollow = false;
+    }
+  }
+
   $effect(() => {
     if (!$rateLimit.isLimited && errorMessage) {
       errorMessage = null;
@@ -318,17 +367,20 @@
   image="/api/og/{data.counter.id}"
 />
 
-
 <div class="flex flex-col min-h-[calc(100vh-8rem)]">
   <!-- Header bar -->
   <header class="pb-4">
     <div class="flex items-start justify-between gap-2">
       <div class="min-w-0 flex-1">
-        <h1 class="text-xl font-bold text-slate-900 dark:text-slate-100 break-words">
+        <h1
+          class="text-xl font-bold text-slate-900 dark:text-slate-100 break-words"
+        >
           {data.counter.title}
         </h1>
         {#if data.counter.description}
-          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5 break-words">
+          <p
+            class="text-sm text-slate-500 dark:text-slate-400 mt-0.5 break-words"
+          >
             {data.counter.description}
           </p>
         {/if}
@@ -336,6 +388,30 @@
 
       <!-- Desktop action buttons -->
       <div class="hidden sm:flex gap-2 shrink-0 ml-4">
+        {#if canFollow}
+          {#if data.isFollowing}
+            <button
+              type="button"
+              onclick={handleUnfollow}
+              disabled={isProcessingFollow}
+              class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700 disabled:opacity-50"
+            >
+              <ion-icon name="bookmark" style="font-size: 16px;"></ion-icon>
+              Unfollow
+            </button>
+          {:else}
+            <button
+              type="button"
+              onclick={handleFollow}
+              disabled={isProcessingFollow}
+              class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <ion-icon name="bookmark-outline" style="font-size: 16px;"
+              ></ion-icon>
+              Follow
+            </button>
+          {/if}
+        {/if}
         {#if data.canManage}
           <button
             type="button"
@@ -375,7 +451,7 @@
       </div>
 
       <!-- Mobile actions dropdown -->
-      {#if data.canManage || data.canEdit || data.canDelete}
+      {#if data.canManage || data.canEdit || data.canDelete || canFollow}
         <div class="relative sm:hidden shrink-0">
           <button
             type="button"
@@ -397,6 +473,37 @@
             <div
               class="absolute right-0 top-full mt-1 z-50 w-44 bg-white rounded-lg shadow-lg border border-slate-200 py-1 dark:bg-slate-800 dark:shadow-slate-900/50 dark:border-slate-700"
             >
+              {#if canFollow}
+                {#if data.isFollowing}
+                  <button
+                    type="button"
+                    onclick={() => {
+                      showActionsMenu = false;
+                      handleUnfollow();
+                    }}
+                    disabled={isProcessingFollow}
+                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <ion-icon name="bookmark" style="font-size: 16px;"
+                    ></ion-icon>
+                    Unfollow
+                  </button>
+                {:else}
+                  <button
+                    type="button"
+                    onclick={() => {
+                      showActionsMenu = false;
+                      handleFollow();
+                    }}
+                    disabled={isProcessingFollow}
+                    class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    <ion-icon name="bookmark-outline" style="font-size: 16px;"
+                    ></ion-icon>
+                    Follow
+                  </button>
+                {/if}
+              {/if}
               {#if data.canManage}
                 <button
                   type="button"
@@ -451,14 +558,35 @@
     <!-- Tags row -->
     <div class="flex flex-wrap items-center gap-2 mt-2">
       <CounterBadges
-        visibilityMode={visibilityMode}
+        {visibilityMode}
         ownership={data.isOwner ? "owner" : null}
         containerClass="flex flex-wrap items-center gap-2"
-        visibilityLabels={visibilityLabels}
-        visibilityBadgeClasses={visibilityBadgeClasses}
+        {visibilityLabels}
+        {visibilityBadgeClasses}
       />
+      {#if data.isFollowing}
+        <span
+          class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+        >
+          Followed
+        </span>
+      {/if}
+      {#if data.followerCount > 0}
+        <span
+          class="text-xs text-slate-400 dark:text-slate-500 inline-flex items-center gap-1"
+        >
+          <ion-icon name="people-outline" style="font-size: 14px;"></ion-icon>
+          {data.followerCount}
+          {data.followerCount === 1 ? "follower" : "followers"}
+        </span>
+      {/if}
       <span class="text-xs text-slate-400 dark:text-slate-500">
-        Created {#if data.ownerUsername}by <span class="font-medium text-slate-500 dark:text-slate-400">@{data.ownerUsername}</span> · {/if} {new Date(data.counter.createdAt).toLocaleDateString()}
+        Created {#if data.ownerUsername}by <span
+            class="font-medium text-slate-500 dark:text-slate-400"
+            >@{data.ownerUsername}</span
+          > ·
+        {/if}
+        {new Date(data.counter.createdAt).toLocaleDateString()}
         · Updated {new Date(displayUpdatedAt).toLocaleString()}
       </span>
     </div>
@@ -475,7 +603,9 @@
     </div>
 
     <Fireworks trigger={fireworkTrigger} />
-    <p class="text-8xl sm:text-9xl font-extrabold tabular-nums text-blue-600 dark:text-blue-400">
+    <p
+      class="text-8xl sm:text-9xl font-extrabold tabular-nums text-blue-600 dark:text-blue-400"
+    >
       <RollingNumber value={displayCount} />
     </p>
 
@@ -483,8 +613,12 @@
       type="button"
       onclick={handleIncrement}
       disabled={!data.canIncrement || isIncrementing || $rateLimit.isLimited}
-      aria-disabled={!data.canIncrement || isIncrementing || $rateLimit.isLimited}
-      aria-label={data.canIncrement ? "Increment counter" : "Increment unavailable"}
+      aria-disabled={!data.canIncrement ||
+        isIncrementing ||
+        $rateLimit.isLimited}
+      aria-label={data.canIncrement
+        ? "Increment counter"
+        : "Increment unavailable"}
       class="mt-8 inline-flex items-center justify-center rounded-full w-16 h-16 text-2xl font-bold active:scale-95 transition shadow-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:bg-slate-600"
     >
       {#if $rateLimit.isLimited}
@@ -495,7 +629,9 @@
     </button>
 
     {#if incrementUnavailableMessage}
-      <p class="mt-3 text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs">
+      <p
+        class="mt-3 text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs"
+      >
         {incrementUnavailableMessage}
       </p>
     {/if}
@@ -543,29 +679,41 @@
 <Modal bind:open={showShareModal} title="Share Counter">
   <div class="space-y-5">
     <div class="space-y-1">
-      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Visibility</p>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        Visibility
+      </p>
       <div class="flex flex-wrap items-center gap-2">
         {#if visibilityMode === "public_readonly"}
-          <span class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public}">
+          <span
+            class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public}"
+          >
             {visibilityLabels.public}
           </span>
-          <span class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public_readonly}">
+          <span
+            class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses.public_readonly}"
+          >
             read-only
           </span>
         {:else}
           <span
-            class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses[visibilityMode]}"
+            class="text-xs px-2 py-0.5 rounded-full {visibilityBadgeClasses[
+              visibilityMode
+            ]}"
           >
             {visibilityLabels[visibilityMode]}
           </span>
         {/if}
-        <p class="text-xs text-slate-500 dark:text-slate-400">{visibilityDescriptions[visibilityMode]}</p>
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          {visibilityDescriptions[visibilityMode]}
+        </p>
       </div>
     </div>
 
     <!-- Shareable link -->
     <div class="space-y-1">
-      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Shareable link</p>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        Shareable link
+      </p>
       <div class="flex items-center gap-2">
         <p
           class="flex-1 text-sm text-slate-500 bg-slate-50 rounded-md px-3 py-2 font-mono select-all truncate dark:text-slate-400 dark:bg-slate-700"
@@ -599,7 +747,9 @@
 
     <!-- Invite form -->
     <div class="space-y-2">
-      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Invite member</p>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+        Invite member
+      </p>
       <div class="flex gap-2 items-end">
         <div class="flex-1">
           <label
@@ -615,8 +765,9 @@
           />
         </div>
         <div>
-          <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1" for="invite-role"
-            >Role</label
+          <label
+            class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+            for="invite-role">Role</label
           >
           <select
             id="invite-role"
@@ -643,24 +794,24 @@
         <p class="text-sm text-red-600 dark:text-red-400">{inviteError}</p>
       {/if}
       {#if inviteSuccess}
-        <p class="text-sm text-green-600 dark:text-green-400">{inviteSuccess}</p>
+        <p class="text-sm text-green-600 dark:text-green-400">
+          {inviteSuccess}
+        </p>
       {/if}
     </div>
 
     <!-- Member list -->
     {#if data.members.length > 0}
       <div class="space-y-2">
-        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Members</p>
+        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+          Members
+        </p>
         <ul class="divide-y divide-slate-200 dark:divide-slate-700">
           {#each data.members as member (member.id)}
             <li class="flex items-center justify-between py-3">
               <div class="flex items-center gap-3">
                 {#if member.image}
-                  <img
-                    src={member.image}
-                    alt=""
-                    class="w-8 h-8 rounded-full"
-                  />
+                  <img src={member.image} alt="" class="w-8 h-8 rounded-full" />
                 {:else}
                   <div
                     class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400"
@@ -669,7 +820,9 @@
                   </div>
                 {/if}
                 <div>
-                  <p class="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  <p
+                    class="text-sm font-medium text-slate-900 dark:text-slate-100"
+                  >
                     {member.username ?? member.name ?? "Unknown"}
                   </p>
                   <p class="text-xs text-slate-500 dark:text-slate-400">
@@ -736,15 +889,22 @@
     </div>
 
     <div class="space-y-2">
-      <span class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
+      <span
+        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
         >Visibility</span
       >
-      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-        <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+      <div
+        class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
+      >
+        <label
+          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+        >
           <input type="radio" value="public" bind:group={editVisibility} />
           Public
         </label>
-        <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+        <label
+          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+        >
           <input
             type="radio"
             value="public_readonly"
@@ -752,12 +912,16 @@
           />
           Public (read-only)
         </label>
-        <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+        <label
+          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+        >
           <input type="radio" value="private" bind:group={editVisibility} />
           Private (shareable link)
         </label>
       </div>
-      <p class="text-xs text-slate-500 dark:text-slate-400">{visibilityDescriptions[editVisibility]}</p>
+      <p class="text-xs text-slate-500 dark:text-slate-400">
+        {visibilityDescriptions[editVisibility]}
+      </p>
     </div>
 
     {#if editError}
@@ -785,7 +949,12 @@
 </Modal>
 
 <!-- Delete Confirmation -->
-<Modal bind:open={showDeleteConfirm} title="Delete Counter?" maxWidth="max-w-sm" describedBy="delete-counter-description">
+<Modal
+  bind:open={showDeleteConfirm}
+  title="Delete Counter?"
+  maxWidth="max-w-sm"
+  describedBy="delete-counter-description"
+>
   <p id="delete-counter-description" class="text-slate-600 dark:text-slate-400">
     This action cannot be undone. The counter and its history will be
     permanently deleted.

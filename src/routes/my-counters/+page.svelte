@@ -61,6 +61,21 @@
           baseUrl="/my-counters"
         />
       {/if}
+
+      {#if data.followedCounters.length > 0}
+        <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+          <h3
+            class="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3"
+          >
+            Following
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {#each data.followedCounters as counter (counter.id)}
+              <CounterCard {counter} showBadges followed />
+            {/each}
+          </div>
+        </div>
+      {/if}
     </section>
 
     <!-- Dashboards column -->
@@ -97,6 +112,21 @@
           {#each data.dashboards as dashboard (dashboard.id)}
             <DashboardCard {dashboard} showBadges />
           {/each}
+        </div>
+      {/if}
+
+      {#if data.followedDashboards.length > 0}
+        <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
+          <h3
+            class="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3"
+          >
+            Following
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {#each data.followedDashboards as dashboard (dashboard.id)}
+              <DashboardCard {dashboard} showBadges followed />
+            {/each}
+          </div>
         </div>
       {/if}
     </section>

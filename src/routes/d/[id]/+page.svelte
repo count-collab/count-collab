@@ -109,20 +109,18 @@
   });
 
   // Follow/unfollow state
-  let isFollowing = $state(false);
+  let isProcessingFollow = $state(false);
 
   const canFollow = $derived(
     !!data.session?.user?.id &&
       !data.isOwner &&
-      !data.canEdit &&
-      !data.canManage &&
+      !data.memberRole &&
       data.dashboard.visibilityMode !== "private",
   );
-  const isViewer = $derived(data.memberRole === "viewer");
 
   async function handleFollow() {
-    if (isFollowing) return;
-    isFollowing = true;
+    if (isProcessingFollow) return;
+    isProcessingFollow = true;
 
     try {
       const response = await fetch(
@@ -140,13 +138,13 @@
     } catch {
       errorMessage = "Network error. Please try again.";
     } finally {
-      isFollowing = false;
+      isProcessingFollow = false;
     }
   }
 
   async function handleUnfollow() {
-    if (isFollowing) return;
-    isFollowing = true;
+    if (isProcessingFollow) return;
+    isProcessingFollow = true;
 
     try {
       const response = await fetch(
@@ -164,7 +162,7 @@
     } catch {
       errorMessage = "Network error. Please try again.";
     } finally {
-      isFollowing = false;
+      isProcessingFollow = false;
     }
   }
   const gridRows = $derived.by(() => {
@@ -555,22 +553,25 @@
       <!-- Desktop action buttons -->
       <div class="hidden sm:flex gap-2 shrink-0 ml-4">
         {#if canFollow}
-          {#if isViewer}
+          {#if data.isFollowing}
             <button
               type="button"
               onclick={handleUnfollow}
-              disabled={isFollowing}
+              disabled={isProcessingFollow}
               class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700 disabled:opacity-50"
             >
+              <ion-icon name="bookmark" style="font-size: 16px;"></ion-icon>
               Unfollow
             </button>
           {:else}
             <button
               type="button"
               onclick={handleFollow}
-              disabled={isFollowing}
+              disabled={isProcessingFollow}
               class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-1.5 disabled:opacity-50"
             >
+              <ion-icon name="bookmark-outline" style="font-size: 16px;"
+              ></ion-icon>
               Follow
             </button>
           {/if}
@@ -650,16 +651,18 @@
               class="absolute right-0 top-full mt-1 z-50 w-44 bg-white rounded-lg shadow-lg border border-slate-200 py-1 dark:bg-slate-800 dark:shadow-slate-900/50 dark:border-slate-700"
             >
               {#if canFollow}
-                {#if isViewer}
+                {#if data.isFollowing}
                   <button
                     type="button"
                     onclick={() => {
                       showActionsMenu = false;
                       handleUnfollow();
                     }}
-                    disabled={isFollowing}
+                    disabled={isProcessingFollow}
                     class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
+                    <ion-icon name="bookmark" style="font-size: 16px;"
+                    ></ion-icon>
                     Unfollow
                   </button>
                 {:else}
@@ -669,9 +672,11 @@
                       showActionsMenu = false;
                       handleFollow();
                     }}
-                    disabled={isFollowing}
+                    disabled={isProcessingFollow}
                     class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
+                    <ion-icon name="bookmark-outline" style="font-size: 16px;"
+                    ></ion-icon>
                     Follow
                   </button>
                 {/if}
@@ -771,6 +776,22 @@
           Owner
         </span>
       {/if}
+      {#if data.isFollowing}
+        <span
+          class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+        >
+          Followed
+        </span>
+      {/if}
+      {#if data.followerCount > 0}
+        <span
+          class="text-xs text-slate-400 dark:text-slate-500 inline-flex items-center gap-1"
+        >
+          <ion-icon name="people-outline" style="font-size: 14px;"></ion-icon>
+          {data.followerCount}
+          {data.followerCount === 1 ? "follower" : "followers"}
+        </span>
+      {/if}
       <span class="text-xs text-slate-400 dark:text-slate-500">
         Created {new Date(data.dashboard.createdAt).toLocaleDateString()}
         · Updated {new Date(data.dashboard.updatedAt).toLocaleString()}
@@ -786,12 +807,12 @@
   <!-- Counter Grid -->
   {#if data.items.length > 0}
     <section
-      class="grid gap-4 rounded-xl transition-all {editMode
+      class="grid gap-4 rounded-xl transition-all dashboard-grid {editMode
         ? 'ring-2 ring-blue-200 dark:ring-blue-800 bg-blue-50/30 dark:bg-blue-950/10 p-4 -m-4'
         : ''}"
-      style="grid-template-columns: repeat({GRID_COLS}, 1fr); grid-template-rows: repeat({editMode
+      style="--grid-cols: {GRID_COLS}; --grid-rows: {editMode
         ? Math.max(gridRows + 1, 2)
-        : gridRows}, minmax(140px, auto));"
+        : gridRows};"
     >
       {#each data.items as { item, counter, canIncrement } (item.id)}
         {@const displayCount = counter
@@ -800,14 +821,14 @@
         <div
           draggable={editMode ? "true" : undefined}
           role={editMode ? "button" : undefined}
-          class="min-w-0 {editMode
+          class="min-w-0 dashboard-item {editMode
             ? draggedItemId === item.id
               ? 'opacity-50 cursor-grabbing pointer-events-none'
               : 'cursor-grab'
             : ''}"
-          style="grid-column: {item.positionX +
-            1} / span {item.sizeColumns}; grid-row: {item.positionY +
-            1} / span {item.sizeRows};"
+          style="--col-start: {item.positionX +
+            1}; --col-span: {item.sizeColumns}; --row-start: {item.positionY +
+            1}; --row-span: {item.sizeRows};"
           ondragstart={(e) => {
             if (!editMode) return;
             draggedItemId = item.id;
@@ -1345,3 +1366,29 @@
   {existingCounterIds}
   onAdd={handleAddCounter}
 />
+
+<style>
+  /* Desktop: use the stored grid layout */
+  .dashboard-grid {
+    grid-template-columns: repeat(var(--grid-cols), 1fr);
+    grid-template-rows: repeat(var(--grid-rows), minmax(140px, auto));
+  }
+
+  .dashboard-item {
+    grid-column: var(--col-start) / span var(--col-span);
+    grid-row: var(--row-start) / span var(--row-span);
+  }
+
+  /* Mobile: single column, all items 1×1, natural flow */
+  @media (max-width: 639px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr !important;
+      grid-template-rows: auto !important;
+    }
+
+    .dashboard-item {
+      grid-column: 1 !important;
+      grid-row: auto !important;
+    }
+  }
+</style>

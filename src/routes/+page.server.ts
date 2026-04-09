@@ -6,6 +6,11 @@ import {
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
 } from "$lib/server/counters";
+import { getUserDashboards } from "$lib/server/dashboards";
+import {
+  getFollowedCounters,
+  getFollowedDashboards,
+} from "$lib/server/followers";
 import type { PageServerLoad } from "./$types";
 
 export const load: PageServerLoad = async ({ depends, parent }) => {
@@ -22,6 +27,9 @@ export const load: PageServerLoad = async ({ depends, parent }) => {
     recentlyUpdated,
     globalSum,
     counterCount,
+    userDashboardResult,
+    followedCounters,
+    followedDashboards,
   ] = await Promise.all([
     listPublicCounters(12),
     userId
@@ -31,11 +39,19 @@ export const load: PageServerLoad = async ({ depends, parent }) => {
     listRecentlyUpdatedCounters(),
     getGlobalCounterSum(),
     getCounterCount(),
+    userId
+      ? getUserDashboards(userId, 6)
+      : Promise.resolve({ items: [], total: 0 }),
+    userId ? getFollowedCounters(userId) : Promise.resolve([]),
+    userId ? getFollowedDashboards(userId) : Promise.resolve([]),
   ]);
 
   return {
     popularCounters: popularResult.items,
     userCounters: userResult.items,
+    userDashboards: userDashboardResult.items,
+    followedCounters,
+    followedDashboards,
     recentlyCreated,
     recentlyUpdated,
     globalSum,

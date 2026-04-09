@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/stores";
   import { fade } from "svelte/transition";
 
   type Props = {
@@ -7,12 +8,17 @@
       title: string;
       description: string | null;
       visibilityMode: string;
-      memberCount?: number;
+      ownerId?: string | null;
+      followerCount?: number;
     };
     showBadges?: boolean;
+    followed?: boolean;
   };
 
-  const { dashboard, showBadges = false }: Props = $props();
+  const { dashboard, showBadges = false, followed = false }: Props = $props();
+
+  const userId = $derived($page.data.session?.user?.id);
+  const isOwner = $derived(userId != null && dashboard.ownerId === userId);
 
   const visibilityBadgeClasses: Record<string, string> = {
     public:
@@ -74,27 +80,50 @@
     {dashboard.description ?? ""}
   </span>
 
-  {#if dashboard.memberCount != null}
+  {#if dashboard.followerCount != null}
     <div
       class="relative flex items-center gap-1 mt-2 text-xs text-slate-500 dark:text-slate-400"
     >
-      <ion-icon name="person-outline" style="font-size: 14px;"></ion-icon>
+      <ion-icon name="people-outline" style="font-size: 14px;"></ion-icon>
       <span
-        >{dashboard.memberCount}
-        {dashboard.memberCount === 1 ? "member" : "members"}</span
+        >{dashboard.followerCount}
+        {dashboard.followerCount === 1 ? "follower" : "followers"}</span
       >
     </div>
   {/if}
 
-  {#if showBadges}
-    <div class="relative flex gap-1.5 mt-2">
-      <span
-        class="text-xs font-medium px-2 py-0.5 rounded-full {visibilityBadgeClasses[
-          dashboard.visibilityMode
-        ] ?? ''}"
-      >
-        {visibilityLabels[dashboard.visibilityMode] ?? dashboard.visibilityMode}
-      </span>
+  {#if showBadges || followed}
+    <div class="relative flex flex-wrap gap-1.5 mt-2">
+      {#if showBadges}
+        <span
+          class="text-xs font-medium px-2 py-0.5 rounded-full {visibilityBadgeClasses[
+            dashboard.visibilityMode
+          ] ?? ''}"
+        >
+          {visibilityLabels[dashboard.visibilityMode] ??
+            dashboard.visibilityMode}
+        </span>
+        {#if !followed}
+          {#if isOwner}
+            <span
+              class="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 ring-1 ring-blue-200/60 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-700/60"
+              >Owner</span
+            >
+          {:else}
+            <span
+              class="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-600/60"
+              >Shared</span
+            >
+          {/if}
+        {/if}
+      {/if}
+      {#if followed}
+        <span
+          class="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 ring-1 ring-purple-200/60 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-700/60"
+        >
+          Followed
+        </span>
+      {/if}
     </div>
   {/if}
 </a>

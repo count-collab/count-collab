@@ -266,6 +266,52 @@ export const dashboardMembers = pgTable(
   }),
 );
 
+// ── Followers ────────────────────────────────────────────────────
+
+export const counterFollowers = pgTable(
+  "counter_followers",
+  {
+    id: serial("id").primaryKey(),
+    counterId: uuid("counter_id")
+      .notNull()
+      .references(() => counters.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    followedAt: timestamp("followed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (cf) => ({
+    uniqueFollow: uniqueIndex("counter_followers_counter_user_idx").on(
+      cf.counterId,
+      cf.userId,
+    ),
+  }),
+);
+
+export const dashboardFollowers = pgTable(
+  "dashboard_followers",
+  {
+    id: serial("id").primaryKey(),
+    dashboardId: uuid("dashboard_id")
+      .notNull()
+      .references(() => dashboards.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    followedAt: timestamp("followed_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (df) => ({
+    uniqueFollow: uniqueIndex("dashboard_followers_dashboard_user_idx").on(
+      df.dashboardId,
+      df.userId,
+    ),
+  }),
+);
+
 // ── Type exports ────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -288,6 +334,12 @@ export type DashboardItem = typeof dashboardItems.$inferSelect;
 export type NewDashboardItem = typeof dashboardItems.$inferInsert;
 export type DashboardMember = typeof dashboardMembers.$inferSelect;
 export type NewDashboardMember = typeof dashboardMembers.$inferInsert;
+
+export type CounterFollower = typeof counterFollowers.$inferSelect;
+export type NewCounterFollower = typeof counterFollowers.$inferInsert;
+
+export type DashboardFollower = typeof dashboardFollowers.$inferSelect;
+export type NewDashboardFollower = typeof dashboardFollowers.$inferInsert;
 
 export type SparklinePoint = {
   value: number;

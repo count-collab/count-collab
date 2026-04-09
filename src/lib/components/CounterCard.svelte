@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/stores";
   import { fade } from "svelte/transition";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
   import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
@@ -8,13 +9,20 @@
   type Props = {
     counter: Counter;
     showBadges?: boolean;
+    followed?: boolean;
   };
 
-  const { counter, showBadges = false }: Props = $props();
+  const { counter, showBadges = false, followed = false }: Props = $props();
+
+  const userId = $derived($page.data.session?.user?.id);
+  const isOwner = $derived(userId != null && counter.ownerId === userId);
   const visibilityBadgeClasses: Record<CounterVisibilityMode, string> = {
-    public: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-700/60",
-    public_readonly: "bg-amber-50 text-amber-700 ring-1 ring-amber-200/70 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-700/70",
-    private: "bg-slate-50 text-slate-500 ring-1 ring-slate-200/60 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-600/60",
+    public:
+      "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-700/60",
+    public_readonly:
+      "bg-amber-50 text-amber-700 ring-1 ring-amber-200/70 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-700/70",
+    private:
+      "bg-slate-50 text-slate-500 ring-1 ring-slate-200/60 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-600/60",
   };
 
   let activateTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
@@ -65,18 +73,32 @@
   >
     <RollingNumber value={counter.count} />
   </span>
-  <span class="relative font-semibold text-slate-900 dark:text-slate-100 truncate">{counter.title}</span>
-  <span class="relative text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate min-h-5"
+  <span
+    class="relative font-semibold text-slate-900 dark:text-slate-100 truncate"
+    >{counter.title}</span
+  >
+  <span
+    class="relative text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate min-h-5"
     >{counter.description ?? ""}</span
   >
-  {#if showBadges}
-    <CounterBadges
-      visibilityMode={visibilityMode}
-      ownership={counter.ownerId ? "owner" : "shared"}
-      containerClass="relative flex gap-1.5 mt-2"
-      visibilityBadgeBaseClass="text-xs font-medium px-2 py-0.5 rounded-full"
-      visibilityBadgeClasses={visibilityBadgeClasses}
-    />
+  {#if showBadges || followed}
+    <div class="relative flex flex-wrap gap-1.5 mt-2">
+      {#if showBadges}
+        <CounterBadges
+          {visibilityMode}
+          ownership={followed ? null : isOwner ? "owner" : "shared"}
+          containerClass="flex gap-1.5"
+          visibilityBadgeBaseClass="text-xs font-medium px-2 py-0.5 rounded-full"
+          {visibilityBadgeClasses}
+        />
+      {/if}
+      {#if followed}
+        <span
+          class="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 ring-1 ring-purple-200/60 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-700/60"
+        >
+          Followed
+        </span>
+      {/if}
+    </div>
   {/if}
 </a>
-

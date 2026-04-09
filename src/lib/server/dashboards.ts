@@ -14,13 +14,14 @@ import type {
   NewDashboard,
 } from "$lib/db/schema";
 import {
+  dashboardFollowers,
   dashboardMembers,
   dashboards as dashboardsTable,
 } from "$lib/db/schema";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
 import { logger } from "$lib/server/logger";
 
-export type DashboardWithMemberCount = Dashboard & { memberCount: number };
+export type DashboardWithFollowerCount = Dashboard & { followerCount: number };
 
 const publicDashboardVisibilityModes: DashboardVisibilityMode[] = ["public"];
 
@@ -126,7 +127,7 @@ export async function listPublicDashboards(
   limit = 12,
   query?: string,
   offset = 0,
-): Promise<{ items: DashboardWithMemberCount[]; total: number }> {
+): Promise<{ items: DashboardWithFollowerCount[]; total: number }> {
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
@@ -135,14 +136,14 @@ export async function listPublicDashboards(
       )
     : inArray(dashboardsTable.visibilityMode, publicDashboardVisibilityModes);
 
-  const memberCountSubquery = db
+  const followerCountSubquery = db
     .select({
-      dashboardId: dashboardMembers.dashboardId,
-      memberCount: countFn().as("member_count"),
+      dashboardId: dashboardFollowers.dashboardId,
+      followerCount: countFn().as("follower_count"),
     })
-    .from(dashboardMembers)
-    .groupBy(dashboardMembers.dashboardId)
-    .as("member_counts");
+    .from(dashboardFollowers)
+    .groupBy(dashboardFollowers.dashboardId)
+    .as("follower_counts");
 
   const [items, [{ total }]] = await Promise.all([
     db
@@ -155,16 +156,16 @@ export async function listPublicDashboards(
         ownerId: dashboardsTable.ownerId,
         createdAt: dashboardsTable.createdAt,
         updatedAt: dashboardsTable.updatedAt,
-        memberCount: sql<number>`coalesce(${memberCountSubquery.memberCount}, 0)`,
+        followerCount: sql<number>`coalesce(${followerCountSubquery.followerCount}, 0)`,
       })
       .from(dashboardsTable)
       .leftJoin(
-        memberCountSubquery,
-        eq(dashboardsTable.id, memberCountSubquery.dashboardId),
+        followerCountSubquery,
+        eq(dashboardsTable.id, followerCountSubquery.dashboardId),
       )
       .where(whereClause)
       .orderBy(
-        desc(sql`coalesce(${memberCountSubquery.memberCount}, 0)`),
+        desc(sql`coalesce(${followerCountSubquery.followerCount}, 0)`),
         desc(dashboardsTable.updatedAt),
       )
       .limit(limit)
@@ -175,7 +176,7 @@ export async function listPublicDashboards(
   return {
     items: items.map((item) => ({
       ...item,
-      memberCount: Number(item.memberCount),
+      followerCount: Number(item.followerCount),
     })),
     total: Number(total),
   };
