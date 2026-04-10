@@ -17,19 +17,14 @@ You are an end-to-end testing specialist for the Count Collab project. Your job 
 ## Directory Structure
 
 ```
-tests/
-├── e2e/
-│   ├── counter-create.test.ts    # Counter creation flow
-│   ├── counter-increment.test.ts # Increment and real-time update
-│   ├── counter-browse.test.ts    # Public counter listing
-│   ├── auth.test.ts              # Login/logout flows
-│   ├── admin.test.ts             # Admin dashboard
-│   └── setup.test.ts             # Username setup flow
-├── fixtures/
-│   ├── auth.ts                   # Auth mock helpers
-│   └── test-data.ts              # Seeded test data
-└── playwright.config.ts
+e2e/
+└── homepage.test.ts          # Homepage/landing page flow
+playwright.config.ts
 ```
+
+New test files should be added to the `e2e/` directory following the naming convention `<feature>.test.ts`.
+
+````
 
 ## Critical User Flows to Cover
 
@@ -38,8 +33,9 @@ tests/
 3. **Real-time sync**: User A increments → User B sees update (two browser contexts)
 4. **Auth flow**: Click login → OAuth redirect mock → redirected to /setup → set username → access /my-counters
 5. **Private counters**: Create private counter → share link → member can view, non-member cannot
-6. **Admin**: Logged in as admin → access /admin → manage counters/users
-7. **Rate limiting**: Rapid increments → receive 429 → retry after cooldown
+6. **Dashboards**: Create dashboard → add counters → view dashboard at /d/[id]
+7. **Admin**: Logged in as admin → access /admin → manage counters/users
+8. **Rate limiting**: Rapid increments → receive 429 → retry after cooldown
 
 ## Auth Mocking Strategy
 
@@ -57,7 +53,7 @@ await context.addCookies([
     path: "/",
   },
 ]);
-```
+````
 
 ### Option B: Test-only auth bypass
 
@@ -148,7 +144,7 @@ Use MCP tools for exploratory testing and debugging. Write Playwright test files
 
 ```bash
 bunx playwright test                     # Run all E2E tests
-bunx playwright test tests/e2e/auth      # Run specific test file
+bunx playwright test e2e/homepage         # Run specific test file
 bunx playwright test --headed             # Run with visible browser
 bunx playwright test --ui                 # Interactive UI mode
 bunx playwright show-report              # View HTML report

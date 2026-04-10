@@ -44,8 +44,10 @@ You are a real-time communication specialist for the Count Collab project. Your 
 - `vite.config.ts` — Dev mode Socket.IO initialization
 - `src/lib/utils/socket.ts` — Server-side emit functions
 - `src/lib/utils/socket-dev.ts` — Client-side socket initialization
-- `src/lib/stores/counters.ts` — Reactive Svelte store with socket subscriptions
+- `src/lib/stores/counters.ts` — Reactive Svelte store with socket subscriptions for counters
+- `src/lib/stores/dashboards.ts` — Reactive Svelte store for dashboard data
 - `src/lib/stores/ratelimit.ts` — Client-side rate limit tracking
+- `src/lib/stores/theme.svelte.ts` — Theme preference store (runes-based)
 
 ## Constraints
 

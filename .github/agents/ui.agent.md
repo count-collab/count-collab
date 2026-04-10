@@ -18,24 +18,38 @@ You are a UI/component specialist for the Count Collab project. Your job is to b
 
 ```
 src/lib/components/
-├── CounterCard.svelte     # Counter display card with title, count, actions
-├── MetaTags.svelte        # SEO meta tags (title, description, OG)
-├── Pagination.svelte      # Page navigation for counter lists
-└── RollingNumber.svelte   # Animated number transitions for count display
+├── AddCounterModal.svelte  # Modal for adding counters to dashboards
+├── CounterBadges.svelte    # Badge indicators for counter properties
+├── CounterCard.svelte      # Counter display card with title, count, actions
+├── DashboardCard.svelte    # Dashboard display card
+├── Fireworks.svelte        # Celebratory animation effect
+├── HistoryEntry.svelte     # Single entry in counter history log
+├── MetaTags.svelte         # SEO meta tags (title, description, OG)
+├── Modal.svelte            # Reusable modal dialog component
+├── Pagination.svelte       # Page navigation for lists
+├── RollingNumber.svelte    # Animated number transitions for count display
+├── Sparkline.svelte        # Inline sparkline chart for counter trends
+└── ThemeToggle.svelte      # Light/dark theme toggle
 ```
 
 ## Page Components
 
 ```
 src/routes/
-├── +page.svelte           # Landing page with public counters
-├── c/[id]/+page.svelte    # Counter detail page (core UX)
-├── counters/+page.svelte  # Browse/search public counters
-├── create/+page.svelte    # Counter creation form
-├── my-counters/+page.svelte # User's counters list
-├── admin/+page.svelte     # Admin dashboard
-├── login/+page.svelte     # Login page
-└── setup/+page.svelte     # Username setup
+├── +page.svelte              # Landing page with public counters
+├── c/[id]/[[slug]]/+page.svelte # Counter detail page (core UX)
+├── counters/+page.svelte     # Browse/search public counters
+├── create/+page.svelte       # Counter creation form
+├── create/dashboard/+page.svelte # Dashboard creation form
+├── d/[id]/+page.svelte       # Dashboard detail page
+├── dashboards/+page.svelte   # Browse public dashboards
+├── my-counters/+page.svelte  # User's counters list
+├── admin/+page.svelte        # Admin dashboard
+├── admin/counters/+page.svelte # Admin counter management
+├── admin/users/+page.svelte  # Admin user management
+├── login/+page.svelte        # Login page
+├── settings/+page.svelte     # User settings
+└── setup/+page.svelte        # Username setup
 ```
 
 ## Svelte 5 Runes Patterns

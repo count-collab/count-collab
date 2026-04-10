@@ -14,6 +14,7 @@ You are an API specialist for the Count Collab SvelteKit project. Your job is to
 - **Rate limiting**: IP-based, configured in `src/lib/server/ratelimit.ts`
 - **Logging**: Structured logger at `src/lib/server/logger.ts`
 - **Authorization**: `src/lib/server/authorize.ts` for counter-level permission checks
+- **Dashboard Authorization**: `src/lib/server/dashboard-authorize.ts` for dashboard-level permission checks
 - **Server utilities**: `src/lib/server/request.ts` for request helpers
 
 ## Route Structure
@@ -22,18 +23,37 @@ You are an API specialist for the Count Collab SvelteKit project. Your job is to
 src/routes/
 ├── +page.server.ts           # Landing page (public counters)
 ├── api/
-│   ├── username/check/       # Username availability
-│   └── version/              # Build version
+│   ├── counters/[id]/         # Counter CRUD (GET/PATCH/DELETE)
+│   │   ├── follow/            # Counter follow/unfollow
+│   │   └── sparkline/         # Counter sparkline data
+│   ├── dashboards/            # Dashboard creation (POST)
+│   │   └── [id]/              # Dashboard CRUD
+│   │       ├── follow/        # Dashboard follow/unfollow
+│   │       ├── items/         # Dashboard item management
+│   │       └── search-counters/ # Counter search for dashboard
+│   ├── og/[id]/               # Open Graph image generation
+│   ├── username/check/        # Username availability
+│   └── version/               # Build version
 ├── c/[id]/
-│   ├── +page.server.ts       # Counter detail loading
-│   ├── +server.ts            # Counter increment POST
-│   └── members/              # Member management
+│   ├── [[slug]]/+page.server.ts # Counter detail loading
+│   └── members/               # Counter member management
+│       └── [userId]/          # Individual member operations
 ├── counters/                 # Public counter browser
 ├── create/                   # Counter creation form action
+│   └── dashboard/             # Dashboard creation form action
+├── d/[id]/                   # Dashboard detail page
+│   └── members/               # Dashboard member management
+├── dashboards/               # Browse public dashboards
 ├── admin/                    # Admin dashboard & management
+│   ├── counters/              # Admin counter management
+│   └── users/[userId]/        # Admin user management
 ├── login/                    # Auth login page
 ├── my-counters/              # User's counters
-└── setup/                    # Post-auth username setup
+├── settings/                 # User settings
+├── setup/                    # Post-auth username setup
+├── health/                   # Health check endpoint
+├── robots.txt/               # SEO robots.txt
+└── sitemap.xml/              # SEO sitemap
 ```
 
 ## Patterns to Follow

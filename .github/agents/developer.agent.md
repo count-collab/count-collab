@@ -141,3 +141,24 @@ If issues are found, delegate fixes back to the appropriate specialist — inclu
 - Ensure all changes align with `AGENTS.md` project standards
 - DO NOT skip testing — always delegate to `unit-test` and `e2e-test` after implementation
 - DO NOT do specialist work yourself when an agent exists for it — always delegate via `runSubagent`
+
+## Keeping Agent Instructions Up to Date
+
+After completing any implementation that changes the project structure, you MUST update the relevant agent instruction files in `.github/agents/`. This ensures agents always have accurate context.
+
+### When to Update
+
+Update agent files whenever a change:
+
+- **Adds, removes, or renames** files/directories referenced in any agent (routes, components, server modules, stores, utils, scripts, test files, config files)
+- **Adds new database tables or columns** — update `database.agent.md` and `migration.agent.md` schema sections
+- **Adds new API routes** — update `api.agent.md` route structure
+- **Adds new components** — update `ui.agent.md` component inventory and page components list
+- **Adds new stores or utils** — update `realtime.agent.md`, `unit-test.agent.md`
+- **Adds auth/permission files** — update `auth.agent.md` and `security.agent.md`
+- **Changes test directory structure** — update `unit-test.agent.md` and `e2e-test.agent.md`
+- **Changes routes** — update `debug.agent.md` known routes list
+
+### How to Update
+
+At the **very end** of your workflow (after testing and validation), review what files were changed and update the corresponding agent files directly — do NOT delegate this to a subagent. Simply edit the tree listings, file references, and descriptions in the affected `.github/agents/*.agent.md` files to reflect the new state.
