@@ -13,27 +13,43 @@ You are a unit testing specialist for the Count Collab project. Your job is to w
 - **Test runner**: Vitest (with `@sveltejs/vite-plugin-svelte` for component tests)
 - **Component testing**: `@testing-library/svelte` + `@testing-library/jest-dom`
 - **Validation**: Zod 4 schemas in `src/lib/utils/validation.ts`
-- **Server logic**: `src/lib/server/` (counters, members, permissions, users, ratelimit, authorize)
-- **Stores**: `src/lib/stores/` (counters, ratelimit)
-- **Utilities**: `src/lib/utils/` (context, socket, validation)
+- **Server logic**: `src/lib/server/` (counters, members, permissions, users, ratelimit, authorize, dashboard-authorize, dashboards, dashboard-items, followers, grid-relayout, cache, crypto)
+- **Stores**: `src/lib/stores/` (counters, dashboards, ratelimit, theme.svelte.ts)
+- **Utilities**: `src/lib/utils/` (context, socket, socket-dev, validation)
 
 ## File Conventions
 
 ```
 src/
 ├── lib/
+│   ├── counter.ts / counter.test.ts             # Shared counter logic
 │   ├── components/
-│   │   ├── CounterCard.svelte
-│   │   └── CounterCard.test.ts       # Component unit test
+│   │   ├── CounterCard.svelte / CounterCard.test.ts
+│   │   ├── Fireworks.svelte / Fireworks.test.ts
+│   │   ├── HistoryEntry.svelte / HistoryEntry.test.ts
+│   │   ├── Modal.svelte / Modal.test.ts
+│   │   └── Sparkline.svelte / Sparkline.test.ts
 │   ├── server/
-│   │   ├── counters.ts
-│   │   └── counters.test.ts          # Server logic test
-│   ├── utils/
-│   │   ├── validation.ts
-│   │   └── validation.test.ts        # Validation test
-│   └── stores/
-│       ├── counters.ts
-│       └── counters.test.ts          # Store test
+│   │   ├── authorize.ts / authorize.test.ts
+│   │   ├── cache.ts / cache.test.ts
+│   │   ├── counters.ts / counters.test.ts
+│   │   ├── dashboard-authorize.ts / dashboard-authorize.test.ts
+│   │   ├── followers.ts / followers.test.ts
+│   │   ├── grid-relayout.ts / grid-relayout.test.ts
+│   │   ├── members.ts / members.test.ts
+│   │   └── users.ts / users.test.ts
+│   └── utils/
+│       ├── socket-dev.ts / socket-dev.test.ts
+│       └── validation.ts / validation.test.ts
+└── routes/
+    ├── api/counters/[id]/server.test.ts
+    ├── api/dashboards/[id]/search-counters/server.test.ts
+    ├── api/og/[id]/server.test.ts
+    ├── api/version/server.test.ts
+    ├── c/[id]/[[slug]]/page.test.ts
+    ├── create/server.test.ts
+    ├── robots.txt/server.test.ts
+    └── sitemap.xml/server.test.ts
 ```
 
 - Test files live next to the code they test: `foo.ts` → `foo.test.ts`

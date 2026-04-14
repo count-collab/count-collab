@@ -22,7 +22,9 @@ src/hooks.server.ts                    # Middleware chain (rate limiting, auth)
 src/lib/server/ratelimit.ts            # IP-based rate limiting logic
 src/lib/server/auth.ts                 # Auth.js configuration
 src/lib/server/authorize.ts            # Counter-level authorization
+src/lib/server/dashboard-authorize.ts  # Dashboard-level authorization
 src/lib/server/permissions.ts          # Role-based permission checks
+src/lib/server/crypto.ts               # Cryptographic utilities (share tokens, etc.)
 src/lib/utils/validation.ts            # Zod input validation schemas
 server.js                              # CORS configuration for Socket.IO
 ```

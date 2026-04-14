@@ -26,11 +26,17 @@ You are a visual debugging specialist for the Count Collab project. Your job is 
 2. **Know the routes** — Key pages in the app:
    - `/` — Landing page
    - `/create` — Create a new counter
+   - `/create/dashboard` — Create a new dashboard
    - `/counters` — Browse public counters
    - `/c/[id]` — Individual counter page (real-time updates)
+   - `/dashboards` — Browse public dashboards
+   - `/d/[id]` — Individual dashboard page
    - `/my-counters` — User's own counters (requires auth)
+   - `/settings` — User settings (requires auth)
    - `/login` — Login page
    - `/admin` — Admin dashboard (requires admin role)
+   - `/admin/counters` — Admin counter management
+   - `/admin/users` — Admin user management
    - `/setup` — Username setup (post-auth)
 
 ## Debugging Workflow

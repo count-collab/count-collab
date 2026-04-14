@@ -13,6 +13,7 @@ You are an authentication and authorization specialist for the Count Collab proj
 - **Session access**: `event.locals.auth()` in server-side code, `$page.data.session` in Svelte
 - **Auth config**: `src/lib/server/auth.ts`
 - **Authorization**: `src/lib/server/authorize.ts` — counter permission checks
+- **Dashboard Authorization**: `src/lib/server/dashboard-authorize.ts` — dashboard permission checks
 - **Permissions**: `src/lib/server/permissions.ts` — role-based permission logic
 - **User management**: `src/lib/server/users.ts`
 - **Middleware**: `src/hooks.server.ts` — 4-stage hook chain
@@ -38,9 +39,15 @@ sequence(loggingHandle, authHandle, appHandle, usernameGuard)
 
 ### Counter Member Roles (counterMembers table)
 
-- Per-counter access: `viewer`, `editor`, `admin`
+- Per-counter access: `viewer`, `incrementer`, `editor`, `admin`
 - Checked via authorization functions in `src/lib/server/authorize.ts`
 - Counter owner (via `counters.ownerId`) has implicit full access
+
+### Dashboard Member Roles (dashboardMembers table)
+
+- Per-dashboard access: `viewer`, `editor`, `admin`
+- Checked via authorization functions in `src/lib/server/dashboard-authorize.ts`
+- Dashboard owner (via `dashboards.ownerId`) has implicit full access
 
 ## Auth Schema
 

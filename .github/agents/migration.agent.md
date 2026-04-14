@@ -42,9 +42,14 @@ bun run db:studio      # Open Drizzle Studio for visual inspection
 ### Application Tables
 
 - `roles` (serial PK), `permissions` (serial PK), `role_permissions` (M:M)
-- `counters` (UUID PK, title, count, isPublic, ownerId, timestamps)
-- `counter_history` (serial PK, audit log of value changes)
-- `counter_members` (serial PK, unique index on counterId+userId, role)
+- `counters` (UUID PK, title, count, isPublic (legacy), visibilityMode, shareToken, ownerId, timestamps)
+- `counter_history` (serial PK, audit log with changedBy FK)
+- `counter_members` (serial PK, unique index on counterId+userId, role: viewer/incrementer/editor/admin)
+- `counter_followers` (serial PK, unique index on counterId+userId)
+- `dashboards` (UUID PK, title, description, visibilityMode, shareToken, ownerId, timestamps)
+- `dashboard_items` (serial PK, dashboardId+counterId, grid position/size)
+- `dashboard_members` (serial PK, unique index on dashboardId+userId, role: viewer/editor/admin)
+- `dashboard_followers` (serial PK, unique index on dashboardId+userId)
 
 ## Expand-and-Contract Migrations (MANDATORY)
 
