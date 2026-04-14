@@ -1,12 +1,32 @@
 <script lang="ts">
+  import { browser } from "$app/environment";
+  import { invalidate } from "$app/navigation";
   import CounterCard from "$lib/components/CounterCard.svelte";
   import FaqAccordion from "$lib/components/FaqAccordion.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { faqItems } from "$lib/data/faq";
+  import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
+
+  $effect(() => {
+    if (!browser) return;
+
+    const unsubUpdate = onCounterUpdated(() => {
+      invalidate("counters:list");
+    });
+
+    const unsubCreated = onCounterCreated(() => {
+      invalidate("counters:list");
+    });
+
+    return () => {
+      unsubUpdate();
+      unsubCreated();
+    };
+  });
 
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
