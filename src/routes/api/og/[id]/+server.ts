@@ -49,7 +49,7 @@ export const GET: RequestHandler = async ({ params }) => {
   }
 
   if (counter.visibilityMode === "private") {
-    throw error(403, "Cannot generate preview for private counters");
+    throw error(404, "Counter not found");
   }
 
   const font = loadFont();
@@ -122,20 +122,20 @@ export const GET: RequestHandler = async ({ params }) => {
                 },
                 ...(description
                   ? [
-                      {
-                        type: "div",
-                        props: {
-                          style: {
-                            fontSize: "20px",
-                            color: "#64748b",
-                            textAlign: "center",
-                            maxWidth: "800px",
-                            marginTop: "4px",
-                          },
-                          children: description,
+                    {
+                      type: "div",
+                      props: {
+                        style: {
+                          fontSize: "20px",
+                          color: "#64748b",
+                          textAlign: "center",
+                          maxWidth: "800px",
+                          marginTop: "4px",
                         },
+                        children: description,
                       },
-                    ]
+                    },
+                  ]
                   : []),
                 {
                   type: "div",

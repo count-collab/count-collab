@@ -63,15 +63,15 @@ export const load: PageServerLoad = async ({
 
   let canViewPrivate = false;
 
-  // Private counter access check
+  // Private counter access check — return 404 to avoid leaking existence
   if (isPrivate && !hasValidToken) {
     if (userId) {
       canViewPrivate = await canViewPrivateCounter(userId, counter.id);
       if (!canViewPrivate) {
-        throw error(403, "You don't have access to this counter");
+        throw error(404, "Counter not found");
       }
     } else {
-      throw error(403, "Sign in to view this private counter");
+      throw error(404, "Counter not found");
     }
   }
 

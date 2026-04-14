@@ -58,7 +58,7 @@ describe("GET /api/og/[id]", () => {
     ).rejects.toMatchObject({ status: 404 });
   });
 
-  it("returns 403 for private counters", async () => {
+  it("returns 404 for private counters", async () => {
     mockGetCounter.mockResolvedValue({
       id: "11111111-1111-1111-1111-111111111111",
       title: "Private Counter",
@@ -69,7 +69,7 @@ describe("GET /api/og/[id]", () => {
 
     await expect(
       GET(makeEvent("11111111-1111-1111-1111-111111111111")),
-    ).rejects.toMatchObject({ status: 403 });
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it("returns a PNG image for a public counter", async () => {

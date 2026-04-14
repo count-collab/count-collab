@@ -58,10 +58,10 @@ export const POST: RequestHandler = async ({ params, locals, url }) => {
       if (userId) {
         const canView = await canViewPrivateCounter(userId, counter.id);
         if (!canView) {
-          throw error(403, "You don't have access to this counter");
+          throw error(404, "Counter not found");
         }
       } else {
-        throw error(403, "Sign in to view this private counter");
+        throw error(404, "Counter not found");
       }
     }
   }
