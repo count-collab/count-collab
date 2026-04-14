@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from "$app/stores";
+  import SiteFooter from "$lib/components/SiteFooter.svelte";
 </script>
 
 <svelte:head>
@@ -116,4 +117,6 @@
       </div>
     </div>
   </main>
+
+  <SiteFooter version={$page.data?.buildInfo?.version ?? ''} commit={$page.data?.buildInfo?.commit ?? ''} />
 </div>
