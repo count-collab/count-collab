@@ -1,7 +1,6 @@
 <script lang="ts">
-  
   import { fade } from "svelte/transition";
-import { page } from "$app/stores";
+  import { page } from "$app/stores";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
   import { counterUrl } from "$lib/counter";
   import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
@@ -71,7 +70,7 @@ import { page } from "$app/stores";
   {/if}
 
   <span
-    class="relative text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-1"
+    class="relative text-3xl leading-none font-extrabold text-blue-600 dark:text-blue-400 mb-1"
   >
     <RollingNumber value={counter.count} />
   </span>
