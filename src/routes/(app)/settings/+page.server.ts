@@ -37,6 +37,6 @@ export const actions: Actions = {
 
     // Session is already invalidated by FK cascade (user deletion removes sessions).
     // The cookie will reference a deleted session, and Auth.js returns null on next auth() call.
-    throw redirect(303, "/");
+    throw redirect(303, "/home");
   },
 };

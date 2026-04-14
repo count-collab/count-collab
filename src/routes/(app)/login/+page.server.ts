@@ -5,6 +5,6 @@ export const load: PageServerLoad = async ({ locals }) => {
   const session = await locals.auth();
 
   if (session?.user) {
-    redirect(303, "/my-counters");
+    redirect(303, "/home");
   }
 };

@@ -69,7 +69,7 @@
 <MetaTags
   title="Count Collab - Create and Share Counters"
   description="Create counters with unique links and share them to track anything in real-time."
-  path="/"
+  path="/home"
 />
 
 <svelte:window bind:scrollY />
@@ -89,21 +89,16 @@
 
   <section
     bind:this={heroEl}
-    class="full-bleed text-center min-h-[calc(100vh-250px)] lg:min-h-0 flex flex-col items-center justify-center px-4 -mt-8 pt-16 pb-20 lg:pt-20 lg:pb-24"
+    class="full-bleed text-center flex flex-col items-center justify-center px-4 -mt-8 pt-12 pb-12 lg:pt-14 lg:pb-14"
   >
     <div
       class="flex flex-col items-center"
       style="opacity: {1 -
         scrollProgress * 0.6}; transform: translateY({scrollY * 0.25}px)"
     >
-      <p
-        class="hero-stagger mb-3 inline-block rounded-full bg-blue-100 dark:bg-blue-900 px-4 py-1 text-sm font-medium text-blue-700 dark:text-blue-300 tracking-wide"
-      >
-        Real-time collaborative counting
-      </p>
       <h1
-        class="hero-stagger text-5xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight"
-        style="animation-delay: 100ms"
+        class="hero-stagger text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight"
+        style="animation-delay: 50ms"
       >
         Count together,
         <span
@@ -112,17 +107,9 @@
           in real time
         </span>
       </h1>
-      <p
-        class="hero-stagger mt-4 text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-xl mx-auto"
-        style="animation-delay: 200ms"
-      >
-        Create a counter, share the link, and let anyone increment it instantly.
-        No sign-up required.
-      </p>
-
       <div
-        class="hero-stagger mt-10 flex flex-col items-center gap-1"
-        style="animation-delay: 250ms"
+        class="hero-stagger mt-8 flex flex-col items-center gap-1"
+        style="animation-delay: 100ms"
       >
         <p
           class="text-5xl sm:text-7xl font-extrabold text-blue-600 dark:text-blue-400"
@@ -140,7 +127,7 @@
 
       <div
         class="hero-stagger mt-8 flex flex-wrap gap-4 justify-center"
-        style="animation-delay: 350ms"
+        style="animation-delay: 200ms"
       >
         <a
           href="/create"

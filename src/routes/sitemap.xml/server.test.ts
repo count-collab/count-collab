@@ -30,7 +30,9 @@ describe("GET /sitemap.xml", () => {
     const response = await GET(mockEvent);
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("application/xml; charset=utf-8");
+    expect(response.headers.get("content-type")).toBe(
+      "application/xml; charset=utf-8",
+    );
     expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
 
     const body = await response.text();

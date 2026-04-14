@@ -21,7 +21,13 @@ export const GET: RequestHandler = async ({ url }) => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>${origin}/</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
+  <url><loc>${origin}/home</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
   <url><loc>${origin}/counters</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
+  <url><loc>${origin}/dashboards</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
+  <url><loc>${origin}/features</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
+  <url><loc>${origin}/use-cases</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
+  <url><loc>${origin}/how-it-works</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
+  <url><loc>${origin}/faq</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
   ${counterEntries}
 </urlset>`;
 

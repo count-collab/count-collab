@@ -11,7 +11,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 
   const isAdmin = await hasPermission(session.user.id, "user:manage");
   if (!isAdmin) {
-    throw redirect(303, "/");
+    throw redirect(303, "/home");
   }
 
   return { session };
