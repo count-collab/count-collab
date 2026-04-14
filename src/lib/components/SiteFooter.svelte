@@ -123,7 +123,14 @@
         &copy; 2026 Count Collab. Shared counts for everyone.
       </p>
       <p class="mt-1 text-xs text-slate-400 dark:text-slate-600">
-        v{version} · {commit}
+        <a
+          href="https://github.com/count-collab/count-collab"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hover:text-slate-600 dark:hover:text-slate-400 transition"
+        >
+          v{version} · {commit}
+        </a>
       </p>
     </div>
   </div>
