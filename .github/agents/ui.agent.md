@@ -39,8 +39,7 @@ src/routes/
 ├── +page.svelte              # Landing page with public counters
 ├── c/[id]/[[slug]]/+page.svelte # Counter detail page (core UX)
 ├── counters/+page.svelte     # Browse/search public counters
-├── create/+page.svelte       # Counter creation form
-├── create/dashboard/+page.svelte # Dashboard creation form
+├── create/+page.svelte       # Unified creation wizard (counter + dashboard)
 ├── d/[id]/+page.svelte       # Dashboard detail page
 ├── dashboards/+page.svelte   # Browse public dashboards
 ├── my-counters/+page.svelte  # User's counters list

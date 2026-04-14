@@ -20,7 +20,7 @@ const counterAbuseStore = new Map<string, Record<string, number>>();
  * Default rate limiting configuration for different routes
  */
 export const RATE_LIMIT_CONFIG = {
-  "/create": {
+  "/api/counters": {
     windowMs: 60 * 1000, // 1 minute window
     maxRequests: 5,
   },

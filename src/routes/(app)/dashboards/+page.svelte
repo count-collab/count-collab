@@ -86,7 +86,7 @@
       </h1>
       {#if data.session?.user}
         <a
-          href="/create/dashboard"
+          href="/create?type=dashboard"
           class="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-1.5"
         >
           <ion-icon name="add-outline" style="font-size: 16px;"></ion-icon>

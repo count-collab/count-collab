@@ -21,11 +21,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
   const session = await locals.auth();
   const isAuthenticated = !!session?.user?.id;
 
+  if (!isAuthenticated) {
+    return json(
+      { error: "You must be signed in to create a dashboard." },
+      { status: 401 },
+    );
+  }
+
   const dashboard = await createDashboard({
     title,
     description,
-    visibilityMode: isAuthenticated ? visibility : "public",
-    ownerId: session?.user?.id ?? null,
+    visibilityMode: visibility,
+    ownerId: session.user.id,
   });
 
   emitDashboardCreated(dashboard.id);

@@ -23,9 +23,10 @@ You are an API specialist for the Count Collab SvelteKit project. Your job is to
 src/routes/
 ├── +page.server.ts           # Landing page (public counters)
 ├── api/
-│   ├── counters/[id]/         # Counter CRUD (GET/PATCH/DELETE)
-│   │   ├── follow/            # Counter follow/unfollow
-│   │   └── sparkline/         # Counter sparkline data
+│   ├── counters/              # Counter creation (POST) + [id]/ CRUD
+│   │   ├── [id]/              # Counter CRUD (GET/PATCH/DELETE)
+│   │   │   ├── follow/        # Counter follow/unfollow
+│   │   │   └── sparkline/     # Counter sparkline data
 │   ├── dashboards/            # Dashboard creation (POST)
 │   │   └── [id]/              # Dashboard CRUD
 │   │       ├── follow/        # Dashboard follow/unfollow
@@ -39,8 +40,7 @@ src/routes/
 │   └── members/               # Counter member management
 │       └── [userId]/          # Individual member operations
 ├── counters/                 # Public counter browser
-├── create/                   # Counter creation form action
-│   └── dashboard/             # Dashboard creation form action
+├── create/                   # Unified creation wizard (counter + dashboard)
 ├── d/[id]/                   # Dashboard detail page
 │   └── members/               # Dashboard member management
 ├── dashboards/               # Browse public dashboards

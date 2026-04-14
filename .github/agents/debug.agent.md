@@ -25,8 +25,7 @@ You are a visual debugging specialist for the Count Collab project. Your job is 
 
 2. **Know the routes** — Key pages in the app:
    - `/` — Landing page
-   - `/create` — Create a new counter
-   - `/create/dashboard` — Create a new dashboard
+   - `/create` — Unified creation wizard (counter + dashboard, supports ?type=counter and ?type=dashboard)
    - `/counters` — Browse public counters
    - `/c/[id]` — Individual counter page (real-time updates)
    - `/dashboards` — Browse public dashboards

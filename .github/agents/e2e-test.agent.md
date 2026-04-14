@@ -29,7 +29,7 @@ New test files should be added to the `e2e/` directory following the naming conv
 ## Critical User Flows to Cover
 
 1. **Anonymous user**: Visit landing → browse public counters → increment a counter
-2. **Counter creation**: Visit /create → fill form → submit → redirected to /c/[id]
+2. **Counter creation**: Visit /create?type=counter → choose visibility → fill title → submit → redirected to /c/[id]
 3. **Real-time sync**: User A increments → User B sees update (two browser contexts)
 4. **Auth flow**: Click login → OAuth redirect mock → redirected to /setup → set username → access /my-counters
 5. **Private counters**: Create private counter → share link → member can view, non-member cannot
@@ -82,7 +82,7 @@ test("can browse public counters", async ({ page }) => {
 
 ```typescript
 test("can create a counter", async ({ page }) => {
-  await page.goto("/create");
+  await page.goto("/create?type=counter");
   await page.getByLabel("Title").fill("My Test Counter");
   await page.getByRole("button", { name: "Create" }).click();
   await expect(page).toHaveURL(/\/c\/[a-f0-9-]+/);

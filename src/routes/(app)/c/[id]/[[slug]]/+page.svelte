@@ -109,14 +109,12 @@
     !!data.session?.user?.id &&
       !data.isOwner &&
       !data.isMember &&
-      (visibilityMode !== "private" || data.hasValidToken),
+      (visibilityMode !== "private" || data.hasValidToken || data.isFollowing),
   );
 
   const shareUrl = $derived.by(() => {
     const path = counterUrl(data.counter.id, data.counter.title);
-    const base = browser
-      ? `${window.location.origin}${path}`
-      : path;
+    const base = browser ? `${window.location.origin}${path}` : path;
     if (!data.counter.isPublic && data.shareToken) {
       return `${base}?token=${data.shareToken}`;
     }

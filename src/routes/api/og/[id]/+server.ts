@@ -122,20 +122,20 @@ export const GET: RequestHandler = async ({ params }) => {
                 },
                 ...(description
                   ? [
-                    {
-                      type: "div",
-                      props: {
-                        style: {
-                          fontSize: "20px",
-                          color: "#64748b",
-                          textAlign: "center",
-                          maxWidth: "800px",
-                          marginTop: "4px",
+                      {
+                        type: "div",
+                        props: {
+                          style: {
+                            fontSize: "20px",
+                            color: "#64748b",
+                            textAlign: "center",
+                            maxWidth: "800px",
+                            marginTop: "4px",
+                          },
+                          children: description,
                         },
-                        children: description,
                       },
-                    },
-                  ]
+                    ]
                   : []),
                 {
                   type: "div",

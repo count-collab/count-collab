@@ -32,7 +32,7 @@ async function initializeDatabase() {
 }
 
 function isWriteRoute(pathname: string): string | null {
-  if (pathname === "/create") return "/create";
+  if (pathname === "/api/counters") return "/api/counters";
   if (pathname.match(/^\/api\/counters\/[a-f0-9-]+$/))
     return "/api/counters/[id]";
   return null;
