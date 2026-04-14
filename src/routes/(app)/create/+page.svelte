@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { fly } from "svelte/transition";
+  import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import type {
@@ -31,6 +32,7 @@
   let description = $state("");
   let errors = $state<Record<string, string>>({});
   let isSubmitting = $state(false);
+  const canGoBack = browser && window.history.length > 1;
 
   // Step management
   let currentStep = $state(skippedStep1 ? 2 : 1);
@@ -120,7 +122,7 @@
   path="/create"
 />
 
-<div class="w-full max-w-2xl mx-auto px-4 flex flex-col pt-[15vh] flex-1">
+<div class="w-full max-w-2xl mx-auto px-4 flex flex-col justify-center flex-1">
   <!-- Top bar: back button + step dots -->
   <div class="flex items-center pt-2 mb-8">
     <button
@@ -227,15 +229,17 @@
               </button>
             </div>
 
-            <div class="text-center">
-              <button
-                type="button"
-                onclick={() => history.back()}
-                class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-              >
-                Cancel
-              </button>
-            </div>
+            {#if canGoBack}
+              <div class="text-center">
+                <button
+                  type="button"
+                  onclick={() => history.back()}
+                  class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            {/if}
           </div>
         {:else if currentStep === 2}
           <!-- Step 2: Choose visibility -->
@@ -354,15 +358,17 @@
               </button>
             </div>
 
-            <div class="text-center">
-              <button
-                type="button"
-                onclick={() => history.back()}
-                class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-              >
-                Cancel
-              </button>
-            </div>
+            {#if canGoBack}
+              <div class="text-center">
+                <button
+                  type="button"
+                  onclick={() => history.back()}
+                  class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                >
+                  Cancel
+                </button>
+              </div>
+            {/if}
           </div>
         {:else if currentStep === 3}
           <!-- Step 3: Name & submit -->
@@ -415,13 +421,15 @@
               </div>
 
               <div class="flex items-center justify-end gap-4">
-                <button
-                  type="button"
-                  onclick={() => history.back()}
-                  class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                >
-                  Cancel
-                </button>
+                {#if canGoBack}
+                  <button
+                    type="button"
+                    onclick={() => history.back()}
+                    class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                  >
+                    Cancel
+                  </button>
+                {/if}
 
                 <button
                   type="submit"

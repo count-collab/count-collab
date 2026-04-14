@@ -47,15 +47,20 @@
   let error = $state<string | null>(null);
   let hasSearched = $state(false);
   let addedCounterId = $state<string | null>(null);
+  let justAddedIds = $state<Set<string>>(new Set());
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let searchInput = $state<HTMLInputElement | null>(null);
 
   const filteredResults = $derived(
-    results.filter((r) => !existingCounterIds.includes(r.id)),
+    results.filter(
+      (r) => !existingCounterIds.includes(r.id) || justAddedIds.has(r.id),
+    ),
   );
 
   const filteredSuggestions = $derived(
-    suggestions.filter((r) => !existingCounterIds.includes(r.id)),
+    suggestions.filter(
+      (r) => !existingCounterIds.includes(r.id) || justAddedIds.has(r.id),
+    ),
   );
 
   const ownedSuggestions = $derived(
@@ -79,6 +84,7 @@
       error = null;
       hasSearched = false;
       addedCounterId = null;
+      justAddedIds = new Set();
       setTimeout(() => searchInput?.focus(), 50);
       fetchSuggestions();
     }
@@ -150,11 +156,15 @@
 
   function handleAdd(counterId: string) {
     addedCounterId = counterId;
-    results = results.filter((r) => r.id !== counterId);
-    suggestions = suggestions.filter((r) => r.id !== counterId);
+    justAddedIds = new Set([...justAddedIds, counterId]);
     onAdd(counterId);
     setTimeout(() => {
-      addedCounterId = null;
+      if (addedCounterId === counterId) addedCounterId = null;
+      justAddedIds = new Set(
+        [...justAddedIds].filter((id) => id !== counterId),
+      );
+      results = results.filter((r) => r.id !== counterId);
+      suggestions = suggestions.filter((r) => r.id !== counterId);
     }, 1500);
   }
 </script>
@@ -189,18 +199,27 @@
         </span>
       </div>
     </div>
-    <button
-      type="button"
-      onclick={() => handleAdd(result.id)}
-      class="shrink-0 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
-    >
-      <ion-icon name="add-outline" style="font-size: 16px;"></ion-icon>
-      Add
-    </button>
+    {#if addedCounterId === result.id}
+      <span
+        class="shrink-0 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
+      >
+        <ion-icon name="checkmark-circle" style="font-size: 16px;"></ion-icon>
+        Added
+      </span>
+    {:else}
+      <button
+        type="button"
+        onclick={() => handleAdd(result.id)}
+        class="shrink-0 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+      >
+        <ion-icon name="add-outline" style="font-size: 16px;"></ion-icon>
+        Add
+      </button>
+    {/if}
   </li>
 {/snippet}
 
-<Modal bind:open title="Add Counter" maxWidth="max-w-lg">
+<Modal bind:open title="Add Counter" maxWidth="max-w-2xl">
   <div class="space-y-4">
     <div class="relative">
       <svg
@@ -231,15 +250,6 @@
       {/if}
     </div>
 
-    {#if addedCounterId}
-      <p
-        class="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5"
-      >
-        <ion-icon name="checkmark-circle" style="font-size: 16px;"></ion-icon>
-        Counter added to dashboard.
-      </p>
-    {/if}
-
     {#if error}
       <p class="text-sm text-red-600 dark:text-red-400">{error}</p>
     {:else if hasSearched && filteredResults.length === 0 && !loading}
@@ -255,14 +265,14 @@
       </div>
     {:else if hasSearched && filteredResults.length > 0}
       <ul
-        class="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/50 -mx-1"
+        class="max-h-[28rem] overflow-y-auto overflow-x-hidden divide-y divide-slate-100 dark:divide-slate-700/50 -mx-1"
       >
         {#each filteredResults as result (result.id)}
           {@render counterRow(result)}
         {/each}
       </ul>
     {:else if !hasSearched && !loading}
-      <div class="max-h-80 overflow-y-auto space-y-4">
+      <div class="max-h-[28rem] overflow-y-auto overflow-x-hidden space-y-4">
         {#if loadingSuggestions}
           <p class="text-sm text-slate-400 dark:text-slate-500">
             Loading suggestions...
