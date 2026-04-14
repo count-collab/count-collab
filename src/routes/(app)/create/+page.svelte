@@ -153,7 +153,7 @@
 
   <!-- Wizard steps -->
   <div
-    class="grid overflow-hidden w-full p-1 -m-1"
+    class="grid overflow-hidden w-full p-1 -m-1 min-h-[24rem]"
     style="grid-template: 1fr / 1fr;"
   >
     {#key currentStep}
