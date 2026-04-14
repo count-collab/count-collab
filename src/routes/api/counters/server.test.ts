@@ -29,7 +29,7 @@ vi.mock("$lib/utils/validation", () => ({
 import { POST } from "./+server";
 
 function makeRequest(body: Record<string, unknown>) {
-  return new Request("http://localhost/create", {
+  return new Request("http://localhost/api/counters", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -44,7 +44,7 @@ function makeLocals(userId: string | null) {
   };
 }
 
-describe("POST /create", () => {
+describe("POST /api/counters", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

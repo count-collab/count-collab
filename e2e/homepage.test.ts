@@ -14,7 +14,7 @@ test.describe("Homepage", () => {
 
     const createLink = page.getByRole("link", { name: "Create Counter" });
     await expect(createLink).toBeVisible();
-    await expect(createLink).toHaveAttribute("href", "/create");
+    await expect(createLink).toHaveAttribute("href", "/create?type=counter");
   });
 
   test("should have a Browse Counters link", async ({ page }) => {

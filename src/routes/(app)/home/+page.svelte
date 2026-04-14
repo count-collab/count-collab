@@ -89,7 +89,7 @@
 
   <section
     bind:this={heroEl}
-    class="full-bleed text-center flex flex-col items-center justify-center px-4 -mt-8 pt-12 pb-12 lg:pt-14 lg:pb-14"
+    class="full-bleed text-center flex flex-col items-center justify-center px-4 -mt-8 pt-20 pb-12 lg:pt-22 lg:pb-14"
   >
     <div
       class="flex flex-col items-center"
@@ -130,7 +130,7 @@
         style="animation-delay: 200ms"
       >
         <a
-          href="/create"
+          href="/create?type=counter"
           class="group inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-white font-semibold shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
         >
           Create Counter
@@ -268,7 +268,7 @@
         Be the first to create one and start counting together.
       </p>
       <a
-        href="/create"
+        href="/create?type=counter"
         class="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
       >
         Create Counter
