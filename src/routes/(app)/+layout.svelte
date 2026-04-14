@@ -62,16 +62,6 @@
         class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
         >Dashboards</a
       >
-      {#if session?.user}
-        {#if isAdmin}
-          <a
-            href="/admin"
-            class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
-            >Admin</a
-          >
-        {/if}
-      {/if}
-
       <div class="flex items-center gap-3 ml-auto">
         <a
           href="/create"
@@ -131,6 +121,16 @@
                 ></ion-icon>
                 Settings
               </a>
+              {#if isAdmin}
+                <a
+                  href="/admin"
+                  class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                >
+                  <ion-icon name="shield-outline" style="font-size: 16px;"
+                  ></ion-icon>
+                  Admin
+                </a>
+              {/if}
               <div
                 class="border-t border-slate-100 dark:border-slate-700 my-1"
               ></div>
