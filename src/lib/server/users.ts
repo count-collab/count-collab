@@ -1,6 +1,6 @@
 import { count as countFn, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "$lib/db";
-import { accounts, counters, roles, users } from "$lib/db/schema";
+import { accounts, counters, dashboards, roles, users } from "$lib/db/schema";
 
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
@@ -27,10 +27,10 @@ export async function listUsers(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-        ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
-      )
+      ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
+      ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
+      ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
+    )
     : undefined;
 
   const [items, [{ total }]] = await Promise.all([
@@ -127,6 +127,7 @@ export async function setUsername(
 export async function getAdminStats(): Promise<{
   userCount: number;
   counterCount: number;
+  dashboardCount: number;
 }> {
   const [userRow] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -134,10 +135,14 @@ export async function getAdminStats(): Promise<{
   const [counterRow] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(counters);
+  const [dashboardRow] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(dashboards);
 
   return {
     userCount: userRow?.count ?? 0,
     counterCount: counterRow?.count ?? 0,
+    dashboardCount: dashboardRow?.count ?? 0,
   };
 }
 
