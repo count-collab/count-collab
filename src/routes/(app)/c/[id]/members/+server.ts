@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
   const allowed = await canManageMembers(session.user.id, params.id);
   if (!allowed) {
-    throw error(403, "You don't have permission to view members");
+    throw error(404, "Counter not found");
   }
 
   const members = await getCounterMembers(params.id);
@@ -38,7 +38,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
   const allowed = await canManageMembers(session.user.id, params.id);
   if (!allowed) {
-    throw error(403, "You don't have permission to manage members");
+    throw error(404, "Counter not found");
   }
 
   const validation = await parseAndValidateBody(

@@ -18,7 +18,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
   const allowed = await canManageMembers(session.user.id, params.id);
   if (!allowed) {
-    throw error(403, "You don't have permission to manage members");
+    throw error(404, "Counter not found");
   }
 
   const validation = await parseAndValidateBody(
@@ -59,7 +59,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   if (!isSelf) {
     const allowed = await canManageMembers(session.user.id, params.id);
     if (!allowed) {
-      throw error(403, "You don't have permission to remove members");
+      throw error(404, "Counter not found");
     }
   }
 

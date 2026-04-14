@@ -233,7 +233,7 @@ describe("POST /api/counters/[id] (increment)", () => {
     ).rejects.toMatchObject({ status: 403 });
   });
 
-  it("returns 403 for private counter without token and not logged in", async () => {
+  it("returns 404 for private counter without token and not logged in", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
       visibilityMode: "private",
@@ -241,11 +241,11 @@ describe("POST /api/counters/[id] (increment)", () => {
     });
 
     await expect(POST(makeEvent(VALID_ID))).rejects.toMatchObject({
-      status: 403,
+      status: 404,
     });
   });
 
-  it("returns 403 for private counter with invalid token", async () => {
+  it("returns 404 for private counter with invalid token", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
       visibilityMode: "private",
@@ -258,7 +258,7 @@ describe("POST /api/counters/[id] (increment)", () => {
           url: new URL(`http://localhost/api/counters/${VALID_ID}?token=wrong`),
         }),
       ),
-    ).rejects.toMatchObject({ status: 403 });
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it("allows private counter increment with valid share token", async () => {
@@ -307,7 +307,7 @@ describe("POST /api/counters/[id] (increment)", () => {
     expect(body.count).toBe(7);
   });
 
-  it("returns 403 for private counter when logged-in user lacks access", async () => {
+  it("returns 404 for private counter when logged-in user lacks access", async () => {
     mockGetCounter.mockResolvedValue({
       id: VALID_ID,
       visibilityMode: "private",
@@ -317,7 +317,7 @@ describe("POST /api/counters/[id] (increment)", () => {
 
     await expect(
       POST(makeEvent(VALID_ID, { locals: makeLocals("user-1") })),
-    ).rejects.toMatchObject({ status: 403 });
+    ).rejects.toMatchObject({ status: 404 });
   });
 });
 

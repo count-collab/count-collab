@@ -25,6 +25,7 @@
 <svelte:head>
   <title>{title}</title>
   <meta name="description" content={description} />
+  <link rel="canonical" href={canonicalUrl} />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />

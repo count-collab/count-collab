@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   if (session.user.username) {
-    throw redirect(303, "/");
+    throw redirect(303, "/home");
   }
 
   return { session };
@@ -45,6 +45,6 @@ export const actions: Actions = {
     }
 
     await setUsername(session.user.id, username);
-    throw redirect(303, "/");
+    throw redirect(303, "/home");
   },
 };
