@@ -4,6 +4,7 @@ const mockSelect = vi.fn();
 const mockFrom = vi.fn();
 const mockWhere = vi.fn();
 const mockHasPermission = vi.fn();
+const mockIsFollowingCounter = vi.fn();
 
 vi.mock("$lib/db", () => ({
   db: {
@@ -13,6 +14,10 @@ vi.mock("$lib/db", () => ({
 
 vi.mock("$lib/server/permissions", () => ({
   hasPermission: (...args: unknown[]) => mockHasPermission(...args),
+}));
+
+vi.mock("$lib/server/followers", () => ({
+  isFollowingCounter: (...args: unknown[]) => mockIsFollowingCounter(...args),
 }));
 
 mockSelect.mockReturnValue({ from: mockFrom });
@@ -39,6 +44,7 @@ describe("authorize helpers", () => {
     mockSelect.mockReturnValue({ from: mockFrom });
     mockFrom.mockReturnValue({ where: mockWhere });
     mockHasPermission.mockResolvedValue(false);
+    mockIsFollowingCounter.mockResolvedValue(false);
   });
 
   describe("canIncrementCounter", () => {
@@ -131,12 +137,58 @@ describe("authorize helpers", () => {
     );
   });
 
-  it("keeps private view semantics unchanged for viewer members", async () => {
-    mockDbResponses([{ ownerId: "owner-1" }], [{ role: "viewer" }]);
+  describe("canViewPrivateCounter", () => {
+    it("allows viewer members", async () => {
+      mockDbResponses([{ ownerId: "owner-1" }], [{ role: "viewer" }]);
 
-    await expect(canViewPrivateCounter("user-1", "counter-1")).resolves.toBe(
-      true,
-    );
-    expect(mockHasPermission).not.toHaveBeenCalled();
+      await expect(canViewPrivateCounter("user-1", "counter-1")).resolves.toBe(
+        true,
+      );
+      expect(mockIsFollowingCounter).not.toHaveBeenCalled();
+      expect(mockHasPermission).not.toHaveBeenCalled();
+    });
+
+    it("allows a follower who is not owner or member", async () => {
+      mockDbResponses([{ ownerId: "owner-1" }], []);
+      mockIsFollowingCounter.mockResolvedValueOnce(true);
+
+      await expect(canViewPrivateCounter("user-1", "counter-1")).resolves.toBe(
+        true,
+      );
+      expect(mockIsFollowingCounter).toHaveBeenCalledWith(
+        "user-1",
+        "counter-1",
+      );
+      expect(mockHasPermission).not.toHaveBeenCalled();
+    });
+
+    it("denies non-owner, non-member, non-follower without global permission", async () => {
+      mockDbResponses([{ ownerId: "owner-1" }], []);
+
+      await expect(canViewPrivateCounter("user-1", "counter-1")).resolves.toBe(
+        false,
+      );
+      expect(mockIsFollowingCounter).toHaveBeenCalledWith(
+        "user-1",
+        "counter-1",
+      );
+      expect(mockHasPermission).toHaveBeenCalledWith(
+        "user-1",
+        "counter:edit_any",
+      );
+    });
+
+    it("allows non-follower with global counter:edit_any", async () => {
+      mockDbResponses([{ ownerId: "owner-1" }], []);
+      mockHasPermission.mockResolvedValueOnce(true);
+
+      await expect(canViewPrivateCounter("user-1", "counter-1")).resolves.toBe(
+        true,
+      );
+      expect(mockHasPermission).toHaveBeenCalledWith(
+        "user-1",
+        "counter:edit_any",
+      );
+    });
   });
 });

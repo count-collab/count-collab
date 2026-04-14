@@ -116,7 +116,9 @@
     !!data.session?.user?.id &&
       !data.isOwner &&
       !data.memberRole &&
-      (data.dashboard.visibilityMode !== "private" || data.hasValidToken),
+      (data.dashboard.visibilityMode !== "private" ||
+        data.hasValidToken ||
+        data.isFollowing),
   );
 
   async function handleFollow() {

@@ -4,6 +4,7 @@ const mockSelect = vi.fn();
 const mockFrom = vi.fn();
 const mockWhere = vi.fn();
 const mockHasPermission = vi.fn();
+const mockIsFollowingDashboard = vi.fn();
 
 vi.mock("$lib/db", () => ({
   db: {
@@ -13,6 +14,11 @@ vi.mock("$lib/db", () => ({
 
 vi.mock("$lib/server/permissions", () => ({
   hasPermission: (...args: unknown[]) => mockHasPermission(...args),
+}));
+
+vi.mock("$lib/server/followers", () => ({
+  isFollowingDashboard: (...args: unknown[]) =>
+    mockIsFollowingDashboard(...args),
 }));
 
 mockSelect.mockReturnValue({ from: mockFrom });
@@ -39,6 +45,7 @@ describe("dashboard authorize helpers", () => {
     mockSelect.mockReturnValue({ from: mockFrom });
     mockFrom.mockReturnValue({ where: mockWhere });
     mockHasPermission.mockResolvedValue(false);
+    mockIsFollowingDashboard.mockResolvedValue(false);
   });
 
   describe("isDashboardOwner", () => {
@@ -261,6 +268,36 @@ describe("dashboard authorize helpers", () => {
 
       await expect(canViewDashboard("user-1", "dashboard-1")).resolves.toBe(
         true,
+      );
+      expect(mockHasPermission).toHaveBeenCalledWith(
+        "user-1",
+        "dashboard:edit_any",
+      );
+    });
+
+    it("allows a follower who is not owner or member", async () => {
+      mockDbResponses([{ ownerId: "owner-1" }], []);
+      mockIsFollowingDashboard.mockResolvedValueOnce(true);
+
+      await expect(canViewDashboard("user-1", "dashboard-1")).resolves.toBe(
+        true,
+      );
+      expect(mockIsFollowingDashboard).toHaveBeenCalledWith(
+        "user-1",
+        "dashboard-1",
+      );
+      expect(mockHasPermission).not.toHaveBeenCalled();
+    });
+
+    it("denies non-owner, non-member, non-follower without global permission", async () => {
+      mockDbResponses([{ ownerId: "owner-1" }], []);
+
+      await expect(canViewDashboard("user-1", "dashboard-1")).resolves.toBe(
+        false,
+      );
+      expect(mockIsFollowingDashboard).toHaveBeenCalledWith(
+        "user-1",
+        "dashboard-1",
       );
       expect(mockHasPermission).toHaveBeenCalledWith(
         "user-1",

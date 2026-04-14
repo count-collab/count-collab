@@ -5,6 +5,7 @@ import {
   counterMembers,
   counters,
 } from "$lib/db/schema";
+import { isFollowingCounter } from "$lib/server/followers";
 import { hasPermission } from "$lib/server/permissions";
 
 const counterIncrementRoles: CounterMemberRole[] = [
@@ -116,7 +117,7 @@ export async function canManageMembers(
 
 /**
  * Check if a user can view a private counter.
- * Allowed if: owner, any counter member, or global counter:edit_any permission.
+ * Allowed if: owner, any counter member, follower, or global counter:edit_any permission.
  */
 export async function canViewPrivateCounter(
   userId: string,
@@ -126,6 +127,8 @@ export async function canViewPrivateCounter(
 
   const memberRole = await getCounterMemberRole(userId, counterId);
   if (memberRole) return true;
+
+  if (await isFollowingCounter(userId, counterId)) return true;
 
   return hasPermission(userId, "counter:edit_any");
 }

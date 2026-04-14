@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { type DashboardMemberRole, dashboards } from "$lib/db/schema";
 import { getUserDashboardRole } from "$lib/server/dashboard-members";
+import { isFollowingDashboard } from "$lib/server/followers";
 import { hasPermission } from "$lib/server/permissions";
 
 const dashboardEditRoles: DashboardMemberRole[] = ["editor", "admin"];
@@ -62,6 +63,8 @@ export async function canViewDashboard(
 
   const memberRole = await getUserDashboardRole(userId, dashboardId);
   if (memberRole) return true;
+
+  if (await isFollowingDashboard(userId, dashboardId)) return true;
 
   return hasPermission(userId, "dashboard:edit_any");
 }
