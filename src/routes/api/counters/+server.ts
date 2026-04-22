@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return validation.response;
   }
 
-  const { title, description, visibility } = validation.data;
+  const { title, description, visibility, counterMode } = validation.data;
 
   const session = await locals.auth();
   const isAuthenticated = !!session?.user?.id;
@@ -25,6 +25,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     title,
     description,
     visibilityMode: isAuthenticated ? visibility : "public",
+    counterMode,
     ownerId: session?.user?.id ?? null,
   });
 

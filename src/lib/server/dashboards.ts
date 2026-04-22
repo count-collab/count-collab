@@ -133,9 +133,9 @@ export async function listPublicDashboards(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
-      inArray(dashboardsTable.visibilityMode, publicDashboardVisibilityModes),
-      ilike(dashboardsTable.title, `%${escapeLikePattern(searchQuery)}%`),
-    )
+        inArray(dashboardsTable.visibilityMode, publicDashboardVisibilityModes),
+        ilike(dashboardsTable.title, `%${escapeLikePattern(searchQuery)}%`),
+      )
     : inArray(dashboardsTable.visibilityMode, publicDashboardVisibilityModes);
 
   const followerCountSubquery = db
@@ -236,12 +236,12 @@ export async function listAllDashboards(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-      ilike(dashboardsTable.title, `%${escapeLikePattern(searchQuery)}%`),
-      ilike(
-        dashboardsTable.description,
-        `%${escapeLikePattern(searchQuery)}%`,
-      ),
-    )
+        ilike(dashboardsTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(
+          dashboardsTable.description,
+          `%${escapeLikePattern(searchQuery)}%`,
+        ),
+      )
     : undefined;
 
   const [rows, [{ total }]] = await Promise.all([
@@ -257,10 +257,7 @@ export async function listAllDashboards(
       .orderBy(desc(dashboardsTable.updatedAt))
       .limit(limit)
       .offset(offset),
-    db
-      .select({ total: countFn() })
-      .from(dashboardsTable)
-      .where(whereClause),
+    db.select({ total: countFn() }).from(dashboardsTable).where(whereClause),
   ]);
 
   const items = rows.map((row) => ({

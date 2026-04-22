@@ -1,6 +1,6 @@
 import {
   getCounterCount,
-  getGlobalCounterSum,
+  getGlobalActionCount,
   getUserCounters,
   listPublicCounters,
   listRecentlyCreatedCounters,
@@ -37,7 +37,7 @@ export const load: PageServerLoad = async ({ depends, parent }) => {
       : Promise.resolve({ items: [], total: 0 }),
     listRecentlyCreatedCounters(),
     listRecentlyUpdatedCounters(),
-    getGlobalCounterSum(),
+    getGlobalActionCount(),
     getCounterCount(),
     userId
       ? getUserDashboards(userId, 6)

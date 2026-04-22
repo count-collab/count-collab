@@ -1,7 +1,7 @@
 import { redirect } from "@sveltejs/kit";
 import {
   getCounterCount,
-  getGlobalCounterSum,
+  getGlobalActionCount,
   listPublicCounters,
 } from "$lib/server/counters";
 import type { PageServerLoad } from "./$types";
@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ depends, parent, url }) => {
 
   const [popularResult, globalSum, counterCount] = await Promise.all([
     listPublicCounters(6),
-    getGlobalCounterSum(),
+    getGlobalActionCount(),
     getCounterCount(),
   ]);
 

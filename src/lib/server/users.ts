@@ -27,10 +27,10 @@ export async function listUsers(
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? or(
-      ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
-      ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
-      ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
-    )
+        ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
+      )
     : undefined;
 
   const [items, [{ total }]] = await Promise.all([

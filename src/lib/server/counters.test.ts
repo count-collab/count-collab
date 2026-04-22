@@ -43,7 +43,7 @@ import {
   createCounter,
   getCounterCount,
   getCounterSparkline,
-  getGlobalCounterSum,
+  getGlobalActionCount,
   getOwnedCounterCount,
   listAllCounters,
   listRecentlyCreatedCounters,
@@ -60,6 +60,7 @@ function makeCounter(overrides: Partial<Counter> = {}): Counter {
     count: 0,
     isPublic: 1,
     visibilityMode: "public",
+    counterMode: "increment_only",
     shareToken: null,
     ownerId: null,
     createdAt: new Date(),
@@ -92,6 +93,28 @@ describe("createCounter", () => {
         visibilityMode: "public_readonly",
         shareToken: null,
       }),
+    );
+  });
+
+  it("passes counterMode to insert", async () => {
+    const counter = makeCounter({ counterMode: "both" });
+    mockInsertReturning.mockResolvedValue([counter]);
+
+    await createCounter({ title: "Test", counterMode: "both" });
+
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ counterMode: "both" }),
+    );
+  });
+
+  it("defaults counterMode to increment_only", async () => {
+    const counter = makeCounter();
+    mockInsertReturning.mockResolvedValue([counter]);
+
+    await createCounter({ title: "Test" });
+
+    expect(mockInsertValues).toHaveBeenCalledWith(
+      expect.objectContaining({ counterMode: "increment_only" }),
     );
   });
 
@@ -262,6 +285,27 @@ describe("updateCounter", () => {
       }),
     );
   });
+
+  it("updates counterMode when provided", async () => {
+    const counter = makeCounter({ counterMode: "decrement_only" });
+    mockUpdateReturning.mockResolvedValue([counter]);
+
+    await updateCounter(counter.id, { counterMode: "decrement_only" });
+
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ counterMode: "decrement_only" }),
+    );
+  });
+
+  it("does not include counterMode when not provided", async () => {
+    const counter = makeCounter();
+    mockUpdateReturning.mockResolvedValue([counter]);
+
+    await updateCounter(counter.id, { title: "Updated" });
+
+    const setArg = mockUpdateSet.mock.calls[0][0];
+    expect(setArg).not.toHaveProperty("counterMode");
+  });
 });
 
 describe("getCounterSparkline", () => {
@@ -368,7 +412,7 @@ describe("getCounterSparkline", () => {
   });
 });
 
-describe("getGlobalCounterSum", () => {
+describe("getGlobalActionCount", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSelect.mockReturnValue({ from: mockFrom });
@@ -377,7 +421,7 @@ describe("getGlobalCounterSum", () => {
   it("returns 0 when no counters exist", async () => {
     mockFrom.mockResolvedValue([{ total: "0" }]);
 
-    const result = await getGlobalCounterSum();
+    const result = await getGlobalActionCount();
 
     expect(result).toBe(0);
     expect(mockSelect).toHaveBeenCalledOnce();
@@ -387,7 +431,7 @@ describe("getGlobalCounterSum", () => {
   it("returns correct sum when counters exist", async () => {
     mockFrom.mockResolvedValue([{ total: "42" }]);
 
-    const result = await getGlobalCounterSum();
+    const result = await getGlobalActionCount();
 
     expect(result).toBe(42);
   });
@@ -395,7 +439,7 @@ describe("getGlobalCounterSum", () => {
   it("returns correct sum with multiple counters", async () => {
     mockFrom.mockResolvedValue([{ total: "150" }]);
 
-    const result = await getGlobalCounterSum();
+    const result = await getGlobalActionCount();
 
     expect(result).toBe(150);
   });

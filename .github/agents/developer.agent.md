@@ -72,7 +72,31 @@ For every feature or change, follow this sequence:
 - Or read the relevant files directly yourself to understand the current state
 - Identify which parts of the stack are affected (DB, API, UI, auth, realtime)
 
-### 2. Plan
+### 2. Grill the User (proactive design interrogation)
+
+**Before planning or writing any code**, proactively interrogate the user about their request using the `grill-me` skill. Do NOT wait for the user to say "grill me" — initiate this yourself whenever the request involves:
+
+- **New features** — anything that adds new behavior, UI, routes, or data models
+- **Ambiguous requirements** — requests that could be interpreted multiple ways
+- **Cross-cutting concerns** — changes touching multiple layers (DB + API + UI + realtime)
+- **Design trade-offs** — decisions where multiple valid approaches exist (e.g., polling vs WebSocket, optimistic vs pessimistic updates, eager vs lazy loading)
+- **User-facing behavior** — anything affecting UX, permissions, or error states
+
+**How to grill:**
+
+- Walk down each branch of the design decision tree, one question at a time
+- For each question, provide your recommended answer based on codebase context and project conventions
+- Answer questions yourself by exploring the codebase when possible — only ask the user when the answer requires product/business judgment
+- Resolve dependencies between decisions before moving on (e.g., "should we add a new table?" must be answered before "what columns?")
+- Keep going until all open questions are resolved and you have a shared understanding of what to build
+
+**Skip the grill when:**
+
+- The task is a straightforward bug fix with a clear root cause
+- The request is purely mechanical (e.g., "rename X to Y", "update dependency", "fix lint warning")
+- The user explicitly says to skip discussion and just implement
+
+### 3. Plan
 
 - Use the todo list to break the work into ordered subtasks
 - Identify which specialist agents are needed for each subtask

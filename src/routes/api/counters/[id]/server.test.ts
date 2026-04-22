@@ -95,6 +95,9 @@ function makeEvent(id: string, overrides: Record<string, unknown> = {}) {
     params: { id },
     locals: makeLocals(null),
     url: new URL(`http://localhost/api/counters/${id}`),
+    request: new Request(`http://localhost/api/counters/${id}`, {
+      method: "POST",
+    }),
     ...overrides,
   } as any;
 }

@@ -111,6 +111,14 @@ export const counterVisibilityModes = [
 
 export type CounterVisibilityMode = (typeof counterVisibilityModes)[number];
 
+export const counterModes = [
+  "increment_only",
+  "decrement_only",
+  "both",
+] as const;
+
+export type CounterMode = (typeof counterModes)[number];
+
 export const counterMemberRoles = [
   "viewer",
   "incrementer",
@@ -128,6 +136,9 @@ export const counters = pgTable("counters", {
   isPublic: integer("is_public").default(1).notNull(), // Legacy compatibility flag: 1 for publicly viewable, 0 for private
   visibilityMode: text("visibility_mode", { enum: counterVisibilityModes })
     .default("public")
+    .notNull(),
+  counterMode: text("counter_mode", { enum: counterModes })
+    .default("increment_only")
     .notNull(),
   shareToken: text("share_token").unique(),
   ownerId: text("owner_id").references(() => users.id, {

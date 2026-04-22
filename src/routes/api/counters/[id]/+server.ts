@@ -16,10 +16,19 @@ import { getUserRole } from "$lib/server/permissions";
 import { RATE_LIMIT_CONFIG } from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
 import { emitCounterUpdate } from "$lib/utils/socket";
-import { counterIdSchema, updateCounterSchema } from "$lib/utils/validation";
+import {
+  counterIdSchema,
+  incrementCounterSchema,
+  updateCounterSchema,
+} from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async ({ params, locals, url }) => {
+export const POST: RequestHandler = async ({
+  params,
+  request,
+  locals,
+  url,
+}) => {
   // Validate UUID format
   const idValidation = counterIdSchema.safeParse(params.id);
 
@@ -32,6 +41,21 @@ export const POST: RequestHandler = async ({ params, locals, url }) => {
 
   const session = await locals.auth();
   const userId = session?.user?.id;
+
+  // Parse optional body for amount (body may be empty for simple +1 increments)
+  let amount = 1;
+  const contentType = request.headers.get("content-type");
+  if (contentType?.includes("application/json")) {
+    const validation = await parseAndValidateBody(
+      request,
+      incrementCounterSchema,
+      "Counter increment",
+    );
+    if (!validation.success) {
+      return validation.response;
+    }
+    amount = validation.data.amount ?? 1;
+  }
 
   // Private counter access check
   const counter = await getCounter(params.id);
@@ -66,7 +90,15 @@ export const POST: RequestHandler = async ({ params, locals, url }) => {
     }
   }
 
-  const updated = await incrementCounter(params.id, 1, userId);
+  // Validate counter mode
+  if (counter.counterMode === "increment_only" && amount < 0) {
+    throw error(400, "This counter only supports incrementing");
+  }
+  if (counter.counterMode === "decrement_only" && amount > 0) {
+    throw error(400, "This counter only supports decrementing");
+  }
+
+  const updated = await incrementCounter(params.id, amount, userId);
 
   if (!updated) {
     logger.warn("Increment failed: counter not found", { id: params.id });
@@ -118,11 +150,12 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     return validation.response;
   }
 
-  const { title, description, visibility } = validation.data;
+  const { title, description, visibility, counterMode } = validation.data;
   const counter = await updateCounter(params.id, {
     title,
     description,
     visibilityMode: visibility,
+    counterMode,
   });
 
   if (!counter) {

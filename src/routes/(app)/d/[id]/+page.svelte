@@ -918,20 +918,44 @@
                 </span>
               </div>
 
-              <!-- Increment button (right side, visible on hover) -->
+              <!-- Action buttons (right side, visible on hover) -->
               {#if !editMode && canIncrement}
-                <button
-                  type="button"
-                  onclick={() =>
-                    handleCounterChange(counter.id, displayCount, 1)}
-                  disabled={incrementingCounters[counter.id] ||
-                    $rateLimit.isLimited}
-                  aria-label="Increment {counter.title}"
-                  class="absolute right-3 top-0 bottom-0 w-14 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 text-slate-300 hover:text-blue-500 dark:text-slate-600 dark:hover:text-blue-400 hover:drop-shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                <div
+                  class="absolute right-3 top-0 bottom-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150"
                 >
-                  <ion-icon name="add-circle-outline" style="font-size: 40px;"
-                  ></ion-icon>
-                </button>
+                  {#if counter.counterMode === "decrement_only" || counter.counterMode === "both"}
+                    <button
+                      type="button"
+                      onclick={() =>
+                        handleCounterChange(counter.id, displayCount, -1)}
+                      disabled={incrementingCounters[counter.id] ||
+                        $rateLimit.isLimited}
+                      aria-label="Decrement {counter.title}"
+                      class="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 hover:drop-shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ion-icon
+                        name="remove-circle-outline"
+                        style="font-size: 40px;"
+                      ></ion-icon>
+                    </button>
+                  {/if}
+                  {#if counter.counterMode === "increment_only" || counter.counterMode === "both"}
+                    <button
+                      type="button"
+                      onclick={() =>
+                        handleCounterChange(counter.id, displayCount, 1)}
+                      disabled={incrementingCounters[counter.id] ||
+                        $rateLimit.isLimited}
+                      aria-label="Increment {counter.title}"
+                      class="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-blue-500 dark:text-slate-600 dark:hover:text-blue-400 hover:drop-shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ion-icon
+                        name="add-circle-outline"
+                        style="font-size: 40px;"
+                      ></ion-icon>
+                    </button>
+                  {/if}
+                </div>
               {/if}
 
               <!-- Edit mode: resize + delete controls -->
