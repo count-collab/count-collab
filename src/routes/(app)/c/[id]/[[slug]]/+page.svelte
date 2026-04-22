@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade } from "svelte/transition";
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
@@ -11,6 +12,7 @@
   import { counterUrl } from "$lib/counter";
   import type {
     CounterMemberRole,
+    CounterMode,
     CounterVisibilityMode,
   } from "$lib/db/schema";
   import { onCounterUpdated } from "$lib/stores/counters";
@@ -65,7 +67,7 @@
       return visibilityDescriptions.public_readonly;
     }
 
-    return "You can view this counter, but you can't increment it.";
+    return "You can view this counter, but you can't change it.";
   });
 
   let optimisticCount = $state<number | null>(null);
@@ -73,6 +75,7 @@
   let errorMessage = $state<string | null>(null);
   let isIncrementing = $state(false);
   let fireworkTrigger = $state(0);
+  let cooldownDuration = $state(0);
 
   // History toggle state
   const COLLAPSED_HISTORY_COUNT = 5;
@@ -88,6 +91,7 @@
   let editTitle = $state("");
   let editDescription = $state("");
   let editVisibility = $state<CounterVisibilityMode>("public");
+  let editCounterMode = $state<CounterMode>("increment_only");
   let editError = $state<string | null>(null);
   let isSaving = $state(false);
 
@@ -143,7 +147,7 @@
     optimisticUpdatedAt ?? data.counter.updatedAt,
   );
 
-  async function handleIncrement() {
+  async function handleCounterAction(delta: number) {
     if (isIncrementing) return;
 
     if (!data.canIncrement) {
@@ -170,13 +174,22 @@
           incrementUrl += `?token=${encodeURIComponent(currentToken)}`;
         }
       }
-      const response = await fetch(incrementUrl, { method: "POST" });
+      const fetchOptions: RequestInit =
+        delta === 1
+          ? { method: "POST" }
+          : {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ amount: delta }),
+            };
+      const response = await fetch(incrementUrl, fetchOptions);
 
       if (!response.ok) {
         const body = await response.json();
 
         if (response.status === 429) {
           const retryAfter = body.retryAfterSeconds ?? 5;
+          cooldownDuration = retryAfter;
           rateLimit.setLimit(`/api/counters/${data.counter.id}`, retryAfter);
           errorMessage = `Please wait ${retryAfter}s before incrementing again.`;
           return;
@@ -195,6 +208,7 @@
       optimisticUpdatedAt = result.updatedAt;
       fireworkTrigger++;
       if (result.cooldownSeconds > 0) {
+        cooldownDuration = result.cooldownSeconds;
         rateLimit.setLimit(`/c/${data.counter.id}`, result.cooldownSeconds);
       }
       await invalidate(`counter:${data.counter.id}`);
@@ -220,6 +234,7 @@
           title: editTitle,
           description: editDescription,
           visibility: editVisibility,
+          counterMode: editCounterMode,
         }),
       });
 
@@ -438,6 +453,7 @@
               editTitle = data.counter.title;
               editDescription = data.counter.description ?? "";
               editVisibility = visibilityMode;
+              editCounterMode = data.counter.counterMode ?? "increment_only";
               showEditModal = true;
             }}
             class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
@@ -534,6 +550,8 @@
                     editTitle = data.counter.title;
                     editDescription = data.counter.description ?? "";
                     editVisibility = visibilityMode;
+                    editCounterMode =
+                      data.counter.counterMode ?? "increment_only";
                     showEditModal = true;
                   }}
                   class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
@@ -612,29 +630,61 @@
 
     <Fireworks trigger={fireworkTrigger} />
     <p
-      class="text-8xl sm:text-9xl font-extrabold tabular-nums text-blue-600 dark:text-blue-400"
+      class="text-8xl sm:text-9xl font-extrabold tabular-nums transition-colors duration-300 {displayCount <
+      0
+        ? 'text-red-500 dark:text-red-400'
+        : 'text-blue-600 dark:text-blue-400'}"
     >
       <RollingNumber value={displayCount} />
     </p>
 
-    <button
-      type="button"
-      onclick={handleIncrement}
-      disabled={!data.canIncrement || isIncrementing || $rateLimit.isLimited}
-      aria-disabled={!data.canIncrement ||
-        isIncrementing ||
-        $rateLimit.isLimited}
-      aria-label={data.canIncrement
-        ? "Increment counter"
-        : "Increment unavailable"}
-      class="mt-8 inline-flex items-center justify-center rounded-full w-16 h-16 text-2xl font-bold active:scale-95 transition shadow-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none dark:disabled:bg-slate-600"
-    >
-      {#if $rateLimit.isLimited}
-        <span class="text-base">{$rateLimit.retryAfterSeconds}s</span>
-      {:else}
-        +1
+    <div class="mt-8 relative flex items-center gap-4">
+      {#if data.counter.counterMode === "decrement_only" || data.counter.counterMode === "both"}
+        <button
+          type="button"
+          onclick={() => handleCounterAction(-1)}
+          disabled={!data.canIncrement ||
+            isIncrementing ||
+            $rateLimit.isLimited}
+          aria-disabled={!data.canIncrement ||
+            isIncrementing ||
+            $rateLimit.isLimited}
+          aria-label="Decrement counter"
+          class="inline-flex items-center justify-center active:scale-95 transition text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ion-icon name="remove-circle-outline" style="font-size: 64px;"
+          ></ion-icon>
+        </button>
       {/if}
-    </button>
+      {#if data.counter.counterMode === "increment_only" || data.counter.counterMode === "both"}
+        <button
+          type="button"
+          onclick={() => handleCounterAction(1)}
+          disabled={!data.canIncrement ||
+            isIncrementing ||
+            $rateLimit.isLimited}
+          aria-disabled={!data.canIncrement ||
+            isIncrementing ||
+            $rateLimit.isLimited}
+          aria-label="Increment counter"
+          class="inline-flex items-center justify-center active:scale-95 transition text-slate-400 hover:text-blue-500 dark:text-slate-500 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ion-icon name="add-circle-outline" style="font-size: 64px;"
+          ></ion-icon>
+        </button>
+      {/if}
+      {#if $rateLimit.isLimited}
+        <div
+          class="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-[2px] rounded-full shadow-[0_0_12px_4px_rgba(255,255,255,0.6)] dark:shadow-[0_0_12px_4px_rgba(15,23,42,0.6)]"
+          style="animation: cooldown-fade {cooldownDuration}s ease-in forwards;"
+        ></div>
+        <span
+          out:fade={{ duration: 300 }}
+          class="absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums text-slate-500 dark:text-slate-400 pointer-events-none"
+          >{$rateLimit.retryAfterSeconds}s</span
+        >
+      {/if}
+    </div>
 
     {#if incrementUnavailableMessage}
       <p
@@ -930,6 +980,43 @@
       <p class="text-xs text-slate-500 dark:text-slate-400">
         {visibilityDescriptions[editVisibility]}
       </p>
+    </div>
+
+    <div class="space-y-2">
+      <span
+        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
+        >Counter Mode</span
+      >
+      <div
+        class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
+      >
+        <label
+          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+        >
+          <input
+            type="radio"
+            value="increment_only"
+            bind:group={editCounterMode}
+          />
+          Increment only
+        </label>
+        <label
+          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+        >
+          <input
+            type="radio"
+            value="decrement_only"
+            bind:group={editCounterMode}
+          />
+          Decrement only
+        </label>
+        <label
+          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
+        >
+          <input type="radio" value="both" bind:group={editCounterMode} />
+          Both
+        </label>
+      </div>
     </div>
 
     {#if editError}

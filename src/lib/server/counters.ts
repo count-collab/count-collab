@@ -11,6 +11,7 @@ import {
 import { db } from "$lib/db";
 import type {
   Counter,
+  CounterMode,
   CounterVisibilityMode,
   NewCounter,
   NewCounterHistory,
@@ -56,6 +57,7 @@ type CreateCounterInput = {
   description?: string | null;
   isPublic?: boolean;
   visibilityMode?: CounterVisibilityMode;
+  counterMode?: CounterMode;
   ownerId?: string | null;
 };
 
@@ -70,6 +72,7 @@ export async function createCounter(
     count: 0,
     isPublic: deriveLegacyIsPublic(visibilityMode),
     visibilityMode,
+    counterMode: input.counterMode ?? "increment_only",
     shareToken: visibilityMode === "private" ? generateShareToken() : null,
     ownerId: input.ownerId ?? null,
   };
@@ -255,6 +258,7 @@ type UpdateCounterInput = {
   description?: string;
   isPublic?: boolean;
   visibilityMode?: CounterVisibilityMode;
+  counterMode?: CounterMode;
 };
 
 export async function updateCounter(
@@ -266,6 +270,7 @@ export async function updateCounter(
   if (input.title !== undefined) set.title = input.title.trim();
   if (input.description !== undefined)
     set.description = input.description.trim() || null;
+  if (input.counterMode !== undefined) set.counterMode = input.counterMode;
   if (input.isPublic !== undefined || input.visibilityMode !== undefined) {
     const visibilityMode = resolveCounterVisibility(input);
 
@@ -331,6 +336,7 @@ export async function getUserCounters(
       count: countersTable.count,
       isPublic: countersTable.isPublic,
       visibilityMode: countersTable.visibilityMode,
+      counterMode: countersTable.counterMode,
       shareToken: countersTable.shareToken,
       ownerId: countersTable.ownerId,
       createdAt: countersTable.createdAt,
@@ -447,10 +453,10 @@ export async function getCounterSparkline(
   return points;
 }
 
-export async function getGlobalCounterSum(): Promise<number> {
+export async function getGlobalActionCount(): Promise<number> {
   const [row] = await db
-    .select({ total: sql<string>`COALESCE(SUM(${countersTable.count}), 0)` })
-    .from(countersTable);
+    .select({ total: sql<string>`COUNT(*)` })
+    .from(counterHistoryTable);
   return Number(row.total);
 }
 

@@ -45,6 +45,7 @@ function makePageData(overrides: Record<string, unknown> = {}) {
       count: 42,
       isPublic: true,
       visibilityMode: "public",
+      counterMode: "increment_only",
       ownerId: "owner-1",
       createdAt: "2025-06-15T10:30:00.000Z",
       updatedAt: "2026-03-20T14:00:00.000Z",
@@ -157,10 +158,9 @@ describe("Counter detail page", () => {
     });
 
     const button = screen.getByRole("button", {
-      name: "Increment unavailable",
+      name: "Increment counter",
     });
     expect(button.hasAttribute("disabled")).toBe(true);
-    expect(button.textContent).toContain("+1");
     expect(
       screen.getAllByText(
         "Anyone can view. Only invited members can increment.",

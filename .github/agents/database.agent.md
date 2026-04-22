@@ -35,7 +35,7 @@ You are a database specialist for the Count Collab project. Your job is to write
 
 ### Counter Tables
 
-- `counters` — id (UUID), title, description, count (int), isPublic (int 0/1, legacy), visibilityMode (private/public/public_readonly), shareToken, ownerId FK, timestamps
+- `counters` — id (UUID), title, description, count (int), isPublic (int 0/1, legacy), visibilityMode (private/public/public_readonly), counterMode (increment_only/decrement_only/both), shareToken, ownerId FK, timestamps
 - `counterHistory` — audit log: counterId FK, previousValue, newValue, changedBy FK, changedAt
 - `counterMembers` — counterId + userId (unique index), role (viewer/incrementer/editor/admin), invitedAt
 - `counterFollowers` — counterId + userId (unique index), followedAt

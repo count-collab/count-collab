@@ -6,6 +6,12 @@ export const counterVisibilityEnum = z.enum([
   "private",
 ]);
 
+export const counterModeEnum = z.enum([
+  "increment_only",
+  "decrement_only",
+  "both",
+]);
+
 /**
  * Validation schema for counter creation
  */
@@ -22,6 +28,7 @@ export const createCounterSchema = z.object({
     .default("")
     .transform((val) => val?.trim() || ""),
   visibility: counterVisibilityEnum.default("public").optional(),
+  counterMode: counterModeEnum.default("increment_only").optional(),
 });
 
 export type CreateCounterInput = z.infer<typeof createCounterSchema>;
@@ -42,6 +49,7 @@ export const updateCounterSchema = z.object({
     .transform((val) => val?.trim() || "")
     .optional(),
   visibility: counterVisibilityEnum.optional(),
+  counterMode: counterModeEnum.optional(),
 });
 
 export type UpdateCounterInput = z.infer<typeof updateCounterSchema>;
@@ -60,7 +68,7 @@ export const incrementCounterSchema = z.object({
   amount: z
     .number()
     .int("Increment amount must be an integer")
-    .positive("Increment amount must be positive")
+    .refine((v) => v !== 0, "Increment amount must be non-zero")
     .default(1)
     .optional(),
 });

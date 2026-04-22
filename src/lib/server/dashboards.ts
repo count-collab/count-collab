@@ -5,6 +5,7 @@ import {
   eq,
   ilike,
   inArray,
+  or,
   sql,
 } from "drizzle-orm";
 import { db } from "$lib/db";
@@ -17,6 +18,7 @@ import {
   dashboardFollowers,
   dashboardMembers,
   dashboards as dashboardsTable,
+  users,
 } from "$lib/db/schema";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
 import { logger } from "$lib/server/logger";
@@ -221,4 +223,47 @@ export async function getUserDashboards(
     return { items: all.slice(offset, offset + limit), total };
   }
   return { items: all, total };
+}
+
+export async function listAllDashboards(
+  limit = 50,
+  query?: string,
+  offset = 0,
+): Promise<{
+  items: (Dashboard & { ownerName: string | null })[];
+  total: number;
+}> {
+  const searchQuery = query?.trim();
+  const whereClause = searchQuery
+    ? or(
+        ilike(dashboardsTable.title, `%${escapeLikePattern(searchQuery)}%`),
+        ilike(
+          dashboardsTable.description,
+          `%${escapeLikePattern(searchQuery)}%`,
+        ),
+      )
+    : undefined;
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        dashboard: dashboardsTable,
+        ownerUsername: users.username,
+        ownerDisplayName: users.name,
+      })
+      .from(dashboardsTable)
+      .leftJoin(users, eq(dashboardsTable.ownerId, users.id))
+      .where(whereClause)
+      .orderBy(desc(dashboardsTable.updatedAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ total: countFn() }).from(dashboardsTable).where(whereClause),
+  ]);
+
+  const items = rows.map((row) => ({
+    ...row.dashboard,
+    ownerName: row.ownerUsername ?? row.ownerDisplayName ?? null,
+  }));
+
+  return { items, total: Number(total) };
 }

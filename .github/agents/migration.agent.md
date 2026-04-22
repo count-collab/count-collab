@@ -42,7 +42,7 @@ bun run db:studio      # Open Drizzle Studio for visual inspection
 ### Application Tables
 
 - `roles` (serial PK), `permissions` (serial PK), `role_permissions` (M:M)
-- `counters` (UUID PK, title, count, isPublic (legacy), visibilityMode, shareToken, ownerId, timestamps)
+- `counters` (UUID PK, title, count, isPublic (legacy), visibilityMode, counterMode, shareToken, ownerId, timestamps)
 - `counter_history` (serial PK, audit log with changedBy FK)
 - `counter_members` (serial PK, unique index on counterId+userId, role: viewer/incrementer/editor/admin)
 - `counter_followers` (serial PK, unique index on counterId+userId)

@@ -1,0 +1,1 @@
+ALTER TABLE "counters" ADD COLUMN "counter_mode" text DEFAULT 'increment_only' NOT NULL;

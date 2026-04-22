@@ -43,6 +43,13 @@
       "when": 1775732541908,
       "tag": "0005_burly_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1776864418030,
+      "tag": "0006_rainy_quasimodo",
+      "breakpoints": true
     }
   ]
 }
