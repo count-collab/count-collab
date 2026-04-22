@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade } from "svelte/transition";
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
@@ -16,7 +17,6 @@
   } from "$lib/db/schema";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
-  import { fade } from "svelte/transition";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
