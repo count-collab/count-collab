@@ -1,6 +1,6 @@
 {
   "name": "count-collab",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Count Collab - Shared counts that everyone can use",
   "type": "module",
   "scripts": {
