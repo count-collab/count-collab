@@ -26,6 +26,8 @@ const PERMISSIONS = [
   { name: "counter:delete_any", description: "Delete any counter" },
   { name: "user:view", description: "View all users" },
   { name: "user:manage", description: "Manage users (roles, delete)" },
+  { name: "dashboard:edit_any", description: "Edit any dashboard" },
+  { name: "dashboard:delete_any", description: "Delete any dashboard" },
 ] as const;
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -38,6 +40,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     "counter:delete_any",
     "user:view",
     "user:manage",
+    "dashboard:edit_any",
+    "dashboard:delete_any",
   ],
 };
 
