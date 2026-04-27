@@ -1,4 +1,13 @@
-import { count as countFn, desc, eq, ilike, or, sql } from "drizzle-orm";
+import {
+  type AnyColumn,
+  asc,
+  count as countFn,
+  desc,
+  eq,
+  ilike,
+  or,
+  sql,
+} from "drizzle-orm";
 import { db } from "$lib/db";
 import { accounts, counters, dashboards, roles, users } from "$lib/db/schema";
 
@@ -23,6 +32,8 @@ export async function listUsers(
   limit = 50,
   query?: string,
   offset = 0,
+  sortBy?: string,
+  sortOrder: "asc" | "desc" = "desc",
 ): Promise<{ items: UserWithRole[]; total: number }> {
   const searchQuery = query?.trim();
   const whereClause = searchQuery
@@ -32,6 +43,18 @@ export async function listUsers(
         ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
       )
     : undefined;
+
+  const columnMap: Record<string, AnyColumn> = {
+    username: users.username,
+    email: users.email,
+    role: roles.name,
+  };
+  const sortColumn = sortBy && columnMap[sortBy];
+  const orderByClause = sortColumn
+    ? sortOrder === "asc"
+      ? asc(sortColumn)
+      : desc(sortColumn)
+    : desc(users.id);
 
   const [items, [{ total }]] = await Promise.all([
     db
@@ -47,7 +70,7 @@ export async function listUsers(
       .from(users)
       .leftJoin(roles, eq(users.roleId, roles.id))
       .where(whereClause)
-      .orderBy(desc(users.id))
+      .orderBy(orderByClause)
       .limit(limit)
       .offset(offset),
     db.select({ total: countFn() }).from(users).where(whereClause),
