@@ -1,5 +1,7 @@
 import {
+  type AnyColumn,
   and,
+  asc,
   count as countFn,
   desc,
   eq,
@@ -229,6 +231,8 @@ export async function listAllDashboards(
   limit = 50,
   query?: string,
   offset = 0,
+  sortBy?: string,
+  sortOrder: "asc" | "desc" = "desc",
 ): Promise<{
   items: (Dashboard & { ownerName: string | null })[];
   total: number;
@@ -244,6 +248,19 @@ export async function listAllDashboards(
       )
     : undefined;
 
+  const columnMap: Record<string, AnyColumn> = {
+    title: dashboardsTable.title,
+    visibility: dashboardsTable.visibilityMode,
+    owner: users.username,
+    createdAt: dashboardsTable.createdAt,
+  };
+  const sortColumn = sortBy && columnMap[sortBy];
+  const orderByClause = sortColumn
+    ? sortOrder === "asc"
+      ? asc(sortColumn)
+      : desc(sortColumn)
+    : desc(dashboardsTable.updatedAt);
+
   const [rows, [{ total }]] = await Promise.all([
     db
       .select({
@@ -254,7 +271,7 @@ export async function listAllDashboards(
       .from(dashboardsTable)
       .leftJoin(users, eq(dashboardsTable.ownerId, users.id))
       .where(whereClause)
-      .orderBy(desc(dashboardsTable.updatedAt))
+      .orderBy(orderByClause)
       .limit(limit)
       .offset(offset),
     db.select({ total: countFn() }).from(dashboardsTable).where(whereClause),

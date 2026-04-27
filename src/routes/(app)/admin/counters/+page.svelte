@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
+  import AdminTable from "$lib/components/AdminTable.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
   import { slugify } from "$lib/counter";
@@ -22,6 +23,14 @@
   let searchQuery = $state("");
   $effect(() => {
     searchQuery = initialQuery;
+  });
+
+  const extraParams = $derived.by(() => {
+    const params: Record<string, string> = {};
+    if (data.query) params.q = data.query;
+    if (data.sort) params.sort = data.sort;
+    if (data.order) params.order = data.order;
+    return params;
   });
 
   function getVisibilityMode(counter: Pick<Counter, "visibilityMode" | "isPublic">): CounterVisibilityMode {
@@ -61,64 +70,61 @@
   />
 </form>
 
-<div class="bg-white dark:bg-slate-800 rounded-lg shadow dark:shadow-slate-900/50 overflow-x-auto">
-  <table class="w-full text-sm min-w-[600px]">
-    <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+<AdminTable
+  columns={[
+    { key: 'title', label: 'Title', sortable: true },
+    { key: 'count', label: 'Count', sortable: true },
+    { key: 'visibility', label: 'Visibility', sortable: true },
+    { key: 'owner', label: 'Owner', sortable: true },
+    { key: 'actions', label: 'Actions', align: 'right' },
+  ]}
+  currentSort={data.sort}
+  currentOrder={data.order}
+  baseUrl="/admin/counters"
+  {extraParams}
+>
+  {#snippet rows()}
+    {#each data.counters as counter (counter.id)}
       <tr>
-        <th class="text-left px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Title</th>
-        <th class="text-left px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Count</th>
-        <th class="text-left px-4 py-3 font-semibold text-slate-700 dark:text-slate-300"
-          >Visibility</th
-        >
-        <th class="text-left px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Owner</th>
-        <th class="text-right px-4 py-3 font-semibold text-slate-700 dark:text-slate-300"
-          >Actions</th
-        >
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-      {#each data.counters as counter (counter.id)}
-        <tr>
-          <td class="px-4 py-3">
-            <a
-              href="/c/{counter.id}/{slugify(counter.title)}"
-              class="font-medium text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              {counter.title}
-            </a>
-          </td>
-          <td class="px-4 py-3 font-bold text-slate-900 dark:text-slate-100">{counter.count}</td>
-          <td class="px-4 py-3">
-            <span
-              class="text-xs px-2 py-0.5 rounded-full {getVisibilityBadgeClass(counter)}"
-            >
-              {getVisibilityLabel(counter)}
-            </span>
-          </td>
-          <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{counter.ownerName ?? "System"}</td
+        <td class="px-4 py-3">
+          <a
+            href="/c/{counter.id}/{slugify(counter.title)}"
+            class="font-medium text-blue-600 dark:text-blue-400 hover:underline"
           >
-          <td class="px-4 py-3 text-right whitespace-nowrap">
-            <a
-              href="/c/{counter.id}/{slugify(counter.title)}"
-              class="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm mr-3">View</a
-            >
-            <button
-              type="button"
-              onclick={() => handleDelete(counter.id)}
-              class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm"
-            >
-              Delete
-            </button>
-          </td>
-        </tr>
-      {/each}
-    </tbody>
-  </table>
-</div>
+            {counter.title}
+          </a>
+        </td>
+        <td class="px-4 py-3 font-bold text-slate-900 dark:text-slate-100">{counter.count}</td>
+        <td class="px-4 py-3">
+          <span
+            class="text-xs px-2 py-0.5 rounded-full {getVisibilityBadgeClass(counter)}"
+          >
+            {getVisibilityLabel(counter)}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{counter.ownerName ?? "System"}</td
+        >
+        <td class="px-4 py-3 text-right whitespace-nowrap">
+          <a
+            href="/c/{counter.id}/{slugify(counter.title)}"
+            class="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm mr-3">View</a
+          >
+          <button
+            type="button"
+            onclick={() => handleDelete(counter.id)}
+            class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm"
+          >
+            Delete
+          </button>
+        </td>
+      </tr>
+    {/each}
+  {/snippet}
+</AdminTable>
 
 <Pagination
   page={data.page}
   totalPages={data.totalPages}
   baseUrl="/admin/counters"
-  extraParams={data.query ? { q: data.query } : {}}
+  {extraParams}
 />

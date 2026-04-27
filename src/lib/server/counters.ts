@@ -1,5 +1,7 @@
 import {
+  type AnyColumn,
   and,
+  asc,
   count as countFn,
   desc,
   eq,
@@ -365,6 +367,8 @@ export async function listAllCounters(
   limit = 50,
   query?: string,
   offset = 0,
+  sortBy?: string,
+  sortOrder: "asc" | "desc" = "desc",
 ): Promise<{
   items: (Counter & { ownerName: string | null })[];
   total: number;
@@ -377,6 +381,20 @@ export async function listAllCounters(
       )
     : undefined;
 
+  const columnMap: Record<string, AnyColumn> = {
+    title: countersTable.title,
+    count: countersTable.count,
+    visibility: countersTable.visibilityMode,
+    owner: users.username,
+    createdAt: countersTable.createdAt,
+  };
+  const sortColumn = sortBy && columnMap[sortBy];
+  const orderByClause = sortColumn
+    ? sortOrder === "asc"
+      ? asc(sortColumn)
+      : desc(sortColumn)
+    : desc(countersTable.updatedAt);
+
   const [rows, [{ total }]] = await Promise.all([
     db
       .select({
@@ -387,7 +405,7 @@ export async function listAllCounters(
       .from(countersTable)
       .leftJoin(users, eq(countersTable.ownerId, users.id))
       .where(whereClause)
-      .orderBy(desc(countersTable.updatedAt))
+      .orderBy(orderByClause)
       .limit(limit)
       .offset(offset),
     db.select({ total: countFn() }).from(countersTable).where(whereClause),

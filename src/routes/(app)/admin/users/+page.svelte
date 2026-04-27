@@ -1,5 +1,6 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
+  import AdminTable from "$lib/components/AdminTable.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
   import type { PageData } from "./$types";
@@ -10,6 +11,14 @@
   let searchQuery = $state("");
   $effect(() => {
     searchQuery = initialQuery;
+  });
+
+  const extraParams = $derived.by(() => {
+    const params: Record<string, string> = {};
+    if (data.query) params.q = data.query;
+    if (data.sort) params.sort = data.sort;
+    if (data.order) params.order = data.order;
+    return params;
   });
 
   async function handleRoleChange(userId: string, roleId: number) {
@@ -46,63 +55,62 @@
   />
 </form>
 
-<div class="bg-white dark:bg-slate-800 rounded-lg shadow dark:shadow-slate-900/50 overflow-x-auto">
-  <table class="w-full text-sm min-w-[600px]">
-    <thead class="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+<AdminTable
+  columns={[
+    { key: 'username', label: 'User', sortable: true },
+    { key: 'email', label: 'Email', sortable: true },
+    { key: 'role', label: 'Role', sortable: true },
+    { key: 'actions', label: 'Actions', align: 'right' },
+  ]}
+  currentSort={data.sort}
+  currentOrder={data.order}
+  baseUrl="/admin/users"
+  {extraParams}
+>
+  {#snippet rows()}
+    {#each data.users as user (user.id)}
       <tr>
-        <th class="text-left px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">User</th>
-        <th class="text-left px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Email</th>
-        <th class="text-left px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Role</th>
-        <th class="text-right px-4 py-3 font-semibold text-slate-700 dark:text-slate-300"
-          >Actions</th
-        >
+        <td class="px-4 py-3">
+          <span class="font-medium text-slate-900 dark:text-slate-100"
+            >{user.username ?? "—"}</span
+          >
+          {#if user.name}
+            <span class="text-slate-500 dark:text-slate-400 ml-1">({user.name})</span>
+          {/if}
+        </td>
+        <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{user.email ?? "—"}</td>
+        <td class="px-4 py-3">
+          <select
+            value={user.roleId ?? ""}
+            onchange={(e) => {
+              const val = Number((e.target as HTMLSelectElement).value);
+              if (val) handleRoleChange(user.id, val);
+            }}
+            class="rounded border border-slate-300 dark:border-slate-600 px-2 py-1 text-sm dark:bg-slate-700 dark:text-slate-100"
+          >
+            <option value="" disabled>No role</option>
+            {#each data.allRoles as role (role.id)}
+              <option value={role.id}>{role.name}</option>
+            {/each}
+          </select>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <button
+            type="button"
+            onclick={() => handleDeleteUser(user.id)}
+            class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm"
+          >
+            Delete
+          </button>
+        </td>
       </tr>
-    </thead>
-    <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
-      {#each data.users as user (user.id)}
-        <tr>
-          <td class="px-4 py-3">
-            <span class="font-medium text-slate-900 dark:text-slate-100"
-              >{user.username ?? "—"}</span
-            >
-            {#if user.name}
-              <span class="text-slate-500 dark:text-slate-400 ml-1">({user.name})</span>
-            {/if}
-          </td>
-          <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{user.email ?? "—"}</td>
-          <td class="px-4 py-3">
-            <select
-              value={user.roleId ?? ""}
-              onchange={(e) => {
-                const val = Number((e.target as HTMLSelectElement).value);
-                if (val) handleRoleChange(user.id, val);
-              }}
-              class="rounded border border-slate-300 dark:border-slate-600 px-2 py-1 text-sm dark:bg-slate-700 dark:text-slate-100"
-            >
-              <option value="" disabled>No role</option>
-              {#each data.allRoles as role (role.id)}
-                <option value={role.id}>{role.name}</option>
-              {/each}
-            </select>
-          </td>
-          <td class="px-4 py-3 text-right">
-            <button
-              type="button"
-              onclick={() => handleDeleteUser(user.id)}
-              class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm"
-            >
-              Delete
-            </button>
-          </td>
-        </tr>
-      {/each}
-    </tbody>
-  </table>
-</div>
+    {/each}
+  {/snippet}
+</AdminTable>
 
 <Pagination
   page={data.page}
   totalPages={data.totalPages}
   baseUrl="/admin/users"
-  extraParams={data.query ? { q: data.query } : {}}
+  {extraParams}
 />
