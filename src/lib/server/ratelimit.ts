@@ -30,6 +30,13 @@ export const RATE_LIMIT_CONFIG = {
   },
 };
 
+export const RATE_LIMIT_CONFIG_UNAUTHENTICATED = {
+  "/api/counters/[id]": {
+    windowMs: 30 * 1000,
+    maxRequests: 1, // 1 increment per 30 seconds for anonymous users
+  },
+};
+
 /**
  * Get IP address from request, handling X-Forwarded-For headers
  */

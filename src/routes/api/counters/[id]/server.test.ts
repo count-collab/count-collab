@@ -50,6 +50,9 @@ vi.mock("$lib/server/ratelimit", () => ({
   RATE_LIMIT_CONFIG: {
     "/api/counters/[id]": { windowMs: 5000, maxRequests: 1 },
   },
+  RATE_LIMIT_CONFIG_UNAUTHENTICATED: {
+    "/api/counters/[id]": { windowMs: 30000, maxRequests: 1 },
+  },
 }));
 
 vi.mock("$lib/server/request", () => ({
@@ -185,6 +188,7 @@ describe("POST /api/counters/[id] (increment)", () => {
     const body = await response.json();
 
     expect(body.count).toBe(9);
+    expect(body.cooldownSeconds).toBe(30);
     expect(mockCanIncrementCounter).not.toHaveBeenCalled();
   });
 

@@ -39,4 +39,9 @@ export const faqItems: FaqItem[] = [
     answer:
       "Absolutely — that is the core feature of Count Collab. Any number of people can increment or decrement a counter simultaneously, and every change syncs in real time across all devices.",
   },
+  {
+    question: "Is there a cooldown between counter updates?",
+    answer:
+      "Yes. To prevent spam, there is a short cooldown between increments. Guest users (no account) have a 30-second cooldown, while signed-in users enjoy a shorter 5-second cooldown.",
+  },
 ];

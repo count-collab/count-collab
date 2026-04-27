@@ -9,6 +9,7 @@ import {
   checkRateLimit,
   getClientIp,
   RATE_LIMIT_CONFIG,
+  RATE_LIMIT_CONFIG_UNAUTHENTICATED,
   trackCounterIncrement,
 } from "$lib/server/ratelimit";
 
@@ -100,9 +101,11 @@ const appHandle: Handle = async ({ event, resolve }) => {
     if (writeRoute) {
       // Skip rate limiting for admin users
       let isAdmin = false;
+      let isAuthenticated = false;
       if (writeRoute === "/api/counters/[id]") {
         const session = await event.locals.auth();
         if (session?.user?.id) {
+          isAuthenticated = true;
           const role = await getUserRole(session.user.id);
           isAdmin = role === "admin";
         }
@@ -110,8 +113,14 @@ const appHandle: Handle = async ({ event, resolve }) => {
 
       if (!isAdmin) {
         const clientIp = getClientIp(event.request);
+        const unauthConfig =
+          RATE_LIMIT_CONFIG_UNAUTHENTICATED[
+            writeRoute as keyof typeof RATE_LIMIT_CONFIG_UNAUTHENTICATED
+          ];
         const config =
-          RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];
+          !isAuthenticated && unauthConfig
+            ? unauthConfig
+            : RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];
 
         if (config) {
           const rateLimitCheck = checkRateLimit(clientIp, writeRoute, config);

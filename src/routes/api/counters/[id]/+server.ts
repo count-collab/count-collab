@@ -13,7 +13,10 @@ import {
 } from "$lib/server/counters";
 import { logger } from "$lib/server/logger";
 import { getUserRole } from "$lib/server/permissions";
-import { RATE_LIMIT_CONFIG } from "$lib/server/ratelimit";
+import {
+  RATE_LIMIT_CONFIG,
+  RATE_LIMIT_CONFIG_UNAUTHENTICATED,
+} from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
 import { emitCounterUpdate } from "$lib/utils/socket";
 import {
@@ -108,7 +111,10 @@ export const POST: RequestHandler = async ({
   emitCounterUpdate(updated.id, updated.count, updated.updatedAt);
 
   let cooldownSeconds = Math.ceil(
-    RATE_LIMIT_CONFIG["/api/counters/[id]"].windowMs / 1000,
+    (userId
+      ? RATE_LIMIT_CONFIG["/api/counters/[id]"]
+      : RATE_LIMIT_CONFIG_UNAUTHENTICATED["/api/counters/[id]"]
+    ).windowMs / 1000,
   );
 
   if (userId) {
