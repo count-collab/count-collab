@@ -370,7 +370,7 @@ export async function listAllCounters(
   sortBy?: string,
   sortOrder: "asc" | "desc" = "desc",
 ): Promise<{
-  items: (Counter & { ownerName: string | null })[];
+  items: (Counter & { ownerName: string | null; actionCount: number })[];
   total: number;
 }> {
   const searchQuery = query?.trim();
@@ -381,12 +381,20 @@ export async function listAllCounters(
       )
     : undefined;
 
+  const actionCount =
+    sql<number>`(SELECT count(*) FROM counter_history WHERE counter_id = ${countersTable.id})`.as(
+      "action_count",
+    );
+
   const columnMap: Record<string, AnyColumn> = {
     title: countersTable.title,
     count: countersTable.count,
     visibility: countersTable.visibilityMode,
     owner: users.username,
     createdAt: countersTable.createdAt,
+    updatedAt: countersTable.updatedAt,
+    actions:
+      sql`(SELECT count(*) FROM counter_history WHERE counter_id = ${countersTable.id})` as unknown as AnyColumn,
   };
   const sortColumn = sortBy && columnMap[sortBy];
   const orderByClause = sortColumn
@@ -401,6 +409,7 @@ export async function listAllCounters(
         counter: countersTable,
         ownerUsername: users.username,
         ownerDisplayName: users.name,
+        actionCount,
       })
       .from(countersTable)
       .leftJoin(users, eq(countersTable.ownerId, users.id))
@@ -414,6 +423,7 @@ export async function listAllCounters(
   const items = rows.map((row) => ({
     ...row.counter,
     ownerName: row.ownerUsername ?? row.ownerDisplayName ?? null,
+    actionCount: Number(row.actionCount),
   }));
 
   return { items, total: Number(total) };

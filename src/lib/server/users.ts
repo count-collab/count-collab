@@ -23,6 +23,7 @@ type UserWithRole = {
   username: string | null;
   roleName: string | null;
   roleId: number | null;
+  createdAt: Date;
 };
 
 /**
@@ -48,13 +49,14 @@ export async function listUsers(
     username: users.username,
     email: users.email,
     role: roles.name,
+    createdAt: users.createdAt,
   };
   const sortColumn = sortBy && columnMap[sortBy];
   const orderByClause = sortColumn
     ? sortOrder === "asc"
       ? asc(sortColumn)
       : desc(sortColumn)
-    : desc(users.id);
+    : desc(users.createdAt);
 
   const [items, [{ total }]] = await Promise.all([
     db
@@ -66,6 +68,7 @@ export async function listUsers(
         username: users.username,
         roleName: roles.name,
         roleId: users.roleId,
+        createdAt: users.createdAt,
       })
       .from(users)
       .leftJoin(roles, eq(users.roleId, roles.id))

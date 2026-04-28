@@ -62,7 +62,8 @@
     { key: 'visibility', label: 'Visibility', sortable: true },
     { key: 'owner', label: 'Owner', sortable: true },
     { key: 'createdAt', label: 'Created', sortable: true },
-    { key: 'actions', label: 'Actions', align: 'right' },
+    { key: 'updatedAt', label: 'Updated', sortable: true },
+    { key: 'manage', label: '', align: 'right' },
   ]}
   currentSort={data.sort}
   currentOrder={data.order}
@@ -92,6 +93,9 @@
         >
         <td class="px-4 py-3 text-slate-600 dark:text-slate-400"
           >{new Date(dashboard.createdAt).toLocaleDateString()}</td
+        >
+        <td class="px-4 py-3 text-slate-600 dark:text-slate-400"
+          >{new Date(dashboard.updatedAt).toLocaleDateString()}</td
         >
         <td class="px-4 py-3 text-right whitespace-nowrap">
           <a

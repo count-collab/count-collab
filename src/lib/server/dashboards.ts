@@ -253,6 +253,7 @@ export async function listAllDashboards(
     visibility: dashboardsTable.visibilityMode,
     owner: users.username,
     createdAt: dashboardsTable.createdAt,
+    updatedAt: dashboardsTable.updatedAt,
   };
   const sortColumn = sortBy && columnMap[sortBy];
   const orderByClause = sortColumn

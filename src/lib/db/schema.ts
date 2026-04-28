@@ -24,6 +24,9 @@ export const users = pgTable("user", {
   image: text("image"),
   username: text("username").unique(),
   roleId: integer("role_id").references(() => roles.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const accounts = pgTable(

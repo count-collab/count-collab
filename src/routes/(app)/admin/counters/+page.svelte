@@ -74,9 +74,12 @@
   columns={[
     { key: 'title', label: 'Title', sortable: true },
     { key: 'count', label: 'Count', sortable: true },
+    { key: 'actions', label: 'Actions', sortable: true },
     { key: 'visibility', label: 'Visibility', sortable: true },
     { key: 'owner', label: 'Owner', sortable: true },
-    { key: 'actions', label: 'Actions', align: 'right' },
+    { key: 'createdAt', label: 'Created', sortable: true },
+    { key: 'updatedAt', label: 'Updated', sortable: true },
+    { key: 'manage', label: '', align: 'right' },
   ]}
   currentSort={data.sort}
   currentOrder={data.order}
@@ -95,6 +98,7 @@
           </a>
         </td>
         <td class="px-4 py-3 font-bold text-slate-900 dark:text-slate-100">{counter.count}</td>
+        <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{counter.actionCount}</td>
         <td class="px-4 py-3">
           <span
             class="text-xs px-2 py-0.5 rounded-full {getVisibilityBadgeClass(counter)}"
@@ -103,6 +107,12 @@
           </span>
         </td>
         <td class="px-4 py-3 text-slate-600 dark:text-slate-400">{counter.ownerName ?? "System"}</td
+        >
+        <td class="px-4 py-3 text-slate-600 dark:text-slate-400"
+          >{new Date(counter.createdAt).toLocaleDateString()}</td
+        >
+        <td class="px-4 py-3 text-slate-600 dark:text-slate-400"
+          >{new Date(counter.updatedAt).toLocaleDateString()}</td
         >
         <td class="px-4 py-3 text-right whitespace-nowrap">
           <a

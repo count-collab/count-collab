@@ -60,6 +60,7 @@
     { key: 'username', label: 'User', sortable: true },
     { key: 'email', label: 'Email', sortable: true },
     { key: 'role', label: 'Role', sortable: true },
+    { key: 'createdAt', label: 'Created', sortable: true },
     { key: 'actions', label: 'Actions', align: 'right' },
   ]}
   currentSort={data.sort}
@@ -94,6 +95,9 @@
             {/each}
           </select>
         </td>
+        <td class="px-4 py-3 text-slate-600 dark:text-slate-400"
+          >{new Date(user.createdAt).toLocaleDateString()}</td
+        >
         <td class="px-4 py-3 text-right">
           <button
             type="button"
