@@ -114,6 +114,15 @@
           Count Collab is a free, real-time collaborative counter platform built
           for teams and communities.
         </p>
+        <a
+          href="https://buymeacoffee.com/countcollab"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-4 inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition"
+        >
+          <ion-icon name="cafe-outline" style="font-size: 16px;"></ion-icon>
+          Buy us a coffee
+        </a>
       </div>
     </div>
     <div

@@ -591,6 +591,31 @@
     <FaqAccordion items={faqItems} />
   </section>
 
+  <!-- SUPPORT -->
+  <section class="px-4 py-16 sm:py-20 text-center">
+    <div class="max-w-xl mx-auto">
+      <div class="text-3xl mb-4">☕</div>
+      <h2
+        class="text-2xl font-bold text-slate-900 dark:text-slate-100"
+      >
+        Enjoying Count Collab?
+      </h2>
+      <p class="mt-3 text-slate-500 dark:text-slate-400">
+        Count Collab is free and always will be. If you find it useful, consider
+        supporting us.
+      </p>
+      <a
+        href="https://buymeacoffee.com/countcollab"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mt-6 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-white font-semibold shadow-sm transition-all hover:bg-amber-600 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+      >
+        <ion-icon name="cafe-outline" style="font-size: 18px;"></ion-icon>
+        Buy us a coffee
+      </a>
+    </div>
+  </section>
+
   <!-- FOOTER CTA -->
   <section class="px-4 py-20 sm:py-24 text-center">
     <div class="max-w-2xl mx-auto">
