@@ -602,7 +602,7 @@
       </h2>
       <p class="mt-3 text-slate-500 dark:text-slate-400">
         Count Collab is free and always will be. If you find it useful, consider
-        supporting us.
+        supporting us — we like coffee.
       </p>
       <a
         href="https://buymeacoffee.com/countcollab"
