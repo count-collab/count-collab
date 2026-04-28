@@ -293,6 +293,75 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
     description: "Number of times the team went out for lunch together.",
     count: 7,
   },
+
+  // Negative counters (decrement only)
+  {
+    title: "Sprint Burndown Remaining",
+    description: "Story points left in the sprint — decrement as work is done.",
+    count: -34,
+    counterMode: "decrement_only",
+  },
+  {
+    title: "Countdown to Launch",
+    description: "Days remaining until product launch. Decrement daily.",
+    count: -120,
+    counterMode: "decrement_only",
+  },
+  {
+    title: "Budget Remaining (units)",
+    description: "Track remaining budget allocations for the quarter.",
+    count: -870,
+    counterMode: "decrement_only",
+  },
+  {
+    title: "Inventory Drawdown",
+    description: "Items pulled from warehouse stock this month.",
+    count: -215,
+    counterMode: "decrement_only",
+  },
+  {
+    title: "Technical Debt Score",
+    description: "Points of tech debt reduced — every refactor helps.",
+    count: -45,
+    counterMode: "decrement_only",
+  },
+
+  // V-shaped counters: go negative then recover to positive (bidirectional)
+  {
+    title: "Net Promoter Score",
+    description:
+      "Customer satisfaction tracker — dipped negative after the outage, slowly recovering.",
+    count: 18,
+    counterMode: "both",
+  },
+  {
+    title: "Office Mood Index",
+    description:
+      "Team morale thermometer. Went below zero during crunch, now on the rebound.",
+    count: 7,
+    counterMode: "both",
+  },
+  {
+    title: "Profit / Loss Tracker",
+    description:
+      "Monthly P&L swings — started in the red, clawed back to green.",
+    count: 42,
+    counterMode: "both",
+  },
+  {
+    title: "Karma Points",
+    description:
+      "Community reputation. Lost some after a controversial PR, earned it back.",
+    count: 130,
+    counterMode: "both",
+  },
+  {
+    title: "Goal Difference",
+    description:
+      "Football league goal diff — rough start, strong second half of the season.",
+    count: 5,
+    counterMode: "both",
+  },
 ];
 
 async function seedCounters() {
@@ -360,6 +429,7 @@ async function seedCounters() {
       ...c,
       count: 0,
       isPublic: 1,
+      counterMode: c.counterMode ?? "increment_only",
       ownerId: randomUserId(),
       createdAt: counterCreationDates[i],
       updatedAt: counterCreationDates[i],
@@ -379,8 +449,9 @@ async function seedCounters() {
     for (let i = 0; i < insertedCounters.length; i++) {
       const counterId = insertedCounters[i].id;
       const targetCount = SEED_COUNTERS[i].count ?? 0;
+      const mode = SEED_COUNTERS[i].counterMode ?? "increment_only";
 
-      if (targetCount <= 0) continue;
+      if (targetCount === 0) continue;
 
       // History starts from the counter's creation date
       const startTime = counterCreationDates[i].getTime();
@@ -408,18 +479,58 @@ async function seedCounters() {
         activeDays.push(0, Math.floor(totalDays / 2), totalDays - 1);
       }
 
-      const numEntries = targetCount;
+      // Build the sequence of value changes depending on counter mode
+      const steps: number[] = []; // each entry is +1 or -1
 
-      // Distribute entries across active days (some days get multiple increments)
-      const entriesPerDay: number[] = new Array(activeDays.length).fill(0);
-      for (let e = 0; e < numEntries; e++) {
-        // Weighted toward later days (counters tend to get busier over time)
-        const idx = Math.floor(Math.random() ** 0.8 * activeDays.length);
-        entriesPerDay[idx]++;
+      if (mode === "both" && targetCount > 0) {
+        // V-shaped: go negative first, then recover past zero to the target
+        // Pick a negative trough between -20% and -60% of the total swing
+        const totalSwing = Math.abs(targetCount);
+        const troughDepth = Math.max(
+          5,
+          Math.floor(totalSwing * (0.2 + Math.random() * 0.4)),
+        );
+
+        // Phase 1: descend to the trough
+        for (let s = 0; s < troughDepth; s++) steps.push(-1);
+        // Phase 2: climb back from trough to the target
+        const climbSteps = troughDepth + targetCount;
+        for (let s = 0; s < climbSteps; s++) steps.push(+1);
+      } else if (mode === "decrement_only" || targetCount < 0) {
+        // Pure negative: decrement by 1 for each step
+        const numEntries = Math.abs(targetCount);
+        for (let s = 0; s < numEntries; s++) steps.push(-1);
+      } else {
+        // Pure positive: increment by 1 for each step
+        const numEntries = targetCount;
+        for (let s = 0; s < numEntries; s++) steps.push(+1);
       }
 
-      // Each history entry increments by exactly +1
+      // Distribute steps across active days
+      const entriesPerDay: number[] = new Array(activeDays.length).fill(0);
+
+      // For V-shaped counters, preserve chronological ordering by distributing
+      // steps sequentially across days (first half descend, second half ascend)
+      if (mode === "both" && targetCount > 0) {
+        for (let e = 0; e < steps.length; e++) {
+          // Spread across all active days proportionally
+          const dayIdx = Math.min(
+            Math.floor((e / steps.length) * activeDays.length),
+            activeDays.length - 1,
+          );
+          entriesPerDay[dayIdx]++;
+        }
+      } else {
+        for (let e = 0; e < steps.length; e++) {
+          // Weighted toward later days (counters tend to get busier over time)
+          const idx = Math.floor(Math.random() ** 0.8 * activeDays.length);
+          entriesPerDay[idx]++;
+        }
+      }
+
+      // Generate history rows in chronological order
       let currentValue = 0;
+      let stepIdx = 0;
 
       for (let d = 0; d < activeDays.length; d++) {
         const dayOffset = activeDays[d];
@@ -427,7 +538,7 @@ async function seedCounters() {
 
         for (let e = 0; e < entriesPerDay[d]; e++) {
           const previousValue = currentValue;
-          currentValue += 1;
+          currentValue += steps[stepIdx++];
 
           // Random time within the day (spread across waking hours 7am-11pm)
           const hourOffset = 7 + Math.random() * 16; // 7:00 - 23:00
