@@ -37,7 +37,7 @@ const buildInfo = {
   version: packageJson.version,
   commit,
   branch,
-  buildTime: new Date().toISOString(),
+  buildTime: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
   buildTimestamp: Date.now(),
 };
 

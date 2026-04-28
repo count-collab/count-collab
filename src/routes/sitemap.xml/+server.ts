@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ url }) => {
       const slug = slugify(c.title);
       const path = slug ? `/c/${c.id}/${slug}` : `/c/${c.id}`;
       const lastmod = c.updatedAt
-        ? `<lastmod>${c.updatedAt.toISOString()}</lastmod>`
+        ? `<lastmod>${c.updatedAt.toISOString().replace(/\.\d{3}Z$/, "Z")}</lastmod>`
         : "";
       return `<url><loc>${origin}${path}</loc>${lastmod}</url>`;
     })

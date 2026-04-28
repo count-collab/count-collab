@@ -5,7 +5,7 @@ vi.mock("$lib/server/counters", () => ({
 }));
 
 vi.mock("$lib/server/build-info.generated", () => ({
-  buildInfo: { buildTime: "2025-01-01T00:00:00.000Z" },
+  buildInfo: { buildTime: "2025-01-01T00:00:00Z" },
 }));
 
 vi.mock("$lib/counter", async () => {
@@ -50,7 +50,7 @@ describe("GET /sitemap.xml", () => {
     const body = await response.text();
 
     expect(body).toContain("<loc>https://example.com/</loc>");
-    expect(body).toContain("<lastmod>2025-01-01T00:00:00.000Z</lastmod>");
+    expect(body).toContain("<lastmod>2025-01-01T00:00:00Z</lastmod>");
     expect(body).toContain("<loc>https://example.com/counters</loc>");
   });
 
@@ -73,7 +73,7 @@ describe("GET /sitemap.xml", () => {
     expect(body).toContain(
       "<loc>https://example.com/c/abc-123/test-counter</loc>",
     );
-    expect(body).toContain("<lastmod>2025-06-15T10:00:00.000Z</lastmod>");
+    expect(body).toContain("<lastmod>2025-06-15T10:00:00Z</lastmod>");
     expect(body).toContain(
       "<loc>https://example.com/c/def-456/another-one</loc>",
     );

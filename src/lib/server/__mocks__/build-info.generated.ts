@@ -3,6 +3,6 @@ export const buildInfo = {
   version: "0.0.0-test",
   commit: "unknown",
   branch: "unknown",
-  buildTime: "1970-01-01T00:00:00.000Z",
+  buildTime: "1970-01-01T00:00:00Z",
   buildTimestamp: 0,
 } as const;
