@@ -50,6 +50,13 @@
       "when": 1776864418030,
       "tag": "0006_rainy_quasimodo",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1777370519338,
+      "tag": "0007_magical_wiccan",
+      "breakpoints": true
     }
   ]
 }
