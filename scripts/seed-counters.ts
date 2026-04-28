@@ -10,6 +10,9 @@ import {
   users,
 } from "../src/lib/db/schema";
 
+// Must match the ID used on prod and in src/routes/(marketing)/+page.server.ts
+const COFFEE_COUNTER_ID = "600cdb27-5261-4004-a1c3-458727c4501e";
+
 // Prefix to identify seed users for cleanup
 const SEED_EMAIL_DOMAIN = "seed.countcollab.local";
 
@@ -441,6 +444,28 @@ async function seedCounters() {
       .returning({ id: counters.id });
 
     console.info(`Created ${insertedCounters.length} counters.`);
+
+    // ── Create the "Cups of Coffee Drank" counter with a fixed ID ──
+    // Delete any existing counter with this ID first (idempotent re-seed)
+    await db
+      .delete(counters)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+      .where(eq(counters.id, COFFEE_COUNTER_ID as any));
+
+    const coffeeCreatedAt = new Date(now - 90 * ONE_DAY_MS);
+    await db.insert(counters).values({
+      id: COFFEE_COUNTER_ID,
+      title: "Cups of Coffee Drank",
+      description:
+        "How many cups of coffee the Count Collab team has consumed. Support us at buymeacoffee.com/countcollab!",
+      count: 42,
+      isPublic: 1,
+      counterMode: "increment_only",
+      ownerId: randomUserId(),
+      createdAt: coffeeCreatedAt,
+      updatedAt: coffeeCreatedAt,
+    });
+    console.info(`Created coffee counter (${COFFEE_COUNTER_ID}).`);
 
     // Generate realistic counter history based on each counter's creation date
     const historyRows: NewCounterHistory[] = [];

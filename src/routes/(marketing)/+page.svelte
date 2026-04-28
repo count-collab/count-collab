@@ -592,27 +592,52 @@
   </section>
 
   <!-- SUPPORT -->
-  <section class="px-4 py-16 sm:py-20 text-center">
-    <div class="max-w-xl mx-auto">
-      <div class="text-3xl mb-4">☕</div>
-      <h2
-        class="text-2xl font-bold text-slate-900 dark:text-slate-100"
-      >
-        Enjoying Count Collab?
-      </h2>
-      <p class="mt-3 text-slate-500 dark:text-slate-400">
-        Count Collab is free and always will be. If you find it useful, consider
-        supporting us — we like coffee.
-      </p>
-      <a
-        href="https://buymeacoffee.com/countcollab"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="mt-6 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-white font-semibold shadow-sm transition-all hover:bg-amber-600 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
-      >
-        <ion-icon name="cafe-outline" style="font-size: 18px;"></ion-icon>
-        Buy us a coffee
-      </a>
+  <section class="px-4 py-16 sm:py-20">
+    <div
+      class="max-w-2xl mx-auto rounded-3xl bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-yellow-950/20 border border-amber-200/60 dark:border-amber-800/30 p-8 sm:p-12 text-center relative overflow-hidden"
+    >
+      <div
+        class="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-amber-300/20 dark:bg-amber-500/10 blur-3xl"
+        aria-hidden="true"
+      ></div>
+      <div
+        class="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-orange-300/20 dark:bg-orange-500/10 blur-3xl"
+        aria-hidden="true"
+      ></div>
+      <div class="relative">
+        <span class="text-5xl leading-none">☕</span>
+        <h2
+          class="mt-5 text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100"
+        >
+          Enjoying Count Collab?
+        </h2>
+        <p
+          class="mt-3 text-slate-600 dark:text-slate-400 max-w-md mx-auto leading-relaxed"
+        >
+          Count Collab is free and always will be. If you find it useful,
+          consider supporting us — we like coffee.
+        </p>
+        <div class="mt-8 flex flex-col items-center gap-4">
+          <a
+            href="https://buymeacoffee.com/countcollab"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-7 py-3.5 text-white font-semibold shadow-lg shadow-amber-500/25 transition-all hover:bg-amber-600 hover:shadow-xl hover:shadow-amber-500/30 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+          >
+            <ion-icon name="cafe-outline" style="font-size: 18px;"></ion-icon>
+            Buy us a coffee
+          </a>
+          {#if data.coffeesCount > 0}
+            <p
+              class="text-sm text-amber-700/70 dark:text-amber-400/60 font-medium"
+            >
+              <span class="font-bold text-amber-700 dark:text-amber-400"
+                ><RollingNumber value={data.coffeesCount} /></span
+              > cups and counting
+            </p>
+          {/if}
+        </div>
+      </div>
     </div>
   </section>
 
