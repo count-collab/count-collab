@@ -65,6 +65,7 @@ function makeCounter(overrides: Partial<Counter> = {}): Counter {
     ownerId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    lastActivityAt: new Date(),
     ...overrides,
   };
 }
@@ -305,6 +306,16 @@ describe("updateCounter", () => {
 
     const setArg = mockUpdateSet.mock.calls[0][0];
     expect(setArg).not.toHaveProperty("counterMode");
+  });
+
+  it("sets lastActivityAt as a Date on every update", async () => {
+    const counter = makeCounter();
+    mockUpdateReturning.mockResolvedValue([counter]);
+
+    await updateCounter(counter.id, { title: "Refreshed" });
+
+    const setArg = mockUpdateSet.mock.calls[0][0];
+    expect(setArg.lastActivityAt).toBeInstanceOf(Date);
   });
 });
 

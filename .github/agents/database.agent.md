@@ -16,7 +16,7 @@ You are a database specialist for the Count Collab project. Your job is to write
 - **Runtime**: Bun
 - **Server logic**: `src/lib/server/counters.ts`, `members.ts`, `users.ts`, `permissions.ts`, `dashboards.ts`, `dashboard-items.ts`, `dashboard-authorize.ts`, `followers.ts`, `grid-relayout.ts`, `cache.ts`, `crypto.ts`
 - **Seed scripts**: `scripts/seed-counters.ts`, `scripts/seed-roles.ts`
-- **Utility scripts**: `scripts/backfill-share-tokens.ts`, `scripts/delete-counters.ts`, `scripts/promote-admin.ts`
+- **Utility scripts**: `scripts/backfill-share-tokens.ts`, `scripts/delete-counters.ts`, `scripts/promote-admin.ts`, `scripts/cleanup-inactive-counters.ts`
 
 ## Schema Overview
 
@@ -35,7 +35,7 @@ You are a database specialist for the Count Collab project. Your job is to write
 
 ### Counter Tables
 
-- `counters` — id (UUID), title, description, count (int), isPublic (int 0/1, legacy), visibilityMode (private/public/public_readonly), counterMode (increment_only/decrement_only/both), shareToken, ownerId FK, timestamps
+- `counters` — id (UUID), title, description, count (int), isPublic (int 0/1, legacy), visibilityMode (private/public/public_readonly), counterMode (increment_only/decrement_only/both), shareToken, ownerId FK, timestamps (createdAt, updatedAt, lastActivityAt)
 - `counterHistory` — audit log: counterId FK, previousValue, newValue, changedBy FK, changedAt
 - `counterMembers` — counterId + userId (unique index), role (viewer/incrementer/editor/admin), invitedAt
 - `counterFollowers` — counterId + userId (unique index), followedAt

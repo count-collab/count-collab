@@ -136,6 +136,7 @@ export async function listPublicCounters(
         ownerId: countersTable.ownerId,
         createdAt: countersTable.createdAt,
         updatedAt: countersTable.updatedAt,
+        lastActivityAt: countersTable.lastActivityAt,
       })
       .from(countersTable)
       .leftJoin(actionCountSq, eq(countersTable.id, actionCountSq.counterId))
@@ -231,6 +232,7 @@ export async function incrementCounter(
       .set({
         count: nextValue,
         updatedAt: new Date(),
+        lastActivityAt: new Date(),
       })
       .where(eq(countersTable.id, counter.id))
       .returning();
@@ -292,7 +294,10 @@ export async function updateCounter(
   counterId: string,
   input: UpdateCounterInput,
 ): Promise<Counter | null> {
-  const set: Record<string, unknown> = { updatedAt: new Date() };
+  const set: Record<string, unknown> = {
+    updatedAt: new Date(),
+    lastActivityAt: new Date(),
+  };
 
   if (input.title !== undefined) set.title = input.title.trim();
   if (input.description !== undefined)
@@ -368,6 +373,7 @@ export async function getUserCounters(
       ownerId: countersTable.ownerId,
       createdAt: countersTable.createdAt,
       updatedAt: countersTable.updatedAt,
+      lastActivityAt: countersTable.lastActivityAt,
     })
     .from(counterMembers)
     .innerJoin(countersTable, eq(counterMembers.counterId, countersTable.id))

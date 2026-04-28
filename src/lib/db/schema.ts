@@ -153,6 +153,9 @@ export const counters = pgTable("counters", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
+  lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 export const counterHistory = pgTable(

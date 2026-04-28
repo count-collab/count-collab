@@ -26,10 +26,18 @@ COPY . .
 # Build application
 RUN bun run build
 
+# Setup cron job for inactive counter cleanup (daily at 3 AM UTC)
+RUN echo '0 3 * * * . /app/.env.cron && cd /app && bun run scripts/cleanup-inactive-counters.ts >> /var/log/cron.log 2>&1' > /etc/crontabs/app \
+    && chmod 0644 /etc/crontabs/app
+
+# Copy and prepare entrypoint
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+
 # Expose port
 EXPOSE 3000
 
 # Start application
 ENV NODE_ENV=production
 ENV LOG_LEVEL=info
-CMD ["node", "server.js"]
+CMD ["./entrypoint.sh"]

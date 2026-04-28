@@ -251,8 +251,7 @@ export async function getUserDetail(
         counterMode: counters.counterMode,
         createdAt: counters.createdAt,
         updatedAt: counters.updatedAt,
-        actionCount:
-          sql<number>`(SELECT count(*) FROM counter_history WHERE counter_id = "counters"."id")`,
+        actionCount: sql<number>`(SELECT count(*) FROM counter_history WHERE counter_id = "counters"."id")`,
       })
       .from(counters)
       .where(eq(counters.ownerId, userId))

@@ -49,6 +49,7 @@ function makePageData(overrides: Record<string, unknown> = {}) {
       ownerId: "owner-1",
       createdAt: "2025-06-15T10:30:00.000Z",
       updatedAt: "2026-03-20T14:00:00.000Z",
+      lastActivityAt: "2026-03-20T14:00:00.000Z",
       shareToken: null,
     },
     history: [],
@@ -57,10 +58,14 @@ function makePageData(overrides: Record<string, unknown> = {}) {
     canManage: false,
     canIncrement: true,
     isOwner: false,
+    isMember: false,
+    isFollowing: false,
+    followerCount: 0,
     ownerUsername: null,
     members: [],
     shareToken: null,
     hasValidToken: false,
+    autoDeleteInfo: null,
     title: "Test Counter | Count Collab",
     description: "A test counter",
     ...overrides,
@@ -267,5 +272,82 @@ describe("Counter detail page", () => {
     });
     expect(container.textContent).not.toContain("by");
     expect(container.textContent).not.toContain("@");
+  });
+
+  it("does not show inactivity warning for owned counters", () => {
+    const { container } = render(Page, {
+      props: { data: makePageData({ autoDeleteInfo: null }) as never },
+    });
+    expect(container.textContent).not.toContain("Inactive");
+    expect(container.textContent).not.toContain("auto-deletes");
+  });
+
+  it("does not show inactivity warning when counter is active", () => {
+    const { container } = render(Page, {
+      props: {
+        data: makePageData({
+          autoDeleteInfo: {
+            inactiveDays: 3,
+            daysUntilDeletion: 27,
+            deletionDate: "2026-06-01T00:00:00.000Z",
+            showWarning: false,
+          },
+        }) as never,
+      },
+    });
+    expect(container.textContent).not.toContain("Inactive");
+    expect(container.textContent).not.toContain("auto-deletes");
+  });
+
+  it("shows inactivity warning after 7 days", () => {
+    const { container } = render(Page, {
+      props: {
+        data: makePageData({
+          autoDeleteInfo: {
+            inactiveDays: 12,
+            daysUntilDeletion: 18,
+            deletionDate: "2026-06-01T00:00:00.000Z",
+            showWarning: true,
+          },
+        }) as never,
+      },
+    });
+    const text = container.textContent ?? "";
+    expect(text).toContain("Inactive");
+    expect(text).toContain("auto-deletes in 18 days");
+  });
+
+  it("shows tomorrow warning when 1 day left", () => {
+    const { container } = render(Page, {
+      props: {
+        data: makePageData({
+          autoDeleteInfo: {
+            inactiveDays: 29,
+            daysUntilDeletion: 1,
+            deletionDate: "2026-06-01T00:00:00.000Z",
+            showWarning: true,
+          },
+        }) as never,
+      },
+    });
+    const text = container.textContent ?? "";
+    expect(text).toContain("auto-deletes tomorrow");
+  });
+
+  it("shows scheduled for deletion when 0 days left", () => {
+    const { container } = render(Page, {
+      props: {
+        data: makePageData({
+          autoDeleteInfo: {
+            inactiveDays: 30,
+            daysUntilDeletion: 0,
+            deletionDate: "2026-06-01T00:00:00.000Z",
+            showWarning: true,
+          },
+        }) as never,
+      },
+    });
+    const text = container.textContent ?? "";
+    expect(text).toContain("scheduled for deletion");
   });
 });

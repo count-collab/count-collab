@@ -615,6 +615,21 @@
         {new Date(data.counter.createdAt).toLocaleDateString()}
         · Updated {new Date(displayUpdatedAt).toLocaleString()}
       </span>
+      {#if data.autoDeleteInfo?.showWarning}
+        <span
+          class="text-xs text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 cursor-help"
+          title="Public counters without an owner are automatically deleted after 30 days of inactivity. Increment or update this counter to reset the timer."
+        >
+          <ion-icon name="warning-outline" style="font-size: 14px;"></ion-icon>
+          {#if data.autoDeleteInfo.daysUntilDeletion === 0}
+            Inactive counter — scheduled for deletion
+          {:else if data.autoDeleteInfo.daysUntilDeletion === 1}
+            Inactive counter — auto-deletes tomorrow
+          {:else}
+            Inactive counter — auto-deletes in {data.autoDeleteInfo.daysUntilDeletion} days ({new Date(data.autoDeleteInfo.deletionDate).toLocaleDateString()})
+          {/if}
+        </span>
+      {/if}
     </div>
   </header>
 

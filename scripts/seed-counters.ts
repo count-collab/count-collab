@@ -365,6 +365,23 @@ const SEED_COUNTERS: Omit<NewCounter, "isPublic">[] = [
     count: 5,
     counterMode: "both",
   },
+
+  // Anonymous inactive counters (for testing auto-deletion warnings)
+  {
+    title: "Abandoned Tally",
+    description: "Someone started counting and forgot about it.",
+    count: 3,
+  },
+  {
+    title: "Old Event RSVP",
+    description: "RSVPs for an event that already happened months ago.",
+    count: 47,
+  },
+  {
+    title: "Forgotten Poll",
+    description: "A quick poll that nobody has voted on in a while.",
+    count: 12,
+  },
 ];
 
 async function seedCounters() {
@@ -428,15 +445,35 @@ async function seedCounters() {
       return new Date(now - ageMs);
     });
 
-    const countersToCreate: NewCounter[] = SEED_COUNTERS.map((c, i) => ({
-      ...c,
-      count: 0,
-      isPublic: 1,
-      counterMode: c.counterMode ?? "increment_only",
-      ownerId: randomUserId(),
-      createdAt: counterCreationDates[i],
-      updatedAt: counterCreationDates[i],
-    }));
+    // The last 3 counters are anonymous inactive ones for testing auto-deletion
+    const ANONYMOUS_INACTIVE_COUNT = 3;
+    const anonymousStartIdx = SEED_COUNTERS.length - ANONYMOUS_INACTIVE_COUNT;
+
+    // Inactive counter ages: 10 days (warning visible), 25 days (near deletion), 35 days (past deletion threshold)
+    const inactiveDaysAgo = [10, 25, 35];
+
+    const countersToCreate: NewCounter[] = SEED_COUNTERS.map((c, i) => {
+      const isAnonymousInactive = i >= anonymousStartIdx;
+      const inactiveDays = isAnonymousInactive
+        ? inactiveDaysAgo[i - anonymousStartIdx]
+        : 0;
+      const lastActivity = isAnonymousInactive
+        ? new Date(now - inactiveDays * ONE_DAY_MS)
+        : counterCreationDates[i];
+
+      return {
+        ...c,
+        count: 0,
+        isPublic: 1,
+        counterMode: c.counterMode ?? "increment_only",
+        ownerId: isAnonymousInactive ? null : randomUserId(),
+        createdAt: isAnonymousInactive
+          ? new Date(now - 90 * ONE_DAY_MS)
+          : counterCreationDates[i],
+        updatedAt: lastActivity,
+        lastActivityAt: lastActivity,
+      };
+    });
 
     const insertedCounters = await db
       .insert(counters)

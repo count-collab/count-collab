@@ -20,6 +20,9 @@ import { getCounterMembers } from "$lib/server/members";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { PageServerLoad } from "./$types";
 
+const AUTO_DELETE_DAYS = 30;
+const WARNING_AFTER_DAYS = 7;
+
 export const load: PageServerLoad = async ({
   params,
   depends,
@@ -124,6 +127,33 @@ export const load: PageServerLoad = async ({
     ownerUsername = ownerResult[0]?.username ?? null;
   }
 
+  const isSubjectToAutoDelete =
+    counter.ownerId === null && counter.visibilityMode !== "private";
+
+  let autoDeleteInfo: {
+    inactiveDays: number;
+    daysUntilDeletion: number;
+    deletionDate: string;
+    showWarning: boolean;
+  } | null = null;
+
+  if (isSubjectToAutoDelete) {
+    const inactiveDays = Math.floor(
+      (Date.now() - new Date(counter.lastActivityAt).getTime()) /
+        (1000 * 60 * 60 * 24),
+    );
+    const deletionDate = new Date(
+      new Date(counter.lastActivityAt).getTime() +
+        AUTO_DELETE_DAYS * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    autoDeleteInfo = {
+      inactiveDays,
+      daysUntilDeletion: Math.max(0, AUTO_DELETE_DAYS - inactiveDays),
+      deletionDate,
+      showWarning: inactiveDays >= WARNING_AFTER_DAYS,
+    };
+  }
+
   depends(`counter:${params.id}`);
 
   return {
@@ -142,6 +172,7 @@ export const load: PageServerLoad = async ({
     // Only expose the share token to users who can manage the counter
     shareToken: canManage ? (counter.shareToken ?? null) : null,
     hasValidToken,
+    autoDeleteInfo,
     title: `${counter.title} | Count Collab`,
     description:
       counter.description ||

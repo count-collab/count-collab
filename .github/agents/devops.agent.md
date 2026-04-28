@@ -18,7 +18,8 @@ You are a DevOps specialist for the Count Collab project. Your job is to maintai
 
 ## Key Files
 
-- `Dockerfile` — Container build definition
+- `Dockerfile` — Container build definition (includes cron for `scripts/cleanup-inactive-counters.ts`)
+- `entrypoint.sh` — Container entrypoint (starts crond + Node server)
 - `docker-compose.yml` — Multi-service orchestration (app + Postgres)
 - `.github/workflows/` — CI/CD pipeline definitions
 - `.github/actions/` — Reusable action steps
