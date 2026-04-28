@@ -113,12 +113,37 @@ export async function listPublicCounters(
       )
     : inArray(countersTable.visibilityMode, publicCounterVisibilityModes);
 
+  const actionCountSq = db
+    .select({
+      counterId: counterHistoryTable.counterId,
+      actionCount: countFn().as("action_count"),
+    })
+    .from(counterHistoryTable)
+    .groupBy(counterHistoryTable.counterId)
+    .as("action_counts");
+
   const [items, [{ total }]] = await Promise.all([
     db
-      .select()
+      .select({
+        id: countersTable.id,
+        title: countersTable.title,
+        description: countersTable.description,
+        count: countersTable.count,
+        isPublic: countersTable.isPublic,
+        visibilityMode: countersTable.visibilityMode,
+        counterMode: countersTable.counterMode,
+        shareToken: countersTable.shareToken,
+        ownerId: countersTable.ownerId,
+        createdAt: countersTable.createdAt,
+        updatedAt: countersTable.updatedAt,
+      })
       .from(countersTable)
+      .leftJoin(actionCountSq, eq(countersTable.id, actionCountSq.counterId))
       .where(whereClause)
-      .orderBy(desc(countersTable.count), desc(countersTable.updatedAt))
+      .orderBy(
+        desc(sql`COALESCE(${actionCountSq.actionCount}, 0)`),
+        desc(countersTable.updatedAt),
+      )
       .limit(limit)
       .offset(offset),
     db.select({ total: countFn() }).from(countersTable).where(whereClause),
