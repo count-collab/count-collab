@@ -72,8 +72,10 @@
     {#each data.users as user (user.id)}
       <tr>
         <td class="px-4 py-3">
-          <span class="font-medium text-slate-900 dark:text-slate-100"
-            >{user.username ?? "—"}</span
+          <a
+            href="/admin/users/{user.id}"
+            class="font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            >{user.username ?? "—"}</a
           >
           {#if user.name}
             <span class="text-slate-500 dark:text-slate-400 ml-1">({user.name})</span>

@@ -407,7 +407,7 @@ export async function listAllCounters(
     : undefined;
 
   const actionCount =
-    sql<number>`(SELECT count(*) FROM counter_history WHERE counter_id = ${countersTable.id})`.as(
+    sql<number>`(SELECT count(*) FROM counter_history WHERE counter_id = "counters"."id")`.as(
       "action_count",
     );
 
@@ -419,7 +419,7 @@ export async function listAllCounters(
     createdAt: countersTable.createdAt,
     updatedAt: countersTable.updatedAt,
     actions:
-      sql`(SELECT count(*) FROM counter_history WHERE counter_id = ${countersTable.id})` as unknown as AnyColumn,
+      sql`(SELECT count(*) FROM counter_history WHERE counter_id = "counters"."id")` as unknown as AnyColumn,
   };
   const sortColumn = sortBy && columnMap[sortBy];
   const orderByClause = sortColumn

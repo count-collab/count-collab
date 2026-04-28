@@ -9,7 +9,14 @@ import {
   sql,
 } from "drizzle-orm";
 import { db } from "$lib/db";
-import { accounts, counters, dashboards, roles, users } from "$lib/db/schema";
+import {
+  accounts,
+  counterHistory,
+  counters,
+  dashboards,
+  roles,
+  users,
+} from "$lib/db/schema";
 
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
@@ -181,4 +188,95 @@ export async function getConnectedProviders(userId: string): Promise<string[]> {
     .from(accounts)
     .where(eq(accounts.userId, userId));
   return rows.map((r) => r.provider);
+}
+
+export type UserDetail = {
+  user: UserWithRole;
+  actionCount: number;
+  ownedCounters: {
+    id: string;
+    title: string;
+    count: number;
+    visibilityMode: string;
+    isPublic: number;
+    counterMode: string;
+    createdAt: Date;
+    updatedAt: Date;
+    actionCount: number;
+  }[];
+  ownedDashboards: {
+    id: string;
+    title: string;
+    visibilityMode: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
+};
+
+/**
+ * Get detailed user info for the admin user detail page.
+ */
+export async function getUserDetail(
+  userId: string,
+): Promise<UserDetail | null> {
+  const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      image: users.image,
+      username: users.username,
+      roleName: roles.name,
+      roleId: users.roleId,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .leftJoin(roles, eq(users.roleId, roles.id))
+    .where(eq(users.id, userId));
+
+  if (!user) return null;
+
+  const [totalActions, counterRows, dashboardRows] = await Promise.all([
+    db
+      .select({ count: countFn() })
+      .from(counterHistory)
+      .where(eq(counterHistory.changedBy, userId)),
+    db
+      .select({
+        id: counters.id,
+        title: counters.title,
+        count: counters.count,
+        visibilityMode: counters.visibilityMode,
+        isPublic: counters.isPublic,
+        counterMode: counters.counterMode,
+        createdAt: counters.createdAt,
+        updatedAt: counters.updatedAt,
+        actionCount:
+          sql<number>`(SELECT count(*) FROM counter_history WHERE counter_id = "counters"."id")`,
+      })
+      .from(counters)
+      .where(eq(counters.ownerId, userId))
+      .orderBy(desc(counters.updatedAt)),
+    db
+      .select({
+        id: dashboards.id,
+        title: dashboards.title,
+        visibilityMode: dashboards.visibilityMode,
+        createdAt: dashboards.createdAt,
+        updatedAt: dashboards.updatedAt,
+      })
+      .from(dashboards)
+      .where(eq(dashboards.ownerId, userId))
+      .orderBy(desc(dashboards.updatedAt)),
+  ]);
+
+  return {
+    user,
+    actionCount: Number(totalActions[0]?.count ?? 0),
+    ownedCounters: counterRows.map((row) => ({
+      ...row,
+      actionCount: Number(row.actionCount),
+    })),
+    ownedDashboards: dashboardRows,
+  };
 }
