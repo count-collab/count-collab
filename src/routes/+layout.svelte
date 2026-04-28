@@ -4,6 +4,7 @@
   import {
     addCircleOutline,
     addOutline,
+    arrowBackOutline,
     bookmark,
     bookmarkOutline,
     cafeOutline,
@@ -14,6 +15,7 @@
     desktopOutline,
     ellipsisVertical,
     eyeOutline,
+    flashOutline,
     globeOutline,
     gridOutline,
     heart,
@@ -47,6 +49,7 @@
   if (browser) {
     addIcons({
       "add-outline": addOutline,
+      "arrow-back-outline": arrowBackOutline,
       "close-outline": closeOutline,
       "menu-outline": menuOutline,
       "home-outline": homeOutline,
@@ -64,6 +67,7 @@
       "share-social-outline": shareSocialOutline,
       "create-outline": createOutline,
       "eye-outline": eyeOutline,
+      "flash-outline": flashOutline,
       "globe-outline": globeOutline,
       "lock-closed-outline": lockClosedOutline,
       "trash-outline": trashOutline,
