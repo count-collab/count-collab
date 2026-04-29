@@ -812,6 +812,7 @@
   <!-- Counter Grid -->
   {#if data.items.length > 0}
     <section
+      role="list"
       class="grid gap-4 rounded-xl transition-all dashboard-grid {editMode
         ? 'ring-2 ring-blue-200 dark:ring-blue-800 bg-blue-50/30 dark:bg-blue-950/10 p-4 -m-4'
         : ''}"

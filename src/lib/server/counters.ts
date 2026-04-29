@@ -288,7 +288,7 @@ export async function getCounterHistory(
 
 type UpdateCounterInput = {
   title?: string;
-  description?: string;
+  description?: string | null;
   isPublic?: boolean;
   visibilityMode?: CounterVisibilityMode;
   counterMode?: CounterMode;
