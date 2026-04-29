@@ -5,6 +5,7 @@ export type CounterUpdatePayload = {
   counterId: string;
   count: number;
   updatedAt: string;
+  cooldownSeconds?: number;
 };
 
 export type CounterCreatedPayload = {

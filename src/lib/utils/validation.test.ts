@@ -5,9 +5,12 @@ import {
   counterModeEnum,
   createCounterSchema,
   createDashboardSchema,
+  createGoalSchema,
   dashboardMemberRoleEnum,
   incrementCounterSchema,
   updateCounterSchema,
+  updateGlobalSettingsSchema,
+  updateGoalSchema,
 } from "./validation";
 
 describe("counter visibility validation", () => {
@@ -193,5 +196,153 @@ describe("dashboard validation", () => {
         }),
       ).toThrow();
     });
+  });
+});
+
+describe("updateCounterSchema counter settings extensions", () => {
+  it("accepts cooldownEnabled as boolean", () => {
+    const result = updateCounterSchema.parse({ cooldownEnabled: true });
+    expect(result.cooldownEnabled).toBe(true);
+  });
+
+  it("accepts cooldownSeconds as integer 1-60", () => {
+    const result = updateCounterSchema.parse({ cooldownSeconds: 30 });
+    expect(result.cooldownSeconds).toBe(30);
+  });
+
+  it("rejects cooldownSeconds less than 1", () => {
+    expect(() => updateCounterSchema.parse({ cooldownSeconds: 0 })).toThrow();
+  });
+
+  it("rejects cooldownSeconds greater than 60", () => {
+    expect(() => updateCounterSchema.parse({ cooldownSeconds: 61 })).toThrow();
+  });
+
+  it("rejects non-integer cooldownSeconds", () => {
+    expect(() => updateCounterSchema.parse({ cooldownSeconds: 5.5 })).toThrow();
+  });
+
+  it("accepts goalsEnabled as boolean", () => {
+    const result = updateCounterSchema.parse({ goalsEnabled: true });
+    expect(result.goalsEnabled).toBe(true);
+  });
+
+  it("accepts scoreboardEnabled as boolean", () => {
+    const result = updateCounterSchema.parse({ scoreboardEnabled: false });
+    expect(result.scoreboardEnabled).toBe(false);
+  });
+
+  it("all new fields are optional", () => {
+    const result = updateCounterSchema.parse({ title: "Only title" });
+    expect(result.cooldownEnabled).toBeUndefined();
+    expect(result.cooldownSeconds).toBeUndefined();
+    expect(result.goalsEnabled).toBeUndefined();
+    expect(result.scoreboardEnabled).toBeUndefined();
+  });
+});
+
+describe("createGoalSchema", () => {
+  it("accepts valid goal", () => {
+    const result = createGoalSchema.parse({
+      amount: 100,
+      description: "Pizza party",
+    });
+    expect(result.amount).toBe(100);
+    expect(result.description).toBe("Pizza party");
+  });
+
+  it("rejects missing amount", () => {
+    expect(() =>
+      createGoalSchema.parse({ description: "Pizza party" }),
+    ).toThrow();
+  });
+
+  it("rejects missing description", () => {
+    expect(() => createGoalSchema.parse({ amount: 100 })).toThrow();
+  });
+
+  it("rejects empty description", () => {
+    expect(() =>
+      createGoalSchema.parse({ amount: 100, description: "" }),
+    ).toThrow();
+  });
+
+  it("rejects description longer than 200 chars", () => {
+    expect(() =>
+      createGoalSchema.parse({ amount: 100, description: "x".repeat(201) }),
+    ).toThrow();
+  });
+
+  it("trims description whitespace", () => {
+    const result = createGoalSchema.parse({
+      amount: 50,
+      description: "  trimmed  ",
+    });
+    expect(result.description).toBe("trimmed");
+  });
+
+  it("accepts negative amounts (for decrement counters)", () => {
+    const result = createGoalSchema.parse({
+      amount: -50,
+      description: "Countdown goal",
+    });
+    expect(result.amount).toBe(-50);
+  });
+});
+
+describe("updateGoalSchema", () => {
+  it("accepts partial updates (just amount)", () => {
+    const result = updateGoalSchema.parse({ amount: 200 });
+    expect(result.amount).toBe(200);
+    expect(result.description).toBeUndefined();
+  });
+
+  it("accepts partial updates (just description)", () => {
+    const result = updateGoalSchema.parse({ description: "Updated" });
+    expect(result.description).toBe("Updated");
+    expect(result.amount).toBeUndefined();
+  });
+
+  it("accepts empty object", () => {
+    const result = updateGoalSchema.parse({});
+    expect(result.amount).toBeUndefined();
+    expect(result.description).toBeUndefined();
+  });
+});
+
+describe("updateGlobalSettingsSchema", () => {
+  it("accepts valid partial updates", () => {
+    const result = updateGlobalSettingsSchema.parse({
+      counterCreationLimitAuth: 10,
+      incrementCooldownMsAuth: 3000,
+    });
+    expect(result.counterCreationLimitAuth).toBe(10);
+    expect(result.incrementCooldownMsAuth).toBe(3000);
+  });
+
+  it("rejects negative values", () => {
+    expect(() =>
+      updateGlobalSettingsSchema.parse({ counterCreationLimitAuth: -1 }),
+    ).toThrow();
+  });
+
+  it("rejects non-integer values", () => {
+    expect(() =>
+      updateGlobalSettingsSchema.parse({ incrementCooldownMsAuth: 5.5 }),
+    ).toThrow();
+  });
+
+  it("all fields are optional", () => {
+    const result = updateGlobalSettingsSchema.parse({});
+    expect(result.counterCreationLimitAuth).toBeUndefined();
+    expect(result.counterCreationWindowAuth).toBeUndefined();
+    expect(result.incrementCooldownMsAuth).toBeUndefined();
+    expect(result.incrementCooldownMsUnauth).toBeUndefined();
+  });
+
+  it("rejects zero values", () => {
+    expect(() =>
+      updateGlobalSettingsSchema.parse({ counterCreationLimitAuth: 0 }),
+    ).toThrow();
   });
 });

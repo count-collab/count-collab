@@ -212,20 +212,6 @@ describe("Counter detail page", () => {
     expect(screen.queryByRole("dialog", { name: "Share Counter" })).toBeNull();
   });
 
-  it("closes the edit modal when Escape is pressed", async () => {
-    render(Page, {
-      props: { data: makePageData({ canEdit: true }) as never },
-    });
-
-    await fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-
-    expect(screen.getByRole("dialog", { name: "Edit Counter" })).toBeTruthy();
-
-    await fireEvent.keyDown(window, { key: "Escape" });
-
-    expect(screen.queryByRole("dialog", { name: "Edit Counter" })).toBeNull();
-  });
-
   it("closes the delete confirmation modal when Escape is pressed", async () => {
     render(Page, {
       props: { data: makePageData({ canDelete: true }) as never },

@@ -47,9 +47,14 @@ export const updateCounterSchema = z.object({
     .string()
     .max(1000, "Description must be less than 1000 characters")
     .transform((val) => val?.trim() || "")
+    .nullable()
     .optional(),
   visibility: counterVisibilityEnum.optional(),
   counterMode: counterModeEnum.optional(),
+  cooldownEnabled: z.boolean().optional(),
+  cooldownSeconds: z.number().int().min(1).max(60).optional(),
+  goalsEnabled: z.boolean().optional(),
+  scoreboardEnabled: z.boolean().optional(),
 });
 
 export type UpdateCounterInput = z.infer<typeof updateCounterSchema>;
@@ -204,3 +209,35 @@ export const swapDashboardItemsSchema = z.object({
   itemId2: z.number().int().positive(),
 });
 export type SwapDashboardItemsInput = z.infer<typeof swapDashboardItemsSchema>;
+
+// ── Counter Goals ───────────────────────────────────────────────
+
+export const createGoalSchema = z.object({
+  amount: z.number().int(),
+  description: z.string().min(1).max(200).trim(),
+});
+export type CreateGoalInput = z.infer<typeof createGoalSchema>;
+
+export const updateGoalSchema = z.object({
+  amount: z.number().int().optional(),
+  description: z.string().min(1).max(200).trim().optional(),
+});
+export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
+
+// ── Global Settings ─────────────────────────────────────────────
+
+export const updateGlobalSettingsSchema = z.object({
+  counterCreationLimitAuth: z.number().int().positive().optional(),
+  counterCreationWindowAuth: z.number().int().positive().optional(),
+  counterCreationLimitUnauth: z.number().int().positive().optional(),
+  counterCreationWindowUnauth: z.number().int().positive().optional(),
+  dashboardCreationLimitAuth: z.number().int().positive().optional(),
+  dashboardCreationWindowAuth: z.number().int().positive().optional(),
+  dashboardCreationLimitUnauth: z.number().int().positive().optional(),
+  dashboardCreationWindowUnauth: z.number().int().positive().optional(),
+  incrementCooldownMsAuth: z.number().int().positive().optional(),
+  incrementCooldownMsUnauth: z.number().int().positive().optional(),
+});
+export type UpdateGlobalSettingsInput = z.infer<
+  typeof updateGlobalSettingsSchema
+>;
