@@ -798,7 +798,12 @@
         </span>
       {/if}
       <span class="text-xs text-slate-400 dark:text-slate-500">
-        Created {new Date(data.dashboard.createdAt).toLocaleDateString()}
+        Created {#if data.ownerUsername}by <span
+            class="font-medium text-slate-500 dark:text-slate-400"
+            >@{data.ownerUsername}</span
+          > ·
+        {/if}
+        {new Date(data.dashboard.createdAt).toLocaleDateString()}
         · Updated {new Date(data.dashboard.updatedAt).toLocaleString()}
       </span>
     </div>

@@ -1,4 +1,7 @@
 import { error } from "@sveltejs/kit";
+import { eq } from "drizzle-orm";
+import { db } from "$lib/db";
+import { users } from "$lib/db/schema";
 import {
   canIncrementCounter,
   canViewPrivateCounter,
@@ -117,6 +120,15 @@ export const load: PageServerLoad = async ({
     : false;
   const followerCount = await getDashboardFollowerCount(dashboard.id);
 
+  let ownerUsername: string | null = null;
+  if (dashboard.ownerId) {
+    const ownerResult = await db
+      .select({ username: users.username })
+      .from(users)
+      .where(eq(users.id, dashboard.ownerId));
+    ownerUsername = ownerResult[0]?.username ?? null;
+  }
+
   depends(`dashboard:${params.id}`);
 
   return {
@@ -131,6 +143,7 @@ export const load: PageServerLoad = async ({
     memberRole,
     isFollowing,
     followerCount,
+    ownerUsername,
     hasValidToken,
     title: `${dashboard.title} | Dashboard | Count Collab`,
     description:
