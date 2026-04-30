@@ -1,6 +1,7 @@
 // Database schema and types
 
 import {
+  boolean,
   index,
   integer,
   pgTable,
@@ -144,6 +145,10 @@ export const counters = pgTable("counters", {
     .default("increment_only")
     .notNull(),
   shareToken: text("share_token").unique(),
+  cooldownEnabled: boolean("cooldown_enabled").default(false).notNull(),
+  cooldownSeconds: integer("cooldown_seconds").default(5).notNull(),
+  goalsEnabled: boolean("goals_enabled").default(false).notNull(),
+  scoreboardEnabled: boolean("scoreboard_enabled").default(false).notNull(),
   ownerId: text("owner_id").references(() => users.id, {
     onDelete: "set null",
   }),
@@ -178,6 +183,30 @@ export const counterHistory = pgTable(
     counterChangedAtIdx: index("counter_history_counter_id_changed_at_idx").on(
       t.counterId,
       t.changedAt,
+    ),
+  }),
+);
+
+// ── Counter Goals ───────────────────────────────────────────────
+
+export const counterGoals = pgTable(
+  "counter_goals",
+  {
+    id: serial("id").primaryKey(),
+    counterId: uuid("counter_id")
+      .notNull()
+      .references(() => counters.id, { onDelete: "cascade" }),
+    amount: integer("amount").notNull(),
+    description: text("description").notNull(),
+    reachedAt: timestamp("reached_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (cg) => ({
+    uniqueGoalAmount: uniqueIndex("counter_goals_counter_amount_idx").on(
+      cg.counterId,
+      cg.amount,
     ),
   }),
 );
@@ -329,6 +358,45 @@ export const dashboardFollowers = pgTable(
   }),
 );
 
+// ── Global Settings ─────────────────────────────────────────────
+
+export const globalSettings = pgTable("global_settings", {
+  id: integer("id").primaryKey().default(1),
+  counterCreationLimitAuth: integer("counter_creation_limit_auth")
+    .default(5)
+    .notNull(),
+  counterCreationWindowAuth: integer("counter_creation_window_auth")
+    .default(60)
+    .notNull(),
+  counterCreationLimitUnauth: integer("counter_creation_limit_unauth")
+    .default(2)
+    .notNull(),
+  counterCreationWindowUnauth: integer("counter_creation_window_unauth")
+    .default(60)
+    .notNull(),
+  dashboardCreationLimitAuth: integer("dashboard_creation_limit_auth")
+    .default(5)
+    .notNull(),
+  dashboardCreationWindowAuth: integer("dashboard_creation_window_auth")
+    .default(60)
+    .notNull(),
+  dashboardCreationLimitUnauth: integer("dashboard_creation_limit_unauth")
+    .default(2)
+    .notNull(),
+  dashboardCreationWindowUnauth: integer("dashboard_creation_window_unauth")
+    .default(60)
+    .notNull(),
+  incrementCooldownMsAuth: integer("increment_cooldown_ms_auth")
+    .default(5000)
+    .notNull(),
+  incrementCooldownMsUnauth: integer("increment_cooldown_ms_unauth")
+    .default(30000)
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 // ── Type exports ────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -357,6 +425,12 @@ export type NewCounterFollower = typeof counterFollowers.$inferInsert;
 
 export type DashboardFollower = typeof dashboardFollowers.$inferSelect;
 export type NewDashboardFollower = typeof dashboardFollowers.$inferInsert;
+
+export type CounterGoal = typeof counterGoals.$inferSelect;
+export type NewCounterGoal = typeof counterGoals.$inferInsert;
+
+export type GlobalSettings = typeof globalSettings.$inferSelect;
+export type NewGlobalSettings = typeof globalSettings.$inferInsert;
 
 export type SparklinePoint = {
   value: number;

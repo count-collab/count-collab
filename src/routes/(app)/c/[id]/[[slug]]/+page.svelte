@@ -3,17 +3,19 @@
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
+  import CounterSettingsOverlay from "$lib/components/CounterSettingsOverlay.svelte";
   import Fireworks from "$lib/components/Fireworks.svelte";
   import FloatingUsername from "$lib/components/FloatingUsername.svelte";
+  import GoalsSidebar from "$lib/components/GoalsSidebar.svelte";
   import HistoryEntry from "$lib/components/HistoryEntry.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
+  import Scoreboard from "$lib/components/Scoreboard.svelte";
   import Sparkline from "$lib/components/Sparkline.svelte";
   import { counterUrl } from "$lib/counter";
   import type {
     CounterMemberRole,
-    CounterMode,
     CounterVisibilityMode,
   } from "$lib/db/schema";
   import { onCounterUpdated } from "$lib/stores/counters";
@@ -89,14 +91,8 @@
       : data.history.slice(0, COLLAPSED_HISTORY_COUNT),
   );
 
-  // Edit modal state
-  let showEditModal = $state(false);
-  let editTitle = $state("");
-  let editDescription = $state("");
-  let editVisibility = $state<CounterVisibilityMode>("public");
-  let editCounterMode = $state<CounterMode>("increment_only");
-  let editError = $state<string | null>(null);
-  let isSaving = $state(false);
+  // Edit overlay state
+  let showSettingsOverlay = $state(false);
 
   // Delete confirmation state
   let showDeleteConfirm = $state(false);
@@ -236,38 +232,6 @@
     }
   }
 
-  async function handleSaveEdit() {
-    if (isSaving) return;
-    isSaving = true;
-    editError = null;
-
-    try {
-      const response = await fetch(`/api/counters/${data.counter.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: editTitle,
-          description: editDescription,
-          visibility: editVisibility,
-          counterMode: editCounterMode,
-        }),
-      });
-
-      if (!response.ok) {
-        const body = await response.json();
-        editError = body.error ?? "Failed to update counter.";
-        return;
-      }
-
-      showEditModal = false;
-      invalidate(`counter:${data.counter.id}`);
-    } catch {
-      editError = "Network error. Please try again.";
-    } finally {
-      isSaving = false;
-    }
-  }
-
   async function handleDelete() {
     if (isDeleting) return;
     isDeleting = true;
@@ -393,6 +357,16 @@
         optimisticCount = null;
         optimisticUpdatedAt = null;
       });
+
+      // Apply counter-wide cooldown for non-exempt users
+      if (
+        payload.cooldownSeconds &&
+        payload.cooldownSeconds > 0 &&
+        !data.canEdit
+      ) {
+        cooldownDuration = payload.cooldownSeconds;
+        rateLimit.setLimit(`/c/${data.counter.id}`, payload.cooldownSeconds);
+      }
     });
 
     return unsubscribe;
@@ -465,13 +439,7 @@
         {#if data.canEdit}
           <button
             type="button"
-            onclick={() => {
-              editTitle = data.counter.title;
-              editDescription = data.counter.description ?? "";
-              editVisibility = visibilityMode;
-              editCounterMode = data.counter.counterMode ?? "increment_only";
-              showEditModal = true;
-            }}
+            onclick={() => (showSettingsOverlay = true)}
             class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
           >
             <ion-icon name="create-outline" style="font-size: 16px;"></ion-icon>
@@ -563,12 +531,7 @@
                   type="button"
                   onclick={() => {
                     showActionsMenu = false;
-                    editTitle = data.counter.title;
-                    editDescription = data.counter.description ?? "";
-                    editVisibility = visibilityMode;
-                    editCounterMode =
-                      data.counter.counterMode ?? "increment_only";
-                    showEditModal = true;
+                    showSettingsOverlay = true;
                   }}
                   class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
                 >
@@ -642,96 +605,124 @@
           {:else if data.autoDeleteInfo.daysUntilDeletion === 1}
             Inactive counter — auto-deletes tomorrow
           {:else}
-            Inactive counter — auto-deletes in {data.autoDeleteInfo.daysUntilDeletion} days ({new Date(data.autoDeleteInfo.deletionDate).toLocaleDateString()})
+            Inactive counter — auto-deletes in {data.autoDeleteInfo
+              .daysUntilDeletion} days ({new Date(
+              data.autoDeleteInfo.deletionDate,
+            ).toLocaleDateString()})
           {/if}
         </span>
       {/if}
     </div>
   </header>
 
-  <!-- Counter — centered focal point -->
-  <section
-    class="relative flex-1 flex flex-col items-center justify-center py-6 select-none"
-  >
-    <div
-      class="absolute bottom-0 h-2/3 left-1/2 w-screen -translate-x-1/2 pointer-events-none"
-    >
-      <Sparkline counterId={data.counter.id} />
-    </div>
-
-    <Fireworks trigger={fireworkTrigger} />
-    <div class="relative">
-      <FloatingUsername usernames={floatingUsernames} oncomplete={removeFloatingUsername} />
-      <p
-        class="text-8xl sm:text-9xl font-extrabold tabular-nums transition-colors duration-300 {displayCount <
-        0
-          ? 'text-red-500 dark:text-red-400'
-          : 'text-blue-600 dark:text-blue-400'}"
+  <div class="relative flex-1 flex flex-col">
+    <!-- Main counter area -->
+    <div class="flex-1 flex flex-col">
+      <!-- Counter — centered focal point -->
+      <section
+        class="relative flex-1 flex flex-col items-center justify-center py-6 select-none"
       >
-        <RollingNumber value={displayCount} />
-      </p>
-    </div>
-
-    <div class="mt-8 relative flex items-center gap-4">
-      {#if data.counter.counterMode === "decrement_only" || data.counter.counterMode === "both"}
-        <button
-          type="button"
-          onclick={() => handleCounterAction(-1)}
-          disabled={!data.canIncrement ||
-            isIncrementing ||
-            $rateLimit.isLimited}
-          aria-disabled={!data.canIncrement ||
-            isIncrementing ||
-            $rateLimit.isLimited}
-          aria-label="Decrement counter"
-          class="inline-flex items-center justify-center active:scale-95 transition text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ion-icon name="remove-circle-outline" style="font-size: 64px;"
-          ></ion-icon>
-        </button>
-      {/if}
-      {#if data.counter.counterMode === "increment_only" || data.counter.counterMode === "both"}
-        <button
-          type="button"
-          onclick={() => handleCounterAction(1)}
-          disabled={!data.canIncrement ||
-            isIncrementing ||
-            $rateLimit.isLimited}
-          aria-disabled={!data.canIncrement ||
-            isIncrementing ||
-            $rateLimit.isLimited}
-          aria-label="Increment counter"
-          class="inline-flex items-center justify-center active:scale-95 transition text-slate-400 hover:text-blue-500 dark:text-slate-500 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ion-icon name="add-circle-outline" style="font-size: 64px;"
-          ></ion-icon>
-        </button>
-      {/if}
-      {#if $rateLimit.isLimited}
         <div
-          class="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-[2px] rounded-full shadow-[0_0_12px_4px_rgba(255,255,255,0.6)] dark:shadow-[0_0_12px_4px_rgba(15,23,42,0.6)]"
-          style="animation: cooldown-fade {cooldownDuration}s ease-in forwards;"
-        ></div>
-        <span
-          out:fade={{ duration: 300 }}
-          class="absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums text-slate-500 dark:text-slate-400 pointer-events-none"
-          >{$rateLimit.retryAfterSeconds}s</span
+          class="absolute bottom-0 h-2/3 left-1/2 w-screen -translate-x-1/2 pointer-events-none"
         >
-      {/if}
+          <Sparkline counterId={data.counter.id} />
+        </div>
+
+        <Fireworks trigger={fireworkTrigger} />
+        <div class="relative">
+        <FloatingUsername usernames={floatingUsernames} oncomplete={removeFloatingUsername} />
+        <p
+          class="text-8xl sm:text-9xl font-extrabold tabular-nums transition-colors duration-300 {displayCount <
+          0
+            ? 'text-red-500 dark:text-red-400'
+            : 'text-blue-600 dark:text-blue-400'}"
+        >
+          <RollingNumber value={displayCount} />
+        </p>
+        </div>
+
+        <div class="mt-8 relative flex items-center gap-4">
+          {#if data.counter.counterMode === "decrement_only" || data.counter.counterMode === "both"}
+            <button
+              type="button"
+              onclick={() => handleCounterAction(-1)}
+              disabled={!data.canIncrement ||
+                isIncrementing ||
+                $rateLimit.isLimited}
+              aria-disabled={!data.canIncrement ||
+                isIncrementing ||
+                $rateLimit.isLimited}
+              aria-label="Decrement counter"
+              class="inline-flex items-center justify-center active:scale-95 transition text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ion-icon name="remove-circle-outline" style="font-size: 64px;"
+              ></ion-icon>
+            </button>
+          {/if}
+          {#if data.counter.counterMode === "increment_only" || data.counter.counterMode === "both"}
+            <button
+              type="button"
+              onclick={() => handleCounterAction(1)}
+              disabled={!data.canIncrement ||
+                isIncrementing ||
+                $rateLimit.isLimited}
+              aria-disabled={!data.canIncrement ||
+                isIncrementing ||
+                $rateLimit.isLimited}
+              aria-label="Increment counter"
+              class="inline-flex items-center justify-center active:scale-95 transition text-slate-400 hover:text-blue-500 dark:text-slate-500 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ion-icon name="add-circle-outline" style="font-size: 64px;"
+              ></ion-icon>
+            </button>
+          {/if}
+          {#if $rateLimit.isLimited}
+            <div
+              class="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-[2px] rounded-full shadow-[0_0_12px_4px_rgba(255,255,255,0.6)] dark:shadow-[0_0_12px_4px_rgba(15,23,42,0.6)]"
+              style="animation: cooldown-fade {cooldownDuration}s ease-in forwards;"
+            ></div>
+            <span
+              out:fade={{ duration: 300 }}
+              class="absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums text-slate-500 dark:text-slate-400 pointer-events-none"
+              >{$rateLimit.retryAfterSeconds}s</span
+            >
+          {/if}
+        </div>
+
+        {#if incrementUnavailableMessage}
+          <p
+            class="mt-3 text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs"
+          >
+            {incrementUnavailableMessage}
+          </p>
+        {/if}
+
+        {#if errorMessage}
+          <p class="mt-2 text-sm text-red-600 dark:text-red-400">
+            {errorMessage}
+          </p>
+        {/if}
+      </section>
     </div>
 
-    {#if incrementUnavailableMessage}
-      <p
-        class="mt-3 text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs"
+    <!-- Desktop sidebar -->
+    {#if (data.counter.goalsEnabled && data.goals.length > 0) || (data.counter.scoreboardEnabled && data.scoreboard.length > 0)}
+      <aside
+        class="hidden xl:flex xl:flex-col xl:w-72 gap-4 py-6 absolute right-0 top-0"
       >
-        {incrementUnavailableMessage}
-      </p>
+        {#if data.counter.goalsEnabled && data.goals.length > 0}
+          <GoalsSidebar
+            goals={data.goals}
+            currentCount={displayCount}
+            counterMode={data.counter.counterMode ?? "increment_only"}
+          />
+        {/if}
+        {#if data.counter.scoreboardEnabled && data.scoreboard.length > 0}
+          <Scoreboard scoreboard={data.scoreboard} />
+        {/if}
+      </aside>
     {/if}
-
-    {#if errorMessage}
-      <p class="mt-2 text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
-    {/if}
-  </section>
+  </div>
 
   <!-- History — subtle footer -->
   {#if data.history.length > 0}
@@ -766,6 +757,22 @@
     </footer>
   {/if}
 </div>
+
+<!-- Mobile/tablet: goals & scoreboard below activity -->
+{#if (data.counter.goalsEnabled && data.goals.length > 0) || (data.counter.scoreboardEnabled && data.scoreboard.length > 0)}
+  <div class="xl:hidden mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {#if data.counter.goalsEnabled && data.goals.length > 0}
+      <GoalsSidebar
+        goals={data.goals}
+        currentCount={displayCount}
+        counterMode={data.counter.counterMode ?? "increment_only"}
+      />
+    {/if}
+    {#if data.counter.scoreboardEnabled && data.scoreboard.length > 0}
+      <Scoreboard scoreboard={data.scoreboard} />
+    {/if}
+  </div>
+{/if}
 
 <!-- Share Modal -->
 <Modal bind:open={showShareModal} title="Share Counter">
@@ -951,132 +958,6 @@
   </div>
 </Modal>
 
-<!-- Edit Modal -->
-<Modal bind:open={showEditModal} title="Edit Counter" maxWidth="max-w-md">
-  <div class="space-y-4">
-    <div class="space-y-2">
-      <label
-        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-        for="edit-title">Title</label
-      >
-      <input
-        id="edit-title"
-        type="text"
-        bind:value={editTitle}
-        class="w-full rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 py-2 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400 dark:placeholder:text-slate-500"
-      />
-    </div>
-
-    <div class="space-y-2">
-      <label
-        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-        for="edit-description">Description</label
-      >
-      <textarea
-        id="edit-description"
-        rows="3"
-        bind:value={editDescription}
-        class="w-full rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 py-2 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400 dark:placeholder:text-slate-500"
-      ></textarea>
-    </div>
-
-    <div class="space-y-2">
-      <span
-        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-        >Visibility</span
-      >
-      <div
-        class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
-      >
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input type="radio" value="public" bind:group={editVisibility} />
-          Public
-        </label>
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input
-            type="radio"
-            value="public_readonly"
-            bind:group={editVisibility}
-          />
-          Public (read-only)
-        </label>
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input type="radio" value="private" bind:group={editVisibility} />
-          Private (shareable link)
-        </label>
-      </div>
-      <p class="text-xs text-slate-500 dark:text-slate-400">
-        {visibilityDescriptions[editVisibility]}
-      </p>
-    </div>
-
-    <div class="space-y-2">
-      <span
-        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-        >Counter Mode</span
-      >
-      <div
-        class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
-      >
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input
-            type="radio"
-            value="increment_only"
-            bind:group={editCounterMode}
-          />
-          Increment only
-        </label>
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input
-            type="radio"
-            value="decrement_only"
-            bind:group={editCounterMode}
-          />
-          Decrement only
-        </label>
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input type="radio" value="both" bind:group={editCounterMode} />
-          Both
-        </label>
-      </div>
-    </div>
-
-    {#if editError}
-      <p class="text-sm text-red-600 dark:text-red-400">{editError}</p>
-    {/if}
-
-    <div class="flex justify-end gap-3">
-      <button
-        type="button"
-        onclick={() => (showEditModal = false)}
-        class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        onclick={handleSaveEdit}
-        disabled={isSaving}
-        class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-      >
-        {isSaving ? "Saving..." : "Save"}
-      </button>
-    </div>
-  </div>
-</Modal>
-
 <!-- Delete Confirmation -->
 <Modal
   bind:open={showDeleteConfirm}
@@ -1106,3 +987,23 @@
     </button>
   </div>
 </Modal>
+
+{#if data.canEdit}
+  <CounterSettingsOverlay
+    bind:open={showSettingsOverlay}
+    counter={{
+      id: data.counter.id,
+      title: data.counter.title,
+      description: data.counter.description,
+      visibilityMode: data.counter.visibilityMode ?? "public",
+      counterMode: data.counter.counterMode ?? "increment_only",
+      cooldownEnabled: data.counter.cooldownEnabled,
+      cooldownSeconds: data.counter.cooldownSeconds,
+      goalsEnabled: data.counter.goalsEnabled,
+      scoreboardEnabled: data.counter.scoreboardEnabled,
+    }}
+    goals={data.goals}
+    canEdit={data.canEdit}
+    onsave={() => invalidate(`counter:${data.counter.id}`)}
+  />
+{/if}

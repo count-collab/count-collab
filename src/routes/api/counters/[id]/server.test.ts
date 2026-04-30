@@ -11,6 +11,8 @@ const {
   mockCanViewPrivateCounter,
   mockGetUserRole,
   mockEmitCounterUpdate,
+  mockCheckCounterCooldown,
+  mockRecordCounterCooldown,
 } = vi.hoisted(() => ({
   mockGetCounter: vi.fn(),
   mockIncrementCounter: vi.fn(),
@@ -22,6 +24,8 @@ const {
   mockCanViewPrivateCounter: vi.fn(),
   mockGetUserRole: vi.fn(),
   mockEmitCounterUpdate: vi.fn(),
+  mockCheckCounterCooldown: vi.fn(),
+  mockRecordCounterCooldown: vi.fn(),
 }));
 
 vi.mock("$lib/server/counters", () => ({
@@ -53,6 +57,8 @@ vi.mock("$lib/server/ratelimit", () => ({
   RATE_LIMIT_CONFIG_UNAUTHENTICATED: {
     "/api/counters/[id]": { windowMs: 30000, maxRequests: 1 },
   },
+  checkCounterCooldown: mockCheckCounterCooldown,
+  recordCounterCooldown: mockRecordCounterCooldown,
 }));
 
 vi.mock("$lib/server/request", () => ({
@@ -108,6 +114,10 @@ function makeEvent(id: string, overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockGetUserRole.mockResolvedValue("user");
+  mockCheckCounterCooldown.mockResolvedValue({
+    blocked: false,
+    cooldownSeconds: 5,
+  });
 });
 
 describe("POST /api/counters/[id] (increment)", () => {
@@ -151,7 +161,9 @@ describe("POST /api/counters/[id] (increment)", () => {
       "2026-01-01T00:00:00Z",
       expect.any(String),
       1,
+      5,
     );
+    expect(mockRecordCounterCooldown).toHaveBeenCalledWith(VALID_ID);
   });
 
   it("returns cooldownSeconds=0 for admin users", async () => {
@@ -166,6 +178,10 @@ describe("POST /api/counters/[id] (increment)", () => {
       updatedAt: "2026-01-01T00:00:00Z",
     });
     mockGetUserRole.mockResolvedValue("admin");
+    mockCheckCounterCooldown.mockResolvedValue({
+      blocked: false,
+      cooldownSeconds: 0,
+    });
 
     const response = await POST(
       makeEvent(VALID_ID, { locals: makeLocals("admin-1") }),
@@ -186,6 +202,10 @@ describe("POST /api/counters/[id] (increment)", () => {
       count: 9,
       updatedAt: "2026-01-01T00:00:00Z",
     });
+    mockCheckCounterCooldown.mockResolvedValue({
+      blocked: false,
+      cooldownSeconds: 30,
+    });
 
     const response = await POST(makeEvent(VALID_ID));
     const body = await response.json();
@@ -193,6 +213,30 @@ describe("POST /api/counters/[id] (increment)", () => {
     expect(body.count).toBe(9);
     expect(body.cooldownSeconds).toBe(30);
     expect(mockCanIncrementCounter).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 when counter-wide cooldown is active", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      visibilityMode: "public",
+      shareToken: null,
+      cooldownEnabled: true,
+      cooldownSeconds: 10,
+      ownerId: "owner-1",
+    });
+    mockCheckCounterCooldown.mockResolvedValue({
+      blocked: true,
+      retryAfterSeconds: 7,
+    });
+
+    const response = await POST(makeEvent(VALID_ID));
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("7");
+    const body = await response.json();
+    expect(body.error).toBe("Counter is in cooldown");
+    expect(body.retryAfterSeconds).toBe(7);
+    expect(mockIncrementCounter).not.toHaveBeenCalled();
   });
 
   it("denies anonymous increment for public read-only counters", async () => {

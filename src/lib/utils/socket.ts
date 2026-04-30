@@ -10,6 +10,7 @@ export function emitCounterUpdate(
   updatedAt: Date,
   username?: string | null,
   amount?: number,
+  cooldownSeconds: number = 0,
 ): void {
   getIO()?.emit("counter:updated", {
     counterId,
@@ -17,6 +18,7 @@ export function emitCounterUpdate(
     amount: amount ?? 1,
     updatedAt,
     username: username ?? null,
+    cooldownSeconds,
   });
 }
 

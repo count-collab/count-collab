@@ -133,6 +133,10 @@ export async function listPublicCounters(
         visibilityMode: countersTable.visibilityMode,
         counterMode: countersTable.counterMode,
         shareToken: countersTable.shareToken,
+        cooldownEnabled: countersTable.cooldownEnabled,
+        cooldownSeconds: countersTable.cooldownSeconds,
+        goalsEnabled: countersTable.goalsEnabled,
+        scoreboardEnabled: countersTable.scoreboardEnabled,
         ownerId: countersTable.ownerId,
         createdAt: countersTable.createdAt,
         updatedAt: countersTable.updatedAt,
@@ -284,10 +288,14 @@ export async function getCounterHistory(
 
 type UpdateCounterInput = {
   title?: string;
-  description?: string;
+  description?: string | null;
   isPublic?: boolean;
   visibilityMode?: CounterVisibilityMode;
   counterMode?: CounterMode;
+  cooldownEnabled?: boolean;
+  cooldownSeconds?: number;
+  goalsEnabled?: boolean;
+  scoreboardEnabled?: boolean;
 };
 
 export async function updateCounter(
@@ -301,8 +309,15 @@ export async function updateCounter(
 
   if (input.title !== undefined) set.title = input.title.trim();
   if (input.description !== undefined)
-    set.description = input.description.trim() || null;
+    set.description = input.description?.trim() || null;
   if (input.counterMode !== undefined) set.counterMode = input.counterMode;
+  if (input.cooldownEnabled !== undefined)
+    set.cooldownEnabled = input.cooldownEnabled;
+  if (input.cooldownSeconds !== undefined)
+    set.cooldownSeconds = input.cooldownSeconds;
+  if (input.goalsEnabled !== undefined) set.goalsEnabled = input.goalsEnabled;
+  if (input.scoreboardEnabled !== undefined)
+    set.scoreboardEnabled = input.scoreboardEnabled;
   if (input.isPublic !== undefined || input.visibilityMode !== undefined) {
     const visibilityMode = resolveCounterVisibility(input);
 
@@ -370,6 +385,10 @@ export async function getUserCounters(
       visibilityMode: countersTable.visibilityMode,
       counterMode: countersTable.counterMode,
       shareToken: countersTable.shareToken,
+      cooldownEnabled: countersTable.cooldownEnabled,
+      cooldownSeconds: countersTable.cooldownSeconds,
+      goalsEnabled: countersTable.goalsEnabled,
+      scoreboardEnabled: countersTable.scoreboardEnabled,
       ownerId: countersTable.ownerId,
       createdAt: countersTable.createdAt,
       updatedAt: countersTable.updatedAt,

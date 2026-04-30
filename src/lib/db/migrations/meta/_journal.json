@@ -64,6 +64,13 @@
       "when": 1777600000000,
       "tag": "0008_auto_delete_inactive_counters",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1777700000000,
+      "tag": "0009_flippant_mojo",
+      "breakpoints": true
     }
   ]
 }

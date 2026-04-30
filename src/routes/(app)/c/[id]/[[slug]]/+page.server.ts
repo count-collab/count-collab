@@ -1,8 +1,13 @@
 import { error, redirect } from "@sveltejs/kit";
-import { and, eq } from "drizzle-orm";
+import { and, asc, count as countFn, desc, eq } from "drizzle-orm";
 import { slugify } from "$lib/counter";
 import { db } from "$lib/db";
-import { counterMembers, users } from "$lib/db/schema";
+import {
+  counterGoals,
+  counterHistory,
+  counterMembers,
+  users,
+} from "$lib/db/schema";
 import {
   canDeleteCounter,
   canEditCounter,
@@ -153,6 +158,29 @@ export const load: PageServerLoad = async ({
       showWarning: inactiveDays >= WARNING_AFTER_DAYS,
     };
   }
+  const goals = await db
+    .select()
+    .from(counterGoals)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    .where(eq(counterGoals.counterId, counter.id as any))
+    .orderBy(asc(counterGoals.amount));
+
+  const scoreboard = counter.scoreboardEnabled
+    ? await db
+        .select({
+          userId: counterHistory.changedBy,
+          username: users.username,
+          image: users.image,
+          actionCount: countFn(),
+        })
+        .from(counterHistory)
+        .innerJoin(users, eq(counterHistory.changedBy, users.id))
+        // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+        .where(eq(counterHistory.counterId, counter.id as any))
+        .groupBy(counterHistory.changedBy, users.username, users.image)
+        .orderBy(desc(countFn()))
+        .limit(20)
+    : [];
 
   depends(`counter:${params.id}`);
 
@@ -169,6 +197,16 @@ export const load: PageServerLoad = async ({
     members,
     isFollowing,
     followerCount,
+    goals: goals.map((g) => ({
+      ...g,
+      reachedAt: g.reachedAt?.toISOString() ?? null,
+    })),
+    scoreboard: scoreboard
+      .filter((s): s is typeof s & { userId: string } => s.userId !== null)
+      .map((s) => ({
+        ...s,
+        actionCount: Number(s.actionCount),
+      })),
     // Only expose the share token to users who can manage the counter
     shareToken: canManage ? (counter.shareToken ?? null) : null,
     hasValidToken,

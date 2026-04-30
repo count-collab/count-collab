@@ -170,7 +170,7 @@
           onclick={() => (mobileMenuOpen = false)}
           class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
         >
-          <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
+          <ion-icon name="trending-up-outline" style="font-size: 18px;"></ion-icon>
           <span>Counters</span>
         </a>
         <a

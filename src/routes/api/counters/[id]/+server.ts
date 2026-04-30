@@ -12,10 +12,9 @@ import {
   updateCounter,
 } from "$lib/server/counters";
 import { logger } from "$lib/server/logger";
-import { getUserRole } from "$lib/server/permissions";
 import {
-  RATE_LIMIT_CONFIG,
-  RATE_LIMIT_CONFIG_UNAUTHENTICATED,
+  checkCounterCooldown,
+  recordCounterCooldown,
 } from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
 import { emitCounterUpdate } from "$lib/utils/socket";
@@ -101,6 +100,28 @@ export const POST: RequestHandler = async ({
     throw error(400, "This counter only supports decrementing");
   }
 
+  const cooldownCheck = await checkCounterCooldown(params.id, userId, {
+    cooldownEnabled: counter.cooldownEnabled ?? false,
+    cooldownSeconds: counter.cooldownSeconds ?? 0,
+    ownerId: counter.ownerId,
+  });
+
+  if (cooldownCheck.blocked) {
+    return new Response(
+      JSON.stringify({
+        error: "Counter is in cooldown",
+        retryAfterSeconds: cooldownCheck.retryAfterSeconds,
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(cooldownCheck.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
   const updated = await incrementCounter(params.id, amount, userId);
 
   if (!updated) {
@@ -109,27 +130,16 @@ export const POST: RequestHandler = async ({
   }
 
   const username = session?.user?.username ?? session?.user?.name ?? null;
+  const cooldownSeconds = cooldownCheck.cooldownSeconds;
   emitCounterUpdate(
     updated.id,
     updated.count,
     updated.updatedAt,
     username,
     amount,
+    cooldownSeconds,
   );
-
-  let cooldownSeconds = Math.ceil(
-    (userId
-      ? RATE_LIMIT_CONFIG["/api/counters/[id]"]
-      : RATE_LIMIT_CONFIG_UNAUTHENTICATED["/api/counters/[id]"]
-    ).windowMs / 1000,
-  );
-
-  if (userId) {
-    const role = await getUserRole(userId);
-    if (role === "admin") {
-      cooldownSeconds = 0;
-    }
-  }
+  recordCounterCooldown(params.id);
 
   return json({
     count: updated.count,
@@ -165,12 +175,25 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     return validation.response;
   }
 
-  const { title, description, visibility, counterMode } = validation.data;
+  const {
+    title,
+    description,
+    visibility,
+    counterMode,
+    cooldownEnabled,
+    cooldownSeconds,
+    goalsEnabled,
+    scoreboardEnabled,
+  } = validation.data;
   const counter = await updateCounter(params.id, {
     title,
     description,
     visibilityMode: visibility,
     counterMode,
+    cooldownEnabled,
+    cooldownSeconds,
+    goalsEnabled,
+    scoreboardEnabled,
   });
 
   if (!counter) {

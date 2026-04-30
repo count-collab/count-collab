@@ -7,6 +7,7 @@ export type CounterUpdatePayload = {
   updatedAt: string;
   username?: string | null;
   amount?: number;
+  cooldownSeconds?: number;
 };
 
 export type CounterCreatedPayload = {

@@ -15,6 +15,7 @@
     desktopOutline,
     ellipsisVertical,
     eyeOutline,
+    flagOutline,
     flashOutline,
     globeOutline,
     gridOutline,
@@ -42,6 +43,7 @@
     timeOutline,
     trashOutline,
     trendingUpOutline,
+    trophyOutline,
   } from "ionicons/icons";
   import { browser } from "$app/environment";
   import "../app.css";
@@ -68,6 +70,7 @@
       "create-outline": createOutline,
       "eye-outline": eyeOutline,
       "flash-outline": flashOutline,
+      "flag-outline": flagOutline,
       "globe-outline": globeOutline,
       "lock-closed-outline": lockClosedOutline,
       "trash-outline": trashOutline,
@@ -82,6 +85,7 @@
       "remove-circle-outline": removeCircleOutline,
       "settings-outline": settingsOutline,
       "trending-up-outline": trendingUpOutline,
+      "trophy-outline": trophyOutline,
       "sparkles-outline": sparklesOutline,
       "sunny-outline": sunnyOutline,
       "moon-outline": moonOutline,
