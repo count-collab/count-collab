@@ -5,6 +5,8 @@ export type CounterUpdatePayload = {
   counterId: string;
   count: number;
   updatedAt: string;
+  username?: string | null;
+  amount?: number;
 };
 
 export type CounterCreatedPayload = {

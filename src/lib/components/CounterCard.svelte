@@ -1,9 +1,11 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
+  import { browser } from "$app/environment";
   import { page } from "$app/stores";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
   import { counterUrl } from "$lib/counter";
   import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
+  import { onCounterUpdated } from "$lib/stores/counters";
   import RollingNumber from "./RollingNumber.svelte";
   import Sparkline from "./Sparkline.svelte";
 
@@ -29,6 +31,19 @@
   let activateTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
   let isActive = $state(false);
 
+  let lastAction = $state<{ username: string; amount: number } | null>(null);
+  let lastActionTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
+
+  function showLastAction(username: string | null | undefined, amount = 1) {
+    const displayName = username || "Anonymous";
+    if (lastActionTimeout) clearTimeout(lastActionTimeout);
+    lastAction = { username: displayName, amount };
+    lastActionTimeout = setTimeout(() => {
+      lastAction = null;
+      lastActionTimeout = null;
+    }, 350);
+  }
+
   function getVisibilityMode(counter: Counter): CounterVisibilityMode {
     return counter.visibilityMode ?? (counter.isPublic ? "public" : "private");
   }
@@ -49,6 +64,17 @@
     }
     isActive = false;
   }
+
+  $effect(() => {
+    if (!browser) return;
+
+    const unsubscribe = onCounterUpdated((payload) => {
+      if (payload.counterId !== counter.id) return;
+      showLastAction(payload.username, payload.amount);
+    });
+
+    return unsubscribe;
+  });
 </script>
 
 <a
@@ -78,10 +104,21 @@
     class="relative font-semibold text-slate-900 dark:text-slate-100 truncate"
     >{counter.title}</span
   >
-  <span
-    class="relative text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate min-h-5"
-    >{counter.description ?? ""}</span
-  >
+  <span class="relative mt-0.5 min-h-5">
+    {#if lastAction}
+      <span
+        class="absolute inset-0 text-xs font-medium text-blue-500/80 dark:text-blue-400/70 truncate"
+        transition:fade={{ duration: 150 }}
+      >
+        {lastAction.username} <span class="opacity-60">{lastAction.amount > 0 ? `+${lastAction.amount}` : lastAction.amount}</span>
+      </span>
+    {:else}
+      <span
+        class="text-sm text-slate-500 dark:text-slate-400 truncate block"
+        in:fade={{ duration: 150 }}>{counter.description ?? ""}</span
+      >
+    {/if}
+  </span>
   {#if showBadges || followed}
     <div class="relative flex flex-wrap gap-1.5 mt-2">
       {#if showBadges}

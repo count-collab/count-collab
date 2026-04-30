@@ -108,7 +108,14 @@ export const POST: RequestHandler = async ({
     throw error(404, "Counter not found");
   }
 
-  emitCounterUpdate(updated.id, updated.count, updated.updatedAt);
+  const username = session?.user?.username ?? session?.user?.name ?? null;
+  emitCounterUpdate(
+    updated.id,
+    updated.count,
+    updated.updatedAt,
+    username,
+    amount,
+  );
 
   let cooldownSeconds = Math.ceil(
     (userId
@@ -128,6 +135,8 @@ export const POST: RequestHandler = async ({
     count: updated.count,
     updatedAt: updated.updatedAt,
     cooldownSeconds,
+    username,
+    amount,
   });
 };
 

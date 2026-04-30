@@ -4,6 +4,7 @@
   import { goto, invalidate } from "$app/navigation";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
   import Fireworks from "$lib/components/Fireworks.svelte";
+  import FloatingUsername from "$lib/components/FloatingUsername.svelte";
   import HistoryEntry from "$lib/components/HistoryEntry.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Modal from "$lib/components/Modal.svelte";
@@ -76,6 +77,8 @@
   let isIncrementing = $state(false);
   let fireworkTrigger = $state(0);
   let cooldownDuration = $state(0);
+  let floatingUsernameId = $state(0);
+  let floatingUsernames = $state<{ id: number; username: string; amount: number }[]>([]);
 
   // History toggle state
   const COLLAPSED_HISTORY_COUNT = 5;
@@ -142,6 +145,15 @@
   let inviteSuccess = $state<string | null>(null);
   let isInviting = $state(false);
 
+  function addFloatingUsername(username: string | null | undefined, amount = 1) {
+    const displayName = username || "Anonymous";
+    floatingUsernames = [...floatingUsernames, { id: ++floatingUsernameId, username: displayName, amount }];
+  }
+
+  function removeFloatingUsername(id: number) {
+    floatingUsernames = floatingUsernames.filter((e) => e.id !== id);
+  }
+
   const displayCount = $derived(optimisticCount ?? data.counter.count);
   const displayUpdatedAt = $derived(
     optimisticUpdatedAt ?? data.counter.updatedAt,
@@ -203,10 +215,13 @@
         count: number;
         updatedAt: string;
         cooldownSeconds: number;
+        username?: string | null;
+        amount?: number;
       } = await response.json();
       optimisticCount = result.count;
       optimisticUpdatedAt = result.updatedAt;
       fireworkTrigger++;
+      addFloatingUsername(result.username, result.amount);
       if (result.cooldownSeconds > 0) {
         cooldownDuration = result.cooldownSeconds;
         rateLimit.setLimit(`/c/${data.counter.id}`, result.cooldownSeconds);
@@ -373,6 +388,7 @@
       if (isIncrementing) return;
 
       fireworkTrigger++;
+      addFloatingUsername(payload.username, payload.amount);
       invalidate(`counter:${data.counter.id}`).then(() => {
         optimisticCount = null;
         optimisticUpdatedAt = null;
@@ -644,14 +660,17 @@
     </div>
 
     <Fireworks trigger={fireworkTrigger} />
-    <p
-      class="text-8xl sm:text-9xl font-extrabold tabular-nums transition-colors duration-300 {displayCount <
-      0
-        ? 'text-red-500 dark:text-red-400'
-        : 'text-blue-600 dark:text-blue-400'}"
-    >
-      <RollingNumber value={displayCount} />
-    </p>
+    <div class="relative">
+      <FloatingUsername usernames={floatingUsernames} oncomplete={removeFloatingUsername} />
+      <p
+        class="text-8xl sm:text-9xl font-extrabold tabular-nums transition-colors duration-300 {displayCount <
+        0
+          ? 'text-red-500 dark:text-red-400'
+          : 'text-blue-600 dark:text-blue-400'}"
+      >
+        <RollingNumber value={displayCount} />
+      </p>
+    </div>
 
     <div class="mt-8 relative flex items-center gap-4">
       {#if data.counter.counterMode === "decrement_only" || data.counter.counterMode === "both"}

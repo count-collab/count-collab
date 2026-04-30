@@ -8,8 +8,16 @@ export function emitCounterUpdate(
   counterId: string,
   count: number,
   updatedAt: Date,
+  username?: string | null,
+  amount?: number,
 ): void {
-  getIO()?.emit("counter:updated", { counterId, count, updatedAt });
+  getIO()?.emit("counter:updated", {
+    counterId,
+    count,
+    amount: amount ?? 1,
+    updatedAt,
+    username: username ?? null,
+  });
 }
 
 export function emitCounterCreated(counterId: string): void {

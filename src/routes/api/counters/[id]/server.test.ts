@@ -85,10 +85,10 @@ import { DELETE, PATCH, POST } from "./+server";
 
 const VALID_ID = "11111111-1111-1111-1111-111111111111";
 
-function makeLocals(userId: string | null) {
+function makeLocals(userId: string | null, name: string | null = "TestUser") {
   return {
     auth: vi.fn(async () =>
-      userId ? { user: { id: userId } } : { user: null },
+      userId ? { user: { id: userId, name } } : { user: null },
     ),
   };
 }
@@ -144,10 +144,13 @@ describe("POST /api/counters/[id] (increment)", () => {
 
     expect(body.count).toBe(42);
     expect(body.cooldownSeconds).toBe(5);
+    expect(body.username).toEqual(expect.any(String));
     expect(mockEmitCounterUpdate).toHaveBeenCalledWith(
       VALID_ID,
       42,
       "2026-01-01T00:00:00Z",
+      expect.any(String),
+      1,
     );
   });
 

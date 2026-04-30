@@ -11,6 +11,14 @@ vi.mock("$app/stores", async () => {
   };
 });
 
+vi.mock("$app/environment", () => ({
+  browser: false,
+}));
+
+vi.mock("$lib/stores/counters", () => ({
+  onCounterUpdated: () => () => {},
+}));
+
 const { default: CounterCard } = await import("./CounterCard.svelte");
 
 describe("CounterCard", () => {
