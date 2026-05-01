@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
   import AdminTable from "$lib/components/AdminTable.svelte";
+  import ChangeOwnerModal from "$lib/components/ChangeOwnerModal.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
   import { slugify } from "$lib/counter";
@@ -43,6 +44,14 @@
 
   function getVisibilityBadgeClass(counter: Pick<Counter, "visibilityMode" | "isPublic">): string {
     return visibilityBadgeClasses[getVisibilityMode(counter)];
+  }
+
+  let changeOwnerOpen = $state(false);
+  let changeOwnerCounter = $state<{ id: string; title: string; ownerName: string | null } | null>(null);
+
+  function openChangeOwner(counter: { id: string; title: string; ownerName: string | null }) {
+    changeOwnerCounter = counter;
+    changeOwnerOpen = true;
   }
 
   async function handleDelete(counterId: string) {
@@ -121,6 +130,13 @@
           >
           <button
             type="button"
+            onclick={() => openChangeOwner({ id: counter.id, title: counter.title, ownerName: counter.ownerName ?? null })}
+            class="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm mr-3"
+          >
+            Change Owner
+          </button>
+          <button
+            type="button"
             onclick={() => handleDelete(counter.id)}
             class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm"
           >
@@ -138,3 +154,13 @@
   baseUrl="/admin/counters"
   {extraParams}
 />
+
+{#if changeOwnerCounter}
+  <ChangeOwnerModal
+    bind:open={changeOwnerOpen}
+    counterId={changeOwnerCounter.id}
+    counterTitle={changeOwnerCounter.title}
+    currentOwnerName={changeOwnerCounter.ownerName}
+    onsave={() => invalidateAll()}
+  />
+{/if}

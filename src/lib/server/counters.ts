@@ -347,6 +347,27 @@ export async function updateCounter(
   return updated ?? null;
 }
 
+export async function transferCounterOwnership(
+  counterId: string,
+  newOwnerId: string | null,
+): Promise<Counter | null> {
+  const [updated] = await db
+    .update(countersTable)
+    .set({ ownerId: newOwnerId, updatedAt: new Date() })
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    .where(eq(countersTable.id, counterId as any))
+    .returning();
+
+  if (updated) {
+    logger.info("Counter ownership transferred", {
+      id: counterId,
+      newOwnerId,
+    });
+  }
+
+  return updated ?? null;
+}
+
 export async function deleteCounter(counterId: string): Promise<boolean> {
   const result = await db
     .delete(countersTable)
