@@ -27,3 +27,6 @@ test-results/
 playwright-report/
 .playwright-mcp
 screenshots/
+
+
+docs
