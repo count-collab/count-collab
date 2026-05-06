@@ -252,6 +252,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     cooldownEnabled,
     cooldownSeconds,
     goalsEnabled,
+    showAllReachedGoals,
     scoreboardEnabled,
   } = validation.data;
   const counter = await updateCounter(params.id, {
@@ -262,6 +263,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     cooldownEnabled,
     cooldownSeconds,
     goalsEnabled,
+    showAllReachedGoals,
     scoreboardEnabled,
   });
 

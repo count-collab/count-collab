@@ -136,6 +136,7 @@ export async function listPublicCounters(
         cooldownEnabled: countersTable.cooldownEnabled,
         cooldownSeconds: countersTable.cooldownSeconds,
         goalsEnabled: countersTable.goalsEnabled,
+        showAllReachedGoals: countersTable.showAllReachedGoals,
         scoreboardEnabled: countersTable.scoreboardEnabled,
         ownerId: countersTable.ownerId,
         createdAt: countersTable.createdAt,
@@ -295,6 +296,7 @@ type UpdateCounterInput = {
   cooldownEnabled?: boolean;
   cooldownSeconds?: number;
   goalsEnabled?: boolean;
+  showAllReachedGoals?: boolean;
   scoreboardEnabled?: boolean;
 };
 
@@ -316,6 +318,8 @@ export async function updateCounter(
   if (input.cooldownSeconds !== undefined)
     set.cooldownSeconds = input.cooldownSeconds;
   if (input.goalsEnabled !== undefined) set.goalsEnabled = input.goalsEnabled;
+  if (input.showAllReachedGoals !== undefined)
+    set.showAllReachedGoals = input.showAllReachedGoals;
   if (input.scoreboardEnabled !== undefined)
     set.scoreboardEnabled = input.scoreboardEnabled;
   if (input.isPublic !== undefined || input.visibilityMode !== undefined) {
@@ -409,6 +413,7 @@ export async function getUserCounters(
       cooldownEnabled: countersTable.cooldownEnabled,
       cooldownSeconds: countersTable.cooldownSeconds,
       goalsEnabled: countersTable.goalsEnabled,
+      showAllReachedGoals: countersTable.showAllReachedGoals,
       scoreboardEnabled: countersTable.scoreboardEnabled,
       ownerId: countersTable.ownerId,
       createdAt: countersTable.createdAt,

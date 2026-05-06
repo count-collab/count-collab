@@ -54,6 +54,7 @@ export const updateCounterSchema = z.object({
   cooldownEnabled: z.boolean().optional(),
   cooldownSeconds: z.number().int().min(1).max(60).optional(),
   goalsEnabled: z.boolean().optional(),
+  showAllReachedGoals: z.boolean().optional(),
   scoreboardEnabled: z.boolean().optional(),
 });
 

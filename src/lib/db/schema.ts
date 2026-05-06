@@ -148,6 +148,9 @@ export const counters = pgTable("counters", {
   cooldownEnabled: boolean("cooldown_enabled").default(false).notNull(),
   cooldownSeconds: integer("cooldown_seconds").default(5).notNull(),
   goalsEnabled: boolean("goals_enabled").default(false).notNull(),
+  showAllReachedGoals: boolean("show_all_reached_goals")
+    .default(false)
+    .notNull(),
   scoreboardEnabled: boolean("scoreboard_enabled").default(false).notNull(),
   ownerId: text("owner_id").references(() => users.id, {
     onDelete: "set null",

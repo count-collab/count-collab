@@ -65,6 +65,7 @@ function makeCounter(overrides: Partial<Counter> = {}): Counter {
     cooldownEnabled: false,
     cooldownSeconds: 5,
     goalsEnabled: false,
+    showAllReachedGoals: false,
     scoreboardEnabled: false,
     ownerId: null,
     createdAt: new Date(),

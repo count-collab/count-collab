@@ -741,6 +741,7 @@
             goals={data.goals}
             currentCount={displayCount}
             counterMode={data.counter.counterMode ?? "increment_only"}
+            showAllReachedGoals={data.counter.showAllReachedGoals}
           />
         {/if}
         {#if data.counter.scoreboardEnabled && data.scoreboard.length > 0}
@@ -792,6 +793,7 @@
         goals={data.goals}
         currentCount={displayCount}
         counterMode={data.counter.counterMode ?? "increment_only"}
+        showAllReachedGoals={data.counter.showAllReachedGoals}
       />
     {/if}
     {#if data.counter.scoreboardEnabled && data.scoreboard.length > 0}
@@ -1026,6 +1028,7 @@
       cooldownEnabled: data.counter.cooldownEnabled,
       cooldownSeconds: data.counter.cooldownSeconds,
       goalsEnabled: data.counter.goalsEnabled,
+      showAllReachedGoals: data.counter.showAllReachedGoals,
       scoreboardEnabled: data.counter.scoreboardEnabled,
     }}
     goals={data.goals}

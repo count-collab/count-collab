@@ -12,10 +12,17 @@
     goals: Goal[];
     currentCount: number;
     counterMode: "increment_only" | "decrement_only" | "both";
+    showAllReachedGoals?: boolean;
     compact?: boolean;
   };
 
-  const { goals, currentCount, counterMode, compact = false }: Props = $props();
+  const {
+    goals,
+    currentCount,
+    counterMode,
+    showAllReachedGoals = false,
+    compact = false,
+  }: Props = $props();
 
   const fmt = new Intl.NumberFormat();
   const dateFmt = new Intl.DateTimeFormat(undefined, {
@@ -123,11 +130,13 @@
 
   const nextGoal = $derived(sortedGoals.find((g) => !isGoalReached(g)) ?? null);
 
-  // Only show the latest reached goal + all unreached goals
+  // Only show the latest reached goal + all unreached goals (or all goals if showAllReachedGoals is true)
   const visibleGoals = $derived(
-    sortedGoals.filter(
-      (g) => !isGoalReached(g) || g.id === lastReachedGoalId(),
-    ),
+    showAllReachedGoals
+      ? sortedGoals
+      : sortedGoals.filter(
+          (g) => !isGoalReached(g) || g.id === lastReachedGoalId(),
+        ),
   );
 </script>
 

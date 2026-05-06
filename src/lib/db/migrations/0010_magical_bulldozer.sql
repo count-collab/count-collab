@@ -1,0 +1,1 @@
+ALTER TABLE "counters" ADD COLUMN "show_all_reached_goals" boolean DEFAULT false NOT NULL;

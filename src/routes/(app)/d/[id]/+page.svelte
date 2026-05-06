@@ -2,6 +2,7 @@
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
   import AddCounterModal from "$lib/components/AddCounterModal.svelte";
+  import DashboardSettingsOverlay from "$lib/components/DashboardSettingsOverlay.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
@@ -55,13 +56,8 @@
   let errorMessage = $state<string | null>(null);
   let incrementingCounters = $state<Record<string, boolean>>({});
 
-  // Edit modal state
+  // Edit overlay state
   let showEditModal = $state(false);
-  let editTitle = $state("");
-  let editDescription = $state("");
-  let editVisibility = $state<DashboardVisibilityMode>("public");
-  let editError = $state<string | null>(null);
-  let isSaving = $state(false);
 
   // Delete confirmation state
   let showDeleteConfirm = $state(false);
@@ -303,37 +299,6 @@
       errorMessage = "Network error. Please try again.";
     } finally {
       incrementingCounters[counterId] = false;
-    }
-  }
-
-  async function handleSaveEdit() {
-    if (isSaving) return;
-    isSaving = true;
-    editError = null;
-
-    try {
-      const response = await fetch(`/api/dashboards/${data.dashboard.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: editTitle,
-          description: editDescription,
-          visibility: editVisibility,
-        }),
-      });
-
-      if (!response.ok) {
-        const body = await response.json();
-        editError = body.error ?? "Failed to update dashboard.";
-        return;
-      }
-
-      showEditModal = false;
-      invalidate(`dashboard:${data.dashboard.id}`);
-    } catch {
-      editError = "Network error. Please try again.";
-    } finally {
-      isSaving = false;
     }
   }
 
@@ -609,12 +574,7 @@
 
           <button
             type="button"
-            onclick={() => {
-              editTitle = data.dashboard.title;
-              editDescription = data.dashboard.description ?? "";
-              editVisibility = visibilityMode;
-              showEditModal = true;
-            }}
+            onclick={() => (showEditModal = true)}
             class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
           >
             <ion-icon name="create-outline" style="font-size: 16px;"></ion-icon>
@@ -733,9 +693,6 @@
                   type="button"
                   onclick={() => {
                     showActionsMenu = false;
-                    editTitle = data.dashboard.title;
-                    editDescription = data.dashboard.description ?? "";
-                    editVisibility = visibilityMode;
                     showEditModal = true;
                   }}
                   class="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
@@ -1291,84 +1248,12 @@
   </div>
 </Modal>
 
-<!-- Edit Modal -->
-<Modal bind:open={showEditModal} title="Edit Dashboard" maxWidth="max-w-md">
-  <div class="space-y-4">
-    <div class="space-y-2">
-      <label
-        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-        for="edit-title">Title</label
-      >
-      <input
-        id="edit-title"
-        type="text"
-        bind:value={editTitle}
-        class="w-full rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 py-2 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400 dark:placeholder:text-slate-500"
-      />
-    </div>
-
-    <div class="space-y-2">
-      <label
-        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-        for="edit-description">Description</label
-      >
-      <textarea
-        id="edit-description"
-        rows="3"
-        bind:value={editDescription}
-        class="w-full rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 py-2 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400 dark:placeholder:text-slate-500"
-      ></textarea>
-    </div>
-
-    <div class="space-y-2">
-      <span
-        class="block text-sm font-semibold text-slate-700 dark:text-slate-300"
-        >Visibility</span
-      >
-      <div
-        class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4"
-      >
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input type="radio" value="public" bind:group={editVisibility} />
-          Public
-        </label>
-        <label
-          class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300"
-        >
-          <input type="radio" value="private" bind:group={editVisibility} />
-          Private (shareable link)
-        </label>
-      </div>
-      <p class="text-xs text-slate-500 dark:text-slate-400">
-        {visibilityDescriptions[editVisibility]}
-      </p>
-    </div>
-
-    {#if editError}
-      <p class="text-sm text-red-600 dark:text-red-400">{editError}</p>
-    {/if}
-
-    <div class="flex justify-end gap-3">
-      <button
-        type="button"
-        onclick={() => (showEditModal = false)}
-        class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        onclick={handleSaveEdit}
-        disabled={isSaving}
-        class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-      >
-        {isSaving ? "Saving..." : "Save"}
-      </button>
-    </div>
-  </div>
-</Modal>
+<!-- Edit Overlay -->
+<DashboardSettingsOverlay
+  bind:open={showEditModal}
+  dashboard={data.dashboard}
+  onsave={() => invalidate(`dashboard:${data.dashboard.id}`)}
+/>
 
 <!-- Delete Confirmation -->
 <Modal

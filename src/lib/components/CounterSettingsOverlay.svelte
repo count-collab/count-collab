@@ -37,6 +37,7 @@
       cooldownEnabled: boolean;
       cooldownSeconds: number;
       goalsEnabled: boolean;
+      showAllReachedGoals: boolean;
       scoreboardEnabled: boolean;
     };
     goals: Goal[];
@@ -51,6 +52,7 @@
   let cooldownEnabled = $state(false);
   let cooldownSeconds = $state(5);
   let goalsEnabled = $state(false);
+  let showAllReachedGoals = $state(false);
   let scoreboardEnabled = $state(false);
   let localGoals = $state<LocalGoal[]>([]);
   let nextLocalId = $state(1);
@@ -69,6 +71,7 @@
       cooldownEnabled = counter.cooldownEnabled;
       cooldownSeconds = counter.cooldownSeconds;
       goalsEnabled = counter.goalsEnabled;
+      showAllReachedGoals = counter.showAllReachedGoals;
       scoreboardEnabled = counter.scoreboardEnabled;
       const mapped = goals.map((g, i) => ({ ...g, _localId: i }));
       localGoals = mapped;
@@ -175,6 +178,7 @@
           cooldownEnabled,
           cooldownSeconds,
           goalsEnabled,
+          showAllReachedGoals,
           scoreboardEnabled,
         }),
       });
@@ -565,6 +569,15 @@
                 </span>
               {/if}
             </div>
+            <Switch
+              bind:checked={showAllReachedGoals}
+              label="Show all reached goals"
+              disabled={!canEdit}
+            />
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+              When enabled, all reached goals are displayed. Otherwise only the
+              latest reached goal is shown.
+            </p>
           {/if}
         </section>
 
