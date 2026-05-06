@@ -258,13 +258,13 @@ describe("createGoalSchema", () => {
   });
 
   it("rejects missing description", () => {
-    expect(() => createGoalSchema.parse({ amount: 100 })).toThrow();
+    const result = createGoalSchema.parse({ amount: 100 });
+    expect(result.description).toBe("");
   });
 
-  it("rejects empty description", () => {
-    expect(() =>
-      createGoalSchema.parse({ amount: 100, description: "" }),
-    ).toThrow();
+  it("accepts empty description", () => {
+    const result = createGoalSchema.parse({ amount: 100, description: "" });
+    expect(result.description).toBe("");
   });
 
   it("rejects description longer than 200 chars", () => {

@@ -119,7 +119,7 @@
           const retryAfter = body.retryAfterSeconds ?? 60;
           rateLimit.setLimit(apiPath, retryAfter);
           errors = {
-            general: `Too many requests. Please try again in ${retryAfter} seconds.`,
+            general: `You've created a lot of counters in a short time. Please wait ${retryAfter} seconds before trying again.`,
           };
           return;
         }

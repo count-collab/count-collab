@@ -1,4 +1,6 @@
 <script lang="ts">
+  import GoalFireworks from "./GoalFireworks.svelte";
+
   type Goal = {
     id: number;
     amount: number;
@@ -16,6 +18,51 @@
   const { goals, currentCount, counterMode, compact = false }: Props = $props();
 
   const fmt = new Intl.NumberFormat();
+  const dateFmt = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  let tappedGoalId = $state<number | null>(null);
+  let fireworkTriggers = $state<Record<number, number>>({});
+  let scrollContainer: HTMLDivElement | undefined = $state();
+  let canScrollUp = $state(false);
+  let canScrollDown = $state(false);
+
+  function updateScrollIndicators() {
+    if (!scrollContainer || visibleGoals.length <= 5) {
+      canScrollUp = false;
+      canScrollDown = false;
+      return;
+    }
+    canScrollUp = scrollContainer.scrollTop > 2;
+    canScrollDown =
+      scrollContainer.scrollTop + scrollContainer.clientHeight <
+      scrollContainer.scrollHeight - 2;
+  }
+
+  $effect(() => {
+    if (!scrollContainer || visibleGoals.length <= 5) return;
+    const nextIds = nextGoalIds();
+    if (nextIds.size === 0) return;
+    const firstNextId = [...nextIds][0];
+    const el = scrollContainer.querySelector(`[data-goal-id="${firstNextId}"]`);
+    if (el) {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  });
+
+  $effect(() => {
+    if (!scrollContainer) return;
+    updateScrollIndicators();
+  });
+
+  function handleGoalTap(goalId: number, _reachedAt: string | null) {
+    const goal = goals.find((g) => g.id === goalId);
+    if (!goal || !isGoalReached(goal)) return;
+    tappedGoalId = tappedGoalId === goalId ? null : goalId;
+  }
 
   const isGoalReached = (goal: Goal): boolean => {
     if (goal.reachedAt) return true;
@@ -54,6 +101,12 @@
 
   const reachedCount = $derived(sortedGoals.filter(isGoalReached).length);
 
+  // The last (highest) completed goal gets the prominent checkmark style
+  const lastReachedGoalId = $derived(() => {
+    const reached = sortedGoals.filter(isGoalReached);
+    return reached.length > 0 ? reached[reached.length - 1].id : null;
+  });
+
   // IDs of the next unreached goal(s) — one positive, one negative
   const nextGoalIds = $derived(() => {
     const ids = new Set<number>();
@@ -69,6 +122,13 @@
   });
 
   const nextGoal = $derived(sortedGoals.find((g) => !isGoalReached(g)) ?? null);
+
+  // Only show the latest reached goal + all unreached goals
+  const visibleGoals = $derived(
+    sortedGoals.filter(
+      (g) => !isGoalReached(g) || g.id === lastReachedGoalId(),
+    ),
+  );
 </script>
 
 {#if compact}
@@ -100,57 +160,128 @@
     {#if sortedGoals.length === 0}
       <p class="text-sm text-slate-400 dark:text-slate-500">No goals set.</p>
     {:else}
-      <ol class="space-y-0" aria-label="Goals progress">
-        {#each sortedGoals as goal, i (goal.id)}
-          {@const reached = isGoalReached(goal)}
-          {@const progress = goalProgress(goal)}
-          {@const showBar = reached || nextGoalIds().has(goal.id)}
-          {@const isLast = i === sortedGoals.length - 1}
-          <li class="group {isLast ? '' : showBar ? 'pb-1.5' : 'pb-0.5'}">
-            <!-- Goal content -->
-            <div
-              class="flex-1 {isLast ? 'pt-1' : 'py-1'} rounded-lg {reached
-                ? 'bg-green-50 dark:bg-green-900/10 px-2 -mx-2'
-                : ''}"
-            >
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span
-                    class="text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums shrink-0"
-                  >
-                    {fmt.format(goal.amount)}
-                  </span>
-                  <span
-                    class="text-sm text-slate-600 dark:text-slate-400 truncate"
-                  >
-                    {goal.description}
-                  </span>
-                </div>
-                <span
-                  class="text-xs tabular-nums shrink-0 {reached
-                    ? 'text-green-600 dark:text-green-400 font-semibold'
-                    : 'text-slate-400 dark:text-slate-500'}"
-                >
-                  {progress}%
-                </span>
-              </div>
-              <!-- Progress bar -->
-              {#if showBar}
+      <div class="relative">
+        {#if canScrollUp}
+          <div
+            class="pointer-events-none absolute top-0 left-0 right-0 h-6 z-20 bg-gradient-to-b from-white/90 dark:from-slate-900/90 to-transparent"
+          ></div>
+        {/if}
+        <div
+          bind:this={scrollContainer}
+          onscroll={updateScrollIndicators}
+          class={visibleGoals.length > 5
+            ? "max-h-[10.5rem] overflow-y-auto overflow-x-hidden"
+            : "overflow-x-hidden"}
+        >
+          <ol class="space-y-0 px-1 -mx-3" aria-label="Goals progress">
+            {#each visibleGoals as goal, i (goal.id)}
+              {@const reached = isGoalReached(goal)}
+              {@const progress = goalProgress(goal)}
+              {@const showBar = !reached && nextGoalIds().has(goal.id)}
+              {@const isLast = i === visibleGoals.length - 1}
+              {@const isLatestReached =
+                reached && lastReachedGoalId() === goal.id}
+              {@const isPreviouslyReached = reached && !isLatestReached}
+              <li
+                data-goal-id={goal.id}
+                class="group {isLast
+                  ? ''
+                  : showBar
+                    ? 'pb-1.5'
+                    : 'pb-0.5'} {isLatestReached ? 'overflow-visible' : ''}"
+              >
+                <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
                 <div
-                  class="mt-1.5 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"
+                  class="relative flex-1 overflow-visible px-2 {isLast
+                    ? 'pt-1'
+                    : 'py-1'} {isLatestReached
+                    ? 'outline-solid outline-offset-2 outline-green-50 dark:outline-green-900/10 py-2 rounded-xl'
+                    : ''}"
+                  role={reached ? "button" : undefined}
+                  tabindex={reached ? 0 : undefined}
+                  onkeydown={(e) => {
+                    if (e.key === "Enter" || e.key === " ")
+                      handleGoalTap(goal.id, goal.reachedAt);
+                  }}
+                  onclick={() => handleGoalTap(goal.id, goal.reachedAt)}
+                  onmouseenter={() => {
+                    if (isLatestReached) {
+                      fireworkTriggers[goal.id] =
+                        (fireworkTriggers[goal.id] ?? 0) + 1;
+                    }
+                  }}
                 >
-                  <div
-                    class="h-full rounded-full transition-all duration-300 {reached
-                      ? 'bg-green-500'
-                      : 'bg-blue-500'}"
-                    style="width: {progress}%"
-                  ></div>
+                  {#if isLatestReached}
+                    <GoalFireworks trigger={fireworkTriggers[goal.id] ?? 0} />
+                  {/if}
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span
+                        class="tabular-nums shrink-0 {isPreviouslyReached
+                          ? 'text-xs text-slate-400 dark:text-slate-500'
+                          : 'text-sm font-bold text-slate-900 dark:text-slate-100'}"
+                      >
+                        {fmt.format(goal.amount)}
+                      </span>
+                      <span
+                        class="truncate transition-opacity duration-200 {isPreviouslyReached
+                          ? 'text-xs text-slate-400 dark:text-slate-500'
+                          : 'text-sm text-slate-600 dark:text-slate-400'} {isLatestReached
+                          ? 'opacity-0'
+                          : reached
+                            ? 'group-hover:opacity-0'
+                            : ''}"
+                        class:!opacity-0={reached && tappedGoalId === goal.id}
+                      >
+                        {goal.description}
+                      </span>
+                    </div>
+                    {#if !reached}
+                      <span
+                        class="text-xs tabular-nums shrink-0 text-slate-400 dark:text-slate-500"
+                      >
+                        {progress}%
+                      </span>
+                    {/if}
+                    <!-- Reached date text (replaces checkmark/description on hover) -->
+                    {#if reached}
+                      <span
+                        class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 pr-2 text-xs font-medium whitespace-nowrap transition-opacity duration-200 {isLatestReached
+                          ? 'opacity-100 text-green-700 dark:text-green-300'
+                          : 'opacity-0 group-hover:opacity-100 text-slate-400 dark:text-slate-500'}"
+                        class:!opacity-100={tappedGoalId === goal.id}
+                        aria-hidden="true"
+                      >
+                        {#if goal.reachedAt}
+                          reached {dateFmt.format(new Date(goal.reachedAt))}
+                        {:else}
+                          reached
+                        {/if}
+                      </span>
+                    {/if}
+                  </div>
+                  <!-- Progress bar (only for unreached goals) -->
+                  {#if showBar}
+                    <div
+                      class="mt-1.5 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"
+                    >
+                      <div
+                        class="h-full rounded-full transition-all duration-300 bg-blue-500"
+                        style="width: {progress}%"
+                      ></div>
+                    </div>
+                  {/if}
                 </div>
-              {/if}
-            </div>
-          </li>
-        {/each}
-      </ol>
+              </li>
+            {/each}
+          </ol>
+        </div>
+        {#if canScrollDown}
+          <div
+            class="pointer-events-none absolute bottom-0 left-0 right-0 h-6 z-20 bg-gradient-to-t from-white/90 dark:from-slate-900/90 to-transparent"
+          ></div>
+        {/if}
+      </div>
     {/if}
   </div>
 {/if}

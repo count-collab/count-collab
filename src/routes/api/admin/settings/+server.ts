@@ -4,6 +4,7 @@ import { db } from "$lib/db";
 import { globalSettings } from "$lib/db/schema";
 import { logger } from "$lib/server/logger";
 import { getUserRole } from "$lib/server/permissions";
+import { resetSettingsCache } from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
 import { updateGlobalSettingsSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
@@ -82,6 +83,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     .where(eq(globalSettings.id, 1))
     .returning();
 
+  resetSettingsCache();
   logger.info("Global settings updated", { updatedBy: session.user.id });
   return json(updated);
 };

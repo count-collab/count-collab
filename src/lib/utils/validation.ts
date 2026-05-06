@@ -214,13 +214,13 @@ export type SwapDashboardItemsInput = z.infer<typeof swapDashboardItemsSchema>;
 
 export const createGoalSchema = z.object({
   amount: z.number().int(),
-  description: z.string().min(1).max(200).trim(),
+  description: z.string().max(200).trim().optional().default(""),
 });
 export type CreateGoalInput = z.infer<typeof createGoalSchema>;
 
 export const updateGoalSchema = z.object({
   amount: z.number().int().optional(),
-  description: z.string().min(1).max(200).trim().optional(),
+  description: z.string().max(200).trim().optional(),
 });
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
 

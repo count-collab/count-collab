@@ -5,11 +5,12 @@ import { verifyDatabaseConnection } from "$lib/db";
 import { authHandle } from "$lib/server/auth";
 import { logger } from "$lib/server/logger";
 import { getUserRole } from "$lib/server/permissions";
+import type { RateLimitConfig } from "$lib/server/ratelimit";
 import {
   checkRateLimit,
   getClientIp,
+  getRateLimitConfig,
   RATE_LIMIT_CONFIG,
-  RATE_LIMIT_CONFIG_UNAUTHENTICATED,
   trackCounterIncrement,
 } from "$lib/server/ratelimit";
 
@@ -113,14 +114,16 @@ const appHandle: Handle = async ({ event, resolve }) => {
 
       if (!isAdmin) {
         const clientIp = getClientIp(event.request);
-        const unauthConfig =
-          RATE_LIMIT_CONFIG_UNAUTHENTICATED[
-            writeRoute as keyof typeof RATE_LIMIT_CONFIG_UNAUTHENTICATED
-          ];
-        const config =
-          !isAuthenticated && unauthConfig
-            ? unauthConfig
-            : RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];
+
+        let config: RateLimitConfig | undefined;
+        if (writeRoute === "/api/counters/[id]") {
+          // Use DB-backed global settings for counter increments
+          const dbConfig = await getRateLimitConfig(isAuthenticated);
+          config = dbConfig.increment;
+        } else {
+          config =
+            RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];
+        }
 
         if (config) {
           const rateLimitCheck = checkRateLimit(clientIp, writeRoute, config);

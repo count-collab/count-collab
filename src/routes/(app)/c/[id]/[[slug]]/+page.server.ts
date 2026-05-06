@@ -22,6 +22,7 @@ import {
 } from "$lib/server/followers";
 import { logger } from "$lib/server/logger";
 import { getCounterMembers } from "$lib/server/members";
+import { checkCounterCooldown } from "$lib/server/ratelimit";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { PageServerLoad } from "./$types";
 
@@ -184,6 +185,19 @@ export const load: PageServerLoad = async ({
 
   depends(`counter:${params.id}`);
 
+  // Check current cooldown state so the UI can show it on load
+  const cooldownState = await checkCounterCooldown(counter.id, userId, {
+    cooldownEnabled: counter.cooldownEnabled ?? false,
+    cooldownSeconds: counter.cooldownSeconds ?? 0,
+    ownerId: counter.ownerId,
+  });
+  const initialCooldownSeconds = cooldownState.blocked
+    ? cooldownState.retryAfterSeconds
+    : 0;
+  const cooldownDuration = cooldownState.blocked
+    ? cooldownState.retryAfterSeconds
+    : cooldownState.cooldownSeconds;
+
   return {
     counter,
     history: await getCounterHistory(params.id),
@@ -197,6 +211,8 @@ export const load: PageServerLoad = async ({
     members,
     isFollowing,
     followerCount,
+    initialCooldownSeconds,
+    cooldownDuration,
     goals: goals.map((g) => ({
       ...g,
       reachedAt: g.reachedAt?.toISOString() ?? null,

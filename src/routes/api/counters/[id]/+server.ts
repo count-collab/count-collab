@@ -1,4 +1,7 @@
 import { error, json } from "@sveltejs/kit";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { db } from "$lib/db";
+import { counterGoals } from "$lib/db/schema";
 import {
   canDeleteCounter,
   canEditCounter,
@@ -127,6 +130,72 @@ export const POST: RequestHandler = async ({
   if (!updated) {
     logger.warn("Increment failed: counter not found", { id: params.id });
     throw error(404, "Counter not found");
+  }
+
+  // Mark any newly-reached goals
+  if (counter.goalsEnabled) {
+    const unreachedGoals = await db
+      .select()
+      .from(counterGoals)
+      .where(
+        and(
+          eq(counterGoals.counterId, params.id),
+          isNull(counterGoals.reachedAt),
+        ),
+      );
+
+    const previousCount = updated.count - amount;
+    const nowReached = unreachedGoals.filter((g) => {
+      if (counter.counterMode === "decrement_only") {
+        // Was above goal, now at or below
+        return previousCount > g.amount && updated.count <= g.amount;
+      }
+      if (g.amount < 0) {
+        return previousCount > g.amount && updated.count <= g.amount;
+      }
+      // Was below goal, now at or above
+      return previousCount < g.amount && updated.count >= g.amount;
+    });
+
+    if (nowReached.length > 0) {
+      const now = new Date();
+      for (const g of nowReached) {
+        await db
+          .update(counterGoals)
+          .set({ reachedAt: now })
+          .where(eq(counterGoals.id, g.id));
+      }
+    }
+
+    // Clear reachedAt for goals that are no longer met
+    const reachedGoals = await db
+      .select()
+      .from(counterGoals)
+      .where(
+        and(
+          eq(counterGoals.counterId, params.id),
+          isNotNull(counterGoals.reachedAt),
+        ),
+      );
+
+    const noLongerReached = reachedGoals.filter((g) => {
+      if (counter.counterMode === "decrement_only") {
+        return updated.count > g.amount;
+      }
+      if (g.amount < 0) {
+        return updated.count > g.amount;
+      }
+      return updated.count < g.amount;
+    });
+
+    if (noLongerReached.length > 0) {
+      for (const g of noLongerReached) {
+        await db
+          .update(counterGoals)
+          .set({ reachedAt: null })
+          .where(eq(counterGoals.id, g.id));
+      }
+    }
   }
 
   const username = session?.user?.username ?? session?.user?.name ?? null;

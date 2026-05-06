@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { fade } from "svelte/transition";
   import Slider from "$lib/components/Slider.svelte";
   import Switch from "$lib/components/Switch.svelte";
@@ -14,7 +15,7 @@
   type LocalGoal = {
     _localId: number;
     id?: number;
-    amount: number;
+    amount: number | null;
     description: string;
     reachedAt: string | null;
   };
@@ -56,6 +57,7 @@
 
   let isSaving = $state(false);
   let saveError = $state("");
+  let goalErrors = $state<Set<number>>(new Set());
 
   // Initialize local state from counter prop when overlay opens
   $effect(() => {
@@ -68,10 +70,15 @@
       cooldownSeconds = counter.cooldownSeconds;
       goalsEnabled = counter.goalsEnabled;
       scoreboardEnabled = counter.scoreboardEnabled;
-      localGoals = goals.map((g, i) => ({ ...g, _localId: i }));
+      const mapped = goals.map((g, i) => ({ ...g, _localId: i }));
+      localGoals = mapped;
       nextLocalId = goals.length;
+      sortedGoals = [...mapped].sort(
+        (a, b) => (a.amount ?? 0) - (b.amount ?? 0),
+      );
       isSaving = false;
       saveError = "";
+      goalErrors = new Set();
     }
   });
 
@@ -85,31 +92,75 @@
     }
   });
 
-  let sortedGoals = $derived(
-    [...localGoals].sort((a, b) => a.amount - b.amount),
-  );
+  let sortedGoals = $state<LocalGoal[]>([]);
+  let unsortedIds = $state<Set<number>>(new Set());
+
+  function sortGoals() {
+    const sorted = localGoals.filter((g) => !unsortedIds.has(g._localId));
+    sorted.sort((a, b) => (a.amount ?? 0) - (b.amount ?? 0));
+    const unsorted = localGoals.filter((g) => unsortedIds.has(g._localId));
+    sortedGoals = [...sorted, ...unsorted];
+  }
+
+  function commitGoalSort(localId: number) {
+    const idx = localGoals.findIndex((g) => g._localId === localId);
+    if (idx !== -1) {
+      const raw = localGoals[idx].amount;
+      const parsed = Number.parseInt(String(raw ?? ""), 10);
+      localGoals[idx].amount = Number.isNaN(parsed) ? null : parsed;
+    }
+    unsortedIds.delete(localId);
+    unsortedIds = new Set(unsortedIds);
+    sortGoals();
+  }
 
   function close() {
     open = false;
   }
 
-  function addGoal() {
+  let goalsTableEl: HTMLElement | undefined = $state();
+
+  async function addGoal() {
+    const id = nextLocalId++;
     localGoals.push({
-      _localId: nextLocalId++,
-      amount: 0,
+      _localId: id,
+      amount: null,
       description: "",
       reachedAt: null,
     });
+    unsortedIds.add(id);
+    unsortedIds = new Set(unsortedIds);
+    sortGoals();
+    await tick();
+    const lastRow = goalsTableEl?.querySelector(
+      "tbody tr:last-child input[type='number']",
+    ) as HTMLInputElement | null;
+    lastRow?.focus();
   }
 
   function removeGoal(localId: number) {
     localGoals = localGoals.filter((g) => g._localId !== localId);
+    sortGoals();
   }
 
   async function handleSave() {
     if (!canEdit || isSaving) return;
     isSaving = true;
     saveError = "";
+    goalErrors = new Set();
+
+    // Validate goals: amount must be a valid integer
+    if (goalsEnabled) {
+      const invalid = localGoals.filter(
+        (g) => g.amount === null || !Number.isInteger(g.amount),
+      );
+      if (invalid.length > 0) {
+        goalErrors = new Set(invalid.map((g) => g._localId));
+        saveError = "Some goals have invalid amounts.";
+        isSaving = false;
+        return;
+      }
+    }
 
     try {
       // PATCH counter settings
@@ -425,7 +476,7 @@
             <div
               class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
             >
-              <table class="w-full">
+              <table bind:this={goalsTableEl} class="w-full">
                 <thead>
                   <tr
                     class="bg-slate-50 dark:bg-slate-800/50 text-left text-sm font-medium text-slate-600 dark:text-slate-400"
@@ -449,8 +500,13 @@
                         <input
                           type="number"
                           bind:value={localGoals[idx].amount}
+                          onblur={() => commitGoalSort(goal._localId)}
                           disabled={!canEdit}
-                          class="w-24 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                          class="w-24 rounded-lg border bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed {goalErrors.has(
+                            goal._localId,
+                          )
+                            ? 'border-red-500 dark:border-red-500'
+                            : 'border-slate-300 dark:border-slate-600'}"
                         />
                       </td>
                       <td class="px-4 py-2">
@@ -491,17 +547,24 @@
                 </tbody>
               </table>
             </div>
-            {#if canEdit}
-              <button
-                type="button"
-                onclick={addGoal}
-                class="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-              >
-                <ion-icon name="add-circle-outline" style="font-size: 18px;"
-                ></ion-icon>
-                Add goal
-              </button>
-            {/if}
+            <div class="flex items-center justify-between">
+              {#if canEdit}
+                <button
+                  type="button"
+                  onclick={addGoal}
+                  class="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                >
+                  <ion-icon name="add-circle-outline" style="font-size: 18px;"
+                  ></ion-icon>
+                  Add goal
+                </button>
+              {/if}
+              {#if goalErrors.size > 0}
+                <span class="text-sm text-red-600 dark:text-red-400">
+                  {saveError}
+                </span>
+              {/if}
+            </div>
           {/if}
         </section>
 
@@ -527,7 +590,7 @@
       class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3"
     >
       <div class="max-w-2xl mx-auto space-y-2">
-        {#if saveError}
+        {#if saveError && goalErrors.size === 0}
           <p class="text-sm text-red-600 dark:text-red-400">{saveError}</p>
         {/if}
         <div class="flex items-center justify-end gap-3">

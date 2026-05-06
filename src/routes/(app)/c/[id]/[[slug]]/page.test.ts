@@ -66,6 +66,8 @@ function makePageData(overrides: Record<string, unknown> = {}) {
     shareToken: null,
     hasValidToken: false,
     autoDeleteInfo: null,
+    initialCooldownSeconds: 0,
+    cooldownDuration: 5,
     title: "Test Counter | Count Collab",
     description: "A test counter",
     ...overrides,

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { fade } from "svelte/transition";
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
@@ -78,9 +79,25 @@
   let errorMessage = $state<string | null>(null);
   let isIncrementing = $state(false);
   let fireworkTrigger = $state(0);
-  let cooldownDuration = $state(0);
+  // svelte-ignore state_referenced_locally
+  let cooldownDuration = $state(data.cooldownDuration);
   let floatingUsernameId = $state(0);
-  let floatingUsernames = $state<{ id: number; username: string; amount: number }[]>([]);
+  let floatingUsernames = $state<
+    { id: number; username: string; amount: number }[]
+  >([]);
+
+  // Apply server-side cooldown state on mount (once only)
+  let cooldownInitialized = false;
+  $effect(() => {
+    if (!browser || cooldownInitialized) return;
+    cooldownInitialized = true;
+    const initial = untrack(() => data.initialCooldownSeconds);
+    const duration = untrack(() => data.cooldownDuration);
+    if (initial > 0) {
+      cooldownDuration = duration;
+      rateLimit.setLimit(`/c/${untrack(() => data.counter.id)}`, initial);
+    }
+  });
 
   // History toggle state
   const COLLAPSED_HISTORY_COUNT = 5;
@@ -141,9 +158,15 @@
   let inviteSuccess = $state<string | null>(null);
   let isInviting = $state(false);
 
-  function addFloatingUsername(username: string | null | undefined, amount = 1) {
+  function addFloatingUsername(
+    username: string | null | undefined,
+    amount = 1,
+  ) {
     const displayName = username || "Anonymous";
-    floatingUsernames = [...floatingUsernames, { id: ++floatingUsernameId, username: displayName, amount }];
+    floatingUsernames = [
+      ...floatingUsernames,
+      { id: ++floatingUsernameId, username: displayName, amount },
+    ];
   }
 
   function removeFloatingUsername(id: number) {
@@ -630,15 +653,18 @@
 
         <Fireworks trigger={fireworkTrigger} />
         <div class="relative">
-        <FloatingUsername usernames={floatingUsernames} oncomplete={removeFloatingUsername} />
-        <p
-          class="text-8xl sm:text-9xl font-extrabold tabular-nums transition-colors duration-300 {displayCount <
-          0
-            ? 'text-red-500 dark:text-red-400'
-            : 'text-blue-600 dark:text-blue-400'}"
-        >
-          <RollingNumber value={displayCount} />
-        </p>
+          <FloatingUsername
+            usernames={floatingUsernames}
+            oncomplete={removeFloatingUsername}
+          />
+          <p
+            class="text-8xl sm:text-9xl font-extrabold tabular-nums transition-colors duration-300 {displayCount <
+            0
+              ? 'text-red-500 dark:text-red-400'
+              : 'text-blue-600 dark:text-blue-400'}"
+          >
+            <RollingNumber value={displayCount} />
+          </p>
         </div>
 
         <div class="mt-8 relative flex items-center gap-4">
