@@ -3,9 +3,7 @@
   "release-type": "node",
   "packages": {
     ".": {
-      "changelog-path": "CHANGELOG.md",
-      "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
