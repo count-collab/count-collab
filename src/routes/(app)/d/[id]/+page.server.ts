@@ -14,6 +14,7 @@ import {
   canViewDashboard,
   isDashboardOwner,
 } from "$lib/server/dashboard-authorize";
+import { getDashboardInvitations } from "$lib/server/dashboard-invitations";
 import { getDashboardItems } from "$lib/server/dashboard-items";
 import {
   getDashboardMembers,
@@ -111,6 +112,9 @@ export const load: PageServerLoad = async ({
     : false;
   const isOwner = userId ? await isDashboardOwner(userId, dashboard.id) : false;
   const members = canManage ? await getDashboardMembers(dashboard.id) : [];
+  const invitations = canManage
+    ? await getDashboardInvitations(dashboard.id)
+    : [];
   const memberRole = userId
     ? await getUserDashboardRole(userId, dashboard.id)
     : null;
@@ -140,6 +144,7 @@ export const load: PageServerLoad = async ({
     isOwner,
     shareToken: canManage ? (dashboard.shareToken ?? null) : null,
     members,
+    invitations,
     memberRole,
     isFollowing,
     followerCount,

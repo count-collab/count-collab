@@ -1,5 +1,6 @@
-import { io, type Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import { browser } from "$app/environment";
+import { getSocket } from "./socket";
 
 export type CounterUpdatePayload = {
   counterId: string;
@@ -16,27 +17,30 @@ export type CounterCreatedPayload = {
 
 type Listener<T> = (payload: T) => void;
 
-let socket: Socket | null = null;
-
 const updateListeners = new Set<Listener<CounterUpdatePayload>>();
 const createdListeners = new Set<Listener<CounterCreatedPayload>>();
 
-function ensureConnection(): Socket {
-  if (socket) return socket;
+let registered = false;
 
-  socket = io({ path: "/socket.io" });
+function ensureConnection(): Socket | null {
+  const socket = getSocket();
+  if (!socket) return null;
 
-  socket.on("counter:updated", (payload: CounterUpdatePayload) => {
-    for (const listener of updateListeners) {
-      listener(payload);
-    }
-  });
+  if (!registered) {
+    registered = true;
 
-  socket.on("counter:created", (payload: CounterCreatedPayload) => {
-    for (const listener of createdListeners) {
-      listener(payload);
-    }
-  });
+    socket.on("counter:updated", (payload: CounterUpdatePayload) => {
+      for (const listener of updateListeners) {
+        listener(payload);
+      }
+    });
+
+    socket.on("counter:created", (payload: CounterCreatedPayload) => {
+      for (const listener of createdListeners) {
+        listener(payload);
+      }
+    });
+  }
 
   return socket;
 }

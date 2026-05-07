@@ -59,7 +59,7 @@ You are a database specialist for the Count Collab project. Your job is to write
 ## Approach
 
 1. Read the current schema in `src/lib/db/schema.ts` before making changes
-2. For schema changes: modify the schema file, then **always run `bun run db:generate`** to create migration files. Without this step, migrations will not be applied on deployment.
+2. For schema changes: modify the schema file, then **always run `bun run db:generate`** to create migration files, then **run `bun run db:migrate`** to apply them. Without `db:generate`, migrations will not be created for deployment.
 3. For queries: follow existing patterns in `src/lib/server/` files (use `eq`, `and`, `desc`, etc. from `drizzle-orm`)
 4. For seed scripts: follow the pattern in `scripts/seed-counters.ts`
 5. Validate that all foreign key references point to existing tables
@@ -67,8 +67,9 @@ You are a database specialist for the Count Collab project. Your job is to write
 ## Commands Reference
 
 ```bash
-bun run db:push        # Push schema to database
-bun run db:generate    # Generate migration files
+bun run db:generate    # Generate migration files from schema diff
+bun run db:migrate     # Apply generated migrations to database (scripts/migrate.ts)
+bun run db:push        # Push schema directly to database (dev shortcut, bypasses migration files)
 bun run db:studio      # Open Drizzle Studio
 bun run db:init        # Seed counters
 bun run db:seed-roles  # Seed roles and permissions
@@ -81,6 +82,6 @@ You are typically called as a subagent by the `developer` orchestrator. When you
 - Which files you created, modified, or read
 - A summary of what was changed and why
 - Whether `bun run db:generate` was run (required for any schema change)
-- Any follow-up actions needed (e.g., "run `bun run db:push` to apply to local database")
+- Any follow-up actions needed (e.g., "run `bun run db:migrate` to apply migrations to local database")
 
 Use `runSubagent(agentName: "Explore", ...)` for quick read-only codebase exploration when you need to understand how existing queries and schema are used.

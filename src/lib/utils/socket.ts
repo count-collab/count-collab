@@ -47,3 +47,24 @@ export function emitDashboardItemRemoved(
 ): void {
   getIO()?.emit("dashboard:item-removed", { dashboardId, itemId });
 }
+
+export function emitInvitationCreated(
+  userId: string,
+  payload: {
+    type: "counter" | "dashboard";
+    entityId: string;
+    entityTitle: string;
+    role: string;
+    inviterUsername: string | null;
+  },
+): void {
+  getIO()?.emit("invitation:created", { userId, ...payload });
+}
+
+export function emitInvitationUpdated(userId: string): void {
+  getIO()?.emit("invitation:updated", { userId });
+}
+
+export function emitInvitationDeleted(userId: string): void {
+  getIO()?.emit("invitation:deleted", { userId });
+}

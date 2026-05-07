@@ -1,10 +1,12 @@
 import { error, json } from "@sveltejs/kit";
+import { and, eq } from "drizzle-orm";
+import { db } from "$lib/db";
+import { dashboardMembers, dashboards, users } from "$lib/db/schema";
 import { canManageDashboardMembers } from "$lib/server/dashboard-authorize";
-import {
-  getDashboardMembers,
-  inviteUserByUsername,
-} from "$lib/server/dashboard-members";
+import { createDashboardInvitation } from "$lib/server/dashboard-invitations";
+import { getDashboardMembers } from "$lib/server/dashboard-members";
 import { parseAndValidateBody } from "$lib/server/request";
+import { emitInvitationCreated } from "$lib/utils/socket";
 import {
   dashboardIdSchema,
   inviteDashboardMemberSchema,
@@ -57,11 +59,63 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   }
 
   const { username, role } = validation.data;
-  const member = await inviteUserByUsername(params.id, username, role);
 
-  if (!member) {
+  // Look up user by username
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.username, username));
+
+  if (!user) {
     return json({ error: "User not found" }, { status: 404 });
   }
 
-  return json(member, { status: 201 });
+  // Prevent self-invitation
+  if (user.id === session.user.id) {
+    return json({ error: "You cannot invite yourself" }, { status: 400 });
+  }
+
+  // Check if user is already a member
+  const [existingMember] = await db
+    .select({ id: dashboardMembers.id })
+    .from(dashboardMembers)
+    .where(
+      and(
+        // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+        eq(dashboardMembers.dashboardId, params.id as any),
+        eq(dashboardMembers.userId, user.id),
+      ),
+    );
+
+  if (existingMember) {
+    return json({ error: "User is already a member" }, { status: 409 });
+  }
+
+  const invitation = await createDashboardInvitation(
+    params.id,
+    user.id,
+    role,
+    session.user.id,
+  );
+
+  if (!invitation) {
+    return json({ error: "Failed to create invitation" }, { status: 500 });
+  }
+
+  // Fetch dashboard title for the socket payload
+  const [dashboard] = await db
+    .select({ title: dashboards.title })
+    .from(dashboards)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    .where(eq(dashboards.id, params.id as any));
+
+  emitInvitationCreated(user.id, {
+    type: "dashboard",
+    entityId: params.id,
+    entityTitle: dashboard?.title ?? "Dashboard",
+    role,
+    inviterUsername: session.user.username ?? null,
+  });
+
+  return json(invitation, { status: 201 });
 };

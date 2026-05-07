@@ -241,6 +241,37 @@ export const counterMembers = pgTable(
   }),
 );
 
+// ── Counter Invitations ─────────────────────────────────────────
+
+export const counterInvitations = pgTable(
+  "counter_invitations",
+  {
+    id: serial("id").primaryKey(),
+    counterId: uuid("counter_id")
+      .notNull()
+      .references(() => counters.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    invitedBy: text("invited_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    role: text("role", { enum: counterMemberRoles })
+      .notNull()
+      .default("viewer"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (ci) => ({
+    uniqueInvitation: uniqueIndex("counter_invitations_counter_user_idx").on(
+      ci.counterId,
+      ci.userId,
+    ),
+    userIdx: index("counter_invitations_user_id_idx").on(ci.userId),
+  }),
+);
+
 // ── Dashboards ───────────────────────────────────────────────────
 
 export const dashboardVisibilityModes = ["private", "public"] as const;
@@ -312,6 +343,36 @@ export const dashboardMembers = pgTable(
       dm.dashboardId,
       dm.userId,
     ),
+  }),
+);
+
+// ── Dashboard Invitations ───────────────────────────────────────
+
+export const dashboardInvitations = pgTable(
+  "dashboard_invitations",
+  {
+    id: serial("id").primaryKey(),
+    dashboardId: uuid("dashboard_id")
+      .notNull()
+      .references(() => dashboards.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    invitedBy: text("invited_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    role: text("role", { enum: dashboardMemberRoles })
+      .notNull()
+      .default("viewer"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (di) => ({
+    uniqueInvitation: uniqueIndex(
+      "dashboard_invitations_dashboard_user_idx",
+    ).on(di.dashboardId, di.userId),
+    userIdx: index("dashboard_invitations_user_id_idx").on(di.userId),
   }),
 );
 
@@ -423,8 +484,14 @@ export type NewDashboardItem = typeof dashboardItems.$inferInsert;
 export type DashboardMember = typeof dashboardMembers.$inferSelect;
 export type NewDashboardMember = typeof dashboardMembers.$inferInsert;
 
+export type CounterInvitation = typeof counterInvitations.$inferSelect;
+export type NewCounterInvitation = typeof counterInvitations.$inferInsert;
+
 export type CounterFollower = typeof counterFollowers.$inferSelect;
 export type NewCounterFollower = typeof counterFollowers.$inferInsert;
+
+export type DashboardInvitation = typeof dashboardInvitations.$inferSelect;
+export type NewDashboardInvitation = typeof dashboardInvitations.$inferInsert;
 
 export type DashboardFollower = typeof dashboardFollowers.$inferSelect;
 export type NewDashboardFollower = typeof dashboardFollowers.$inferInsert;

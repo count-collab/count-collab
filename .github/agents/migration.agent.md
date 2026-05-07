@@ -21,14 +21,15 @@ You are a database migration specialist for the Count Collab project. Your job i
 1. Modify schema in src/lib/db/schema.ts
 2. Generate migration:  bun run db:generate    (drizzle-kit generate:pg)
 3. Review generated SQL in src/lib/db/migrations/
-4. Apply to database:   bun run db:push        (drizzle-kit push:pg)
+4. Apply to database:   bun run db:migrate     (runs scripts/migrate.ts — programmatic Drizzle migrator)
 ```
 
 ## Key Commands
 
 ```bash
 bun run db:generate    # Generate SQL migration from schema diff
-bun run db:push        # Push schema changes directly to database
+bun run db:migrate     # Apply generated migrations to database (scripts/migrate.ts)
+bun run db:push        # Push schema directly to database (dev shortcut, bypasses migration files)
 bun run db:studio      # Open Drizzle Studio for visual inspection
 ```
 
@@ -114,7 +115,7 @@ Deploy 2:
 - DO NOT run destructive migrations without confirming with the user
 - DO NOT modify Auth.js table names or primary key structures
 - DO NOT generate migrations without reviewing the generated SQL first
-- DO NOT use `db:push` in production — use generated migration files
+- DO NOT use `db:push` in production — use `db:migrate` to apply generated migration files
 - DO NOT create migrations that break the currently deployed app version (see Expand-and-Contract above)
 - ALWAYS keep `src/lib/db/schema.ts` as the single source of truth
 - ALWAYS review generated SQL in `src/lib/db/migrations/` before applying
@@ -129,8 +130,8 @@ Deploy 2:
 2. Modify `src/lib/db/schema.ts` with the new table/column definitions
 3. Run `bun run db:generate` to create migration SQL
 4. Review the generated migration for correctness and safety
-5. For development: apply with `bun run db:push`
-6. For production: plan a deployment sequence considering the two-phase pattern if needed
+5. Apply locally with `bun run db:migrate` (or `bun run db:push` as a dev shortcut)
+6. For production: `bun run db:migrate` is run automatically during deployment (see deploy action)
 7. Update seed scripts if new required data is introduced
 
 ## Subagent Behavior
