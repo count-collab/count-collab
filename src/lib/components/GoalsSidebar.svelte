@@ -218,8 +218,9 @@
                     ? 'pb-1'
                     : 'pb-0.5'} {isLatestReached ? 'overflow-visible' : ''}"
               >
-                <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
                 <div
+                  role="button"
+                  tabindex="0"
                   class="relative flex-1 overflow-visible px-2 rounded-lg transition-colors duration-150 {isLatestReached
                     ? 'py-2.5 bg-emerald-50/80 dark:bg-emerald-950/30 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 rounded-xl'
                     : 'py-1.5'} {isPreviouslyReached
