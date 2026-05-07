@@ -3,6 +3,9 @@
 
 set -e
 
+# Ensure common tool paths are available (hooks run with minimal PATH)
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 echo "Running 'bun run fix' before commit..."
 bun run fix
 
