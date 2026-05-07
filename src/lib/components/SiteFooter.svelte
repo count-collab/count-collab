@@ -5,7 +5,7 @@
 <footer
   class="bg-slate-100 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 mt-12"
 >
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
+  <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
     <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
       <div>
         <h3

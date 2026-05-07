@@ -33,14 +33,14 @@ export const load: PageServerLoad = async ({ depends, parent }) => {
   ] = await Promise.all([
     listPublicCounters(12),
     userId
-      ? getUserCounters(userId, 6)
+      ? getUserCounters(userId, 12)
       : Promise.resolve({ items: [], total: 0 }),
-    listRecentlyCreatedCounters(),
-    listRecentlyUpdatedCounters(),
+    listRecentlyCreatedCounters(12),
+    listRecentlyUpdatedCounters(12),
     getGlobalActionCount(),
     getCounterCount(),
     userId
-      ? getUserDashboards(userId, 6)
+      ? getUserDashboards(userId, 12)
       : Promise.resolve({ items: [], total: 0 }),
     userId ? getFollowedCounters(userId) : Promise.resolve([]),
     userId ? getFollowedDashboards(userId) : Promise.resolve([]),

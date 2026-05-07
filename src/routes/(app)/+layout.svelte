@@ -14,7 +14,7 @@
   class="sticky top-0 z-20 relative bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-sm dark:shadow-slate-900/50 border-b border-slate-200 dark:border-slate-700"
 >
   <div
-    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between"
+    class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between"
   >
     <h1 class="text-2xl font-bold">
       <a
@@ -275,7 +275,7 @@
 </nav>
 
 <main
-  class="flex-1 flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full"
+  class="flex-1 flex flex-col max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full"
 >
   {@render children()}
 </main>

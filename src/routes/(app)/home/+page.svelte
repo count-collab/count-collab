@@ -19,7 +19,7 @@
       ...followed.map((c) => ({ counter: c, followed: true })),
     ];
     merged.sort((a, b) => b.counter.count - a.counter.count);
-    return merged.slice(0, 6);
+    return merged.slice(0, 12);
   });
 
   // Merge owned/shared + followed dashboards, deduplicate
@@ -29,10 +29,10 @@
     return [
       ...data.userDashboards.map((d) => ({ dashboard: d, followed: false })),
       ...followed.map((d) => ({ dashboard: d, followed: true })),
-    ].slice(0, 6);
+    ].slice(0, 12);
   });
 
-  const popularSlice = $derived(data.popularCounters.slice(0, 6));
+  const popularSlice = $derived(data.popularCounters.slice(0, 12));
 
   let scrollY = $state(0);
   let heroEl: HTMLElement | undefined = $state();
@@ -174,7 +174,7 @@
           >
         </a>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each allMyCounters as { counter, followed }, i (counter.id)}
           <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
             <CounterCard {counter} showBadges {followed} />
@@ -212,7 +212,7 @@
           >
         </a>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each allMyDashboards as { dashboard, followed }, i (dashboard.id)}
           <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
             <DashboardCard {dashboard} showBadges {followed} />
@@ -240,7 +240,7 @@
           Popular Counters
         </h2>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each popularSlice as counter, i (counter.id)}
           <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
             <CounterCard {counter} />
@@ -294,7 +294,7 @@
           Recently Created
         </h2>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each data.recentlyCreated as counter, i (counter.id)}
           <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
             <CounterCard {counter} />
@@ -322,7 +322,7 @@
           Recently Updated
         </h2>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each data.recentlyUpdated as counter, i (counter.id)}
           <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
             <CounterCard {counter} />
