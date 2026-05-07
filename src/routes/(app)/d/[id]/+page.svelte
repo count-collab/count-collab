@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { browser } from "$app/environment";
+  
+  import posthog from "posthog-js";
+import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
   import AddCounterModal from "$lib/components/AddCounterModal.svelte";
   import DashboardSettingsOverlay from "$lib/components/DashboardSettingsOverlay.svelte";
@@ -112,6 +114,7 @@
         method: "POST",
       });
       if (response.ok) {
+        posthog.capture("dashboard_followed", { dashboard_id: data.dashboard.id });
         await invalidate(`dashboard:${data.dashboard.id}`);
       } else {
         const body = await response.json();
@@ -136,6 +139,7 @@
         },
       );
       if (response.ok) {
+        posthog.capture("dashboard_unfollowed", { dashboard_id: data.dashboard.id });
         await invalidate(`dashboard:${data.dashboard.id}`);
       } else {
         const body = await response.json();
@@ -289,6 +293,7 @@
         return;
       }
 
+      posthog.capture("dashboard_deleted", { dashboard_id: data.dashboard.id });
       await goto("/");
     } catch {
       errorMessage = "Network error. Please try again.";

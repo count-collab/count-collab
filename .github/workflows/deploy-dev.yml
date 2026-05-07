@@ -81,3 +81,5 @@ jobs:
           auth-twitch-id: ${{ secrets.AUTH_TWITCH_ID_DEV }}
           auth-twitch-secret: ${{ secrets.AUTH_TWITCH_SECRET_DEV }}
           noindex: "true"
+          posthog-key: ${{ vars.PUBLIC_POSTHOG_KEY }}
+          posthog-host: ${{ vars.PUBLIC_POSTHOG_HOST }}

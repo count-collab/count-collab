@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  
+  import posthog from "posthog-js";
+import { untrack } from "svelte";
   import { fly } from "svelte/transition";
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
@@ -130,6 +132,12 @@
 
       const result: { id: string } = await response.json();
       const prefix = creationType === "dashboard" ? "/d" : "/c";
+      const eventName = creationType === "dashboard" ? "dashboard_created" : "counter_created";
+      posthog.capture(eventName, {
+        title,
+        visibility,
+        ...(creationType === "counter" ? { counter_mode: counterMode } : {}),
+      });
       await goto(`${prefix}/${result.id}`);
     } catch {
       errors = { general: "Network error. Please try again." };

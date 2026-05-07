@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { invalidate, invalidateAll } from "$app/navigation";
+  
+  import posthog from "posthog-js";
+import { invalidate, invalidateAll } from "$app/navigation";
   import { page } from "$app/stores";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import {
@@ -60,6 +62,11 @@
       const res = await fetch(endpoint, { method: "POST" });
       if (!res.ok) throw new Error("Failed to accept invitation");
 
+      posthog.capture("invitation_accepted", {
+        resource_type: invitation.type,
+        resource_id: invitation.resourceId,
+        role: invitation.role,
+      });
       await invalidateAll();
     } finally {
       loadingIds.delete(id);
@@ -81,6 +88,11 @@
       const res = await fetch(endpoint, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to decline invitation");
 
+      posthog.capture("invitation_declined", {
+        resource_type: invitation.type,
+        resource_id: invitation.resourceId,
+        role: invitation.role,
+      });
       await invalidateAll();
     } finally {
       loadingIds.delete(id);

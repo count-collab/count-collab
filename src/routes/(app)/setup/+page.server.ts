@@ -1,4 +1,5 @@
 import { fail, redirect } from "@sveltejs/kit";
+import { getPostHogClient } from "$lib/server/posthog";
 import { isUsernameAvailable, setUsername } from "$lib/server/users";
 import { usernameSchema } from "$lib/utils/validation";
 import type { Actions, PageServerLoad } from "./$types";
@@ -45,6 +46,18 @@ export const actions: Actions = {
     }
 
     await setUsername(session.user.id, username);
+
+    const posthog = getPostHogClient();
+    posthog.capture({
+      distinctId: session.user.id,
+      event: "user_signed_up",
+      properties: {
+        username,
+        $set: { username },
+      },
+    });
+    await posthog.flush();
+
     throw redirect(303, "/home");
   },
 };

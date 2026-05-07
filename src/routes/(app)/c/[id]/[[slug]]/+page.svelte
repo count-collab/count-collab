@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { untrack } from "svelte";
+  
+  import posthog from "posthog-js";
+import { untrack } from "svelte";
   import { fade } from "svelte/transition";
   import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
@@ -211,6 +213,11 @@
       optimisticUpdatedAt = result.updatedAt;
       fireworkTrigger++;
       addFloatingUsername(result.username, result.amount);
+      posthog.capture("counter_incremented", {
+        counter_id: data.counter.id,
+        delta,
+        new_count: result.count,
+      });
       if (result.cooldownSeconds > 0) {
         cooldownDuration = result.cooldownSeconds;
         rateLimit.setLimit(`/c/${data.counter.id}`, result.cooldownSeconds);
@@ -241,6 +248,7 @@
         return;
       }
 
+      posthog.capture("counter_deleted", { counter_id: data.counter.id });
       await goto("/");
     } catch {
       errorMessage = "Network error. Please try again.";
@@ -263,6 +271,7 @@
         method: "POST",
       });
       if (response.ok) {
+        posthog.capture("counter_followed", { counter_id: data.counter.id });
         await invalidate(`counter:${data.counter.id}`);
       }
     } catch {
@@ -280,6 +289,7 @@
         method: "DELETE",
       });
       if (response.ok) {
+        posthog.capture("counter_unfollowed", { counter_id: data.counter.id });
         await invalidate(`counter:${data.counter.id}`);
       }
     } catch {

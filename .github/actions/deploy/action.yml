@@ -74,6 +74,14 @@ inputs:
     description: "Set to 'true' to prevent search engine indexing (dev environments)"
     required: false
     default: "false"
+  posthog-key:
+    description: PostHog public API key
+    required: false
+    default: ""
+  posthog-host:
+    description: PostHog host URL
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -125,6 +133,8 @@ runs:
           AUTH_DISCORD_SECRET=${{ inputs.auth-discord-secret }}
           AUTH_TWITCH_ID=${{ inputs.auth-twitch-id }}
           AUTH_TWITCH_SECRET=${{ inputs.auth-twitch-secret }}
+          PUBLIC_POSTHOG_KEY=${{ inputs.posthog-key }}
+          PUBLIC_POSTHOG_HOST=${{ inputs.posthog-host }}
           EOF
 
           # Generate compose file

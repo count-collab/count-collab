@@ -1,5 +1,6 @@
 <script lang="ts">
   import { signIn } from "@auth/sveltekit/client";
+  import posthog from "posthog-js";
   import { page } from "$app/state";
   import MetaTags from "$lib/components/MetaTags.svelte";
 
@@ -66,7 +67,10 @@
     {#each providers as provider (provider.id)}
       <button
         type="button"
-        onclick={() => signIn(provider.id, { callbackUrl: "/my-counters" })}
+        onclick={() => {
+          posthog.capture("user_signed_in", { provider: provider.id });
+          signIn(provider.id, { callbackUrl: "/my-counters" });
+        }}
         class="w-full flex items-center justify-center gap-3 rounded-lg px-5 py-3 font-semibold transition {provider.bg} {provider.text}"
       >
         <ion-icon name={provider.icon} style="font-size: 22px;"></ion-icon>
