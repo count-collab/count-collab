@@ -6,7 +6,7 @@
   class="bg-slate-100 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 mt-12"
 >
   <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-8">
       <div>
         <h3
           class="text-sm font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider mb-4"
@@ -108,6 +108,36 @@
         <h3
           class="text-sm font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider mb-4"
         >
+          Legal
+        </h3>
+        <ul class="space-y-2">
+          <li>
+            <a
+              href="/imprint"
+              class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition"
+              >Imprint</a
+            >
+          </li>
+          <li>
+            <a
+              href="/privacy"
+              class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition"
+              >Privacy Policy</a
+            >
+          </li>
+          <li>
+            <a
+              href="/terms"
+              class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition"
+              >Terms of Service</a
+            >
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h3
+          class="text-sm font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wider mb-4"
+        >
           About
         </h3>
         <p class="text-sm text-slate-500 dark:text-slate-400">
@@ -130,6 +160,25 @@
     >
       <p class="text-sm text-slate-500 dark:text-slate-500">
         &copy; 2026 Count Collab. Shared counts for everyone.
+      </p>
+      <p class="mt-1 text-xs text-slate-400 dark:text-slate-600">
+        <a
+          href="/imprint"
+          class="hover:text-slate-600 dark:hover:text-slate-400 transition"
+          >Imprint</a
+        >
+        &middot;
+        <a
+          href="/privacy"
+          class="hover:text-slate-600 dark:hover:text-slate-400 transition"
+          >Privacy</a
+        >
+        &middot;
+        <a
+          href="/terms"
+          class="hover:text-slate-600 dark:hover:text-slate-400 transition"
+          >Terms</a
+        >
       </p>
       <p class="mt-1 text-xs text-slate-400 dark:text-slate-600">
         <a
