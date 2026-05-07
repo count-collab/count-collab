@@ -94,10 +94,13 @@ export async function createCounter(
   return counter;
 }
 
+export type CounterSort = "popular" | "newest" | "updated";
+
 export async function listPublicCounters(
   limit = 12,
   query?: string,
   offset = 0,
+  sort: CounterSort = "popular",
 ): Promise<{ items: Counter[]; total: number }> {
   const searchQuery = query?.trim();
   const whereClause = searchQuery
@@ -147,8 +150,14 @@ export async function listPublicCounters(
       .leftJoin(actionCountSq, eq(countersTable.id, actionCountSq.counterId))
       .where(whereClause)
       .orderBy(
-        desc(sql`COALESCE(${actionCountSq.actionCount}, 0)`),
-        desc(countersTable.updatedAt),
+        ...(sort === "newest"
+          ? [desc(countersTable.createdAt)]
+          : sort === "updated"
+            ? [desc(countersTable.updatedAt)]
+            : [
+                desc(sql`COALESCE(${actionCountSq.actionCount}, 0)`),
+                desc(countersTable.updatedAt),
+              ]),
       )
       .limit(limit)
       .offset(offset),

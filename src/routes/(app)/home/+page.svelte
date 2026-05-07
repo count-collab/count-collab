@@ -227,7 +227,7 @@
       aria-labelledby="popular-counters-heading"
       class="relative z-10 mt-16"
     >
-      <div class="mb-6">
+      <div class="flex items-center justify-between mb-6">
         <h2
           id="popular-counters-heading"
           class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
@@ -239,6 +239,16 @@
           ></ion-icon>
           Popular Counters
         </h2>
+        <a
+          href="/counters"
+          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
+        >
+          View all
+          <span
+            class="inline-block transition-transform group-hover:translate-x-0.5"
+            >&rarr;</span
+          >
+        </a>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each popularSlice as counter, i (counter.id)}
@@ -281,7 +291,7 @@
       aria-labelledby="recently-created-heading"
       class="relative z-10 mt-16"
     >
-      <div class="mb-6">
+      <div class="flex items-center justify-between mb-6">
         <h2
           id="recently-created-heading"
           class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
@@ -293,6 +303,16 @@
           ></ion-icon>
           Recently Created
         </h2>
+        <a
+          href="/counters?sort=newest"
+          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
+        >
+          View all
+          <span
+            class="inline-block transition-transform group-hover:translate-x-0.5"
+            >&rarr;</span
+          >
+        </a>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each data.recentlyCreated as counter, i (counter.id)}
@@ -309,7 +329,7 @@
       aria-labelledby="recently-updated-heading"
       class="relative z-10 mt-16"
     >
-      <div class="mb-6">
+      <div class="flex items-center justify-between mb-6">
         <h2
           id="recently-updated-heading"
           class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
@@ -321,6 +341,16 @@
           ></ion-icon>
           Recently Updated
         </h2>
+        <a
+          href="/counters?sort=updated"
+          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
+        >
+          View all
+          <span
+            class="inline-block transition-transform group-hover:translate-x-0.5"
+            >&rarr;</span
+          >
+        </a>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each data.recentlyUpdated as counter, i (counter.id)}

@@ -565,7 +565,7 @@
             href="/counters"
             class="group inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
           >
-            Browse all counters
+            View all
             <span
               class="inline-block transition-transform group-hover:translate-x-0.5"
               >&rarr;</span

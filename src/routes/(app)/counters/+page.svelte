@@ -10,7 +10,9 @@
 
   const { data }: { data: PageData } = $props();
   const currentQuery = $derived(data.query);
+  const currentSort = $derived(data.sort);
   let search = $state("");
+  let sort = $state("popular");
 
   $effect(() => {
     const nextQuery = currentQuery;
@@ -18,6 +20,15 @@
 
     if (currentSearch !== nextQuery) {
       search = nextQuery;
+    }
+  });
+
+  $effect(() => {
+    const nextSort = currentSort;
+    const s = untrack(() => sort);
+
+    if (s !== nextSort) {
+      sort = nextSort;
     }
   });
 
@@ -36,6 +47,11 @@
         params.set("q", nextQuery);
       }
 
+      const currentSortValue = untrack(() => sort);
+      if (currentSortValue && currentSortValue !== "popular") {
+        params.set("sort", currentSortValue);
+      }
+
       const queryString = params.toString();
       const href = queryString ? `/counters?${queryString}` : "/counters";
 
@@ -50,6 +66,29 @@
       clearTimeout(timeoutId);
     };
   });
+
+  function handleSortChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    const newSort = target.value;
+
+    const params = new URLSearchParams();
+    const q = search.trim();
+    if (q) {
+      params.set("q", q);
+    }
+    if (newSort && newSort !== "popular") {
+      params.set("sort", newSort);
+    }
+
+    const queryString = params.toString();
+    const href = queryString ? `/counters?${queryString}` : "/counters";
+
+    goto(href, {
+      replaceState: true,
+      noScroll: true,
+      keepFocus: true,
+    });
+  }
 
   $effect(() => {
     if (!browser) return;
@@ -83,19 +122,38 @@
     <p class="text-slate-600 dark:text-slate-400">
       Explore public counters and follow the latest activity.
     </p>
-    <div class="max-w-lg pt-2">
-      <label
-        for="counter-search"
-        class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-        >Search counters</label
-      >
-      <input
-        id="counter-search"
-        type="search"
-        placeholder="Search by title or description"
-        bind:value={search}
-        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-800"
-      />
+    <div class="flex flex-col sm:flex-row gap-4 pt-2">
+      <div class="flex-1">
+        <label
+          for="counter-search"
+          class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          >Search counters</label
+        >
+        <input
+          id="counter-search"
+          type="search"
+          placeholder="Search by title or description"
+          bind:value={search}
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-800"
+        />
+      </div>
+      <div class="w-full sm:w-48">
+        <label
+          for="counter-sort"
+          class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          >Sort by</label
+        >
+        <select
+          id="counter-sort"
+          bind:value={sort}
+          onchange={handleSortChange}
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-800"
+        >
+          <option value="popular">Popular</option>
+          <option value="newest">Newest</option>
+          <option value="updated">Recently Updated</option>
+        </select>
+      </div>
     </div>
   </header>
 
@@ -131,7 +189,10 @@
       page={data.page}
       totalPages={data.totalPages}
       baseUrl="/counters"
-      extraParams={data.query ? { q: data.query } : {}}
+      extraParams={{
+        ...(data.query ? { q: data.query } : {}),
+        ...(data.sort !== "popular" ? { sort: data.sort } : {}),
+      }}
     />
   {/if}
 </div>
