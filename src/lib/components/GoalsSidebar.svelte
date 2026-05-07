@@ -197,9 +197,9 @@
         <div
           bind:this={scrollContainer}
           onscroll={updateScrollIndicators}
-          class={visibleGoals.length > 5
-            ? "max-h-[12rem] overflow-y-auto overflow-x-hidden"
-            : "overflow-x-hidden"}
+          class="{visibleGoals.length > 5
+            ? 'max-h-[12rem] overflow-y-auto overflow-x-hidden scrollbar-hide'
+            : 'overflow-x-hidden'}"
         >
           <ol class="space-y-1 px-2" aria-label="Goals progress">
             {#each visibleGoals as goal, i (goal.id)}
