@@ -83,20 +83,20 @@
     if (goal.amount === 0) return 0;
 
     // Negative goals: progress from 0 toward the negative target
+    // e.g. goal=-5, count=-2 → 40%; goal=-5, count=2 → -40%
     if (goal.amount < 0) {
-      if (currentCount >= 0) return 0;
-      // currentCount is negative, goal.amount is negative
-      // e.g. goal=-20, count=-10 → 10/20 = 50%
-      return Math.min(100, Math.round((currentCount / goal.amount) * 100));
+      const raw = Math.floor((currentCount / goal.amount) * 100);
+      return Math.min(99, raw);
     }
 
     if (counterMode === "decrement_only") {
       if (currentCount <= goal.amount) return 100;
-      return Math.round((goal.amount / currentCount) * 100);
+      return Math.floor((goal.amount / currentCount) * 100);
     }
     // Positive goals: progress from 0 upward
-    if (currentCount <= 0) return 0;
-    return Math.min(100, Math.round((currentCount / goal.amount) * 100));
+    // e.g. goal=10, count=4 → 40%; goal=10, count=-3 → -30%
+    const raw = Math.floor((currentCount / goal.amount) * 100);
+    return Math.min(99, raw);
   };
 
   const sortedGoals = $derived(
@@ -145,8 +145,20 @@
   <div
     class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400"
   >
-    <ion-icon name="flag-outline" style="font-size: 16px;"></ion-icon>
-    <span class="font-medium">{reachedCount}/{goals.length} goals</span>
+    {#if reachedCount > 0}
+      <ion-icon
+        name="checkmark-circle"
+        style="font-size: 16px;"
+        class="text-emerald-500 dark:text-emerald-400"
+      ></ion-icon>
+    {:else}
+      <ion-icon name="trophy-outline" style="font-size: 16px;"></ion-icon>
+    {/if}
+    <span class="font-medium">
+      <span class="text-emerald-600 dark:text-emerald-400"
+        >{reachedCount}</span
+      >/{goals.length} goals
+    </span>
     {#if nextGoal}
       <span class="text-slate-400 dark:text-slate-500">·</span>
       <span class="truncate">
@@ -157,17 +169,24 @@
 {:else}
   <!-- Full sidebar layout -->
   <div
-    class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-sm dark:shadow-slate-900/50 p-4"
+    class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 backdrop-blur shadow-sm dark:shadow-slate-900/50 py-4"
   >
     <h3
-      class="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-3"
+      class="px-4 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-3"
     >
-      <ion-icon name="flag-outline" style="font-size: 16px;"></ion-icon>
+      <ion-icon name="trophy-outline" style="font-size: 16px;"></ion-icon>
       Goals
+      <span
+        class="ml-auto inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums {reachedCount === goals.length
+          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'}"
+      >
+        {reachedCount}/{goals.length}
+      </span>
     </h3>
 
     {#if sortedGoals.length === 0}
-      <p class="text-sm text-slate-400 dark:text-slate-500">No goals set.</p>
+      <p class="px-4 text-sm text-slate-400 dark:text-slate-500">No goals set.</p>
     {:else}
       <div class="relative">
         {#if canScrollUp}
@@ -179,10 +198,10 @@
           bind:this={scrollContainer}
           onscroll={updateScrollIndicators}
           class={visibleGoals.length > 5
-            ? "max-h-[10.5rem] overflow-y-auto overflow-x-hidden"
+            ? "max-h-[12rem] overflow-y-auto overflow-x-hidden"
             : "overflow-x-hidden"}
         >
-          <ol class="space-y-0 px-1 -mx-3" aria-label="Goals progress">
+          <ol class="space-y-1 px-2" aria-label="Goals progress">
             {#each visibleGoals as goal, i (goal.id)}
               {@const reached = isGoalReached(goal)}
               {@const progress = goalProgress(goal)}
@@ -196,18 +215,18 @@
                 class="group {isLast
                   ? ''
                   : showBar
-                    ? 'pb-1.5'
+                    ? 'pb-1'
                     : 'pb-0.5'} {isLatestReached ? 'overflow-visible' : ''}"
               >
                 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
                 <div
-                  class="relative flex-1 overflow-visible px-2 {isLast
-                    ? 'pt-1'
-                    : 'py-1'} {isLatestReached
-                    ? 'outline-solid outline-offset-2 outline-green-50 dark:outline-green-900/10 py-2 rounded-xl'
-                    : ''}"
-                  role={reached ? "button" : undefined}
-                  tabindex={reached ? 0 : undefined}
+                  class="relative flex-1 overflow-visible px-2 rounded-lg transition-colors duration-150 {isLatestReached
+                    ? 'py-2.5 bg-emerald-50/80 dark:bg-emerald-950/30 ring-1 ring-emerald-200/60 dark:ring-emerald-800/40 rounded-xl'
+                    : 'py-1.5'} {isPreviouslyReached
+                      ? 'hover:bg-emerald-50/40 dark:hover:bg-emerald-950/15'
+                      : !reached
+                        ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        : ''}"
                   onkeydown={(e) => {
                     if (e.key === "Enter" || e.key === " ")
                       handleGoalTap(goal.id, goal.reachedAt);
@@ -225,17 +244,30 @@
                   {/if}
                   <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2 min-w-0">
+                      {#if reached}
+                        <ion-icon
+                          name="checkmark-circle"
+                          style="font-size: {isLatestReached ? '18px' : '16px'};"
+                          class="shrink-0 {isLatestReached
+                            ? 'text-emerald-500 dark:text-emerald-400'
+                            : 'text-emerald-400 dark:text-emerald-500'}"
+                        ></ion-icon>
+                      {/if}
                       <span
                         class="tabular-nums shrink-0 {isPreviouslyReached
-                          ? 'text-xs text-slate-400 dark:text-slate-500'
-                          : 'text-sm font-bold text-slate-900 dark:text-slate-100'}"
+                          ? 'text-sm text-emerald-600/70 dark:text-emerald-400/70 line-through decoration-emerald-400/40'
+                          : isLatestReached
+                            ? 'text-sm font-bold text-emerald-700 dark:text-emerald-300'
+                            : 'text-sm font-bold text-slate-900 dark:text-slate-100'}"
                       >
                         {fmt.format(goal.amount)}
                       </span>
                       <span
                         class="truncate transition-opacity duration-200 {isPreviouslyReached
-                          ? 'text-xs text-slate-400 dark:text-slate-500'
-                          : 'text-sm text-slate-600 dark:text-slate-400'} {isLatestReached
+                          ? 'text-sm text-slate-500 dark:text-slate-400'
+                          : isLatestReached
+                            ? 'text-sm font-medium text-emerald-700 dark:text-emerald-300'
+                            : 'text-sm text-slate-600 dark:text-slate-400'} {isLatestReached
                           ? 'opacity-0'
                           : reached
                             ? 'group-hover:opacity-0'
@@ -247,17 +279,28 @@
                     </div>
                     {#if !reached}
                       <span
-                        class="text-xs tabular-nums shrink-0 text-slate-400 dark:text-slate-500"
+                        class="text-xs tabular-nums shrink-0 {progress < 0 ? 'text-red-400 dark:text-red-400' : 'text-slate-400 dark:text-slate-500'}"
                       >
                         {progress}%
                       </span>
                     {/if}
-                    <!-- Reached date text (replaces checkmark/description on hover) -->
+                    {#if isPreviouslyReached}
+                      <span
+                        class="shrink-0 text-xs font-medium whitespace-nowrap text-emerald-500/80 dark:text-emerald-400/70 transition-opacity duration-200 {tappedGoalId === goal.id ? 'opacity-0' : 'group-hover:opacity-0'}"
+                      >
+                        {#if goal.reachedAt}
+                          {dateFmt.format(new Date(goal.reachedAt))}
+                        {:else}
+                          reached
+                        {/if}
+                      </span>
+                    {/if}
+                    <!-- Reached date text (shown on hover/tap, replaces description) -->
                     {#if reached}
                       <span
                         class="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 pr-2 text-xs font-medium whitespace-nowrap transition-opacity duration-200 {isLatestReached
-                          ? 'opacity-100 text-green-700 dark:text-green-300'
-                          : 'opacity-0 group-hover:opacity-100 text-slate-400 dark:text-slate-500'}"
+                          ? 'opacity-100 text-emerald-600 dark:text-emerald-300'
+                          : 'opacity-0 group-hover:opacity-100 text-emerald-500 dark:text-emerald-400'}"
                         class:!opacity-100={tappedGoalId === goal.id}
                         aria-hidden="true"
                       >
@@ -272,11 +315,11 @@
                   <!-- Progress bar (only for unreached goals) -->
                   {#if showBar}
                     <div
-                      class="mt-1.5 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"
+                      class="mt-1.5 h-2 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"
                     >
                       <div
-                        class="h-full rounded-full transition-all duration-300 bg-blue-500"
-                        style="width: {progress}%"
+                        class="h-full rounded-full transition-all duration-300 bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse"
+                        style="width: {Math.max(0, progress)}%"
                       ></div>
                     </div>
                   {/if}
