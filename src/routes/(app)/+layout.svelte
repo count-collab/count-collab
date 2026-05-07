@@ -1,13 +1,51 @@
 <script lang="ts">
   import { signOut } from "@auth/sveltekit/client";
+  import { invalidateAll } from "$app/navigation";
   import SiteFooter from "$lib/components/SiteFooter.svelte";
   import ThemeToggle from "$lib/components/ThemeToggle.svelte";
+  import ToastContainer, {
+    addInvitationToast,
+  } from "$lib/components/ToastContainer.svelte";
+  import {
+    type InvitationPayload,
+    onInvitationCreated,
+    onInvitationDeleted,
+    onInvitationUpdated,
+  } from "$lib/stores/invitations";
 
   const { children, data } = $props();
   const session = $derived(data.session);
   const isAdmin = $derived(data.isAdmin);
+  const hasPendingInvitations = $derived(data.pendingInvitationCount > 0);
 
   let mobileMenuOpen = $state(false);
+
+  function handleInvitationChange(payload: InvitationPayload) {
+    if (payload.userId === session?.user?.id) {
+      invalidateAll();
+    }
+  }
+
+  $effect(() => {
+    if (!session?.user?.id) return;
+
+    const userId = session.user.id;
+
+    const unsubCreated = onInvitationCreated((payload) => {
+      if (payload.userId === userId) {
+        addInvitationToast(payload);
+        invalidateAll();
+      }
+    });
+    const unsubUpdated = onInvitationUpdated(handleInvitationChange);
+    const unsubDeleted = onInvitationDeleted(handleInvitationChange);
+
+    return () => {
+      unsubCreated();
+      unsubUpdated();
+      unsubDeleted();
+    };
+  });
 </script>
 
 <nav
@@ -34,6 +72,21 @@
       >
         <ion-icon name="add-outline" style="font-size: 22px;"></ion-icon>
       </a>
+      {#if session?.user}
+        <a
+          href="/invitations"
+          class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          aria-label="Invitations"
+        >
+          <ion-icon name="notifications-outline" style="font-size: 20px;"
+          ></ion-icon>
+          {#if hasPendingInvitations}
+            <span
+              class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
+            ></span>
+          {/if}
+        </a>
+      {/if}
       <ThemeToggle />
       <button
         type="button"
@@ -63,6 +116,21 @@
         >Dashboards</a
       >
       <div class="flex items-center gap-3 ml-auto">
+        {#if session?.user}
+          <a
+            href="/invitations"
+            class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            aria-label="Invitations"
+          >
+            <ion-icon name="notifications-outline" style="font-size: 20px;"
+            ></ion-icon>
+            {#if hasPendingInvitations}
+              <span
+                class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
+              ></span>
+            {/if}
+          </a>
+        {/if}
         <a
           href="/create"
           class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700 hover:shadow-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
@@ -170,7 +238,8 @@
           onclick={() => (mobileMenuOpen = false)}
           class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
         >
-          <ion-icon name="trending-up-outline" style="font-size: 18px;"></ion-icon>
+          <ion-icon name="trending-up-outline" style="font-size: 18px;"
+          ></ion-icon>
           <span>Counters</span>
         </a>
         <a
@@ -192,6 +261,20 @@
         </a>
 
         {#if session?.user}
+          <a
+            href="/invitations"
+            onclick={() => (mobileMenuOpen = false)}
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            <ion-icon name="notifications-outline" style="font-size: 18px;"
+            ></ion-icon>
+            <span>Invitations</span>
+            {#if hasPendingInvitations}
+              <span
+                class="w-2 h-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
+              ></span>
+            {/if}
+          </a>
           <a
             href="/my-counters"
             onclick={() => (mobileMenuOpen = false)}
@@ -281,3 +364,5 @@
 </main>
 
 <SiteFooter version={data.buildInfo.version} commit={data.buildInfo.commit} />
+
+<ToastContainer />

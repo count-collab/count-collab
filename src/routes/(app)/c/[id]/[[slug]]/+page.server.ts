@@ -20,6 +20,7 @@ import {
   getCounterFollowerCount,
   isFollowingCounter,
 } from "$lib/server/followers";
+import { getCounterInvitations } from "$lib/server/invitations";
 import { logger } from "$lib/server/logger";
 import { getCounterMembers } from "$lib/server/members";
 import { checkCounterCooldown } from "$lib/server/ratelimit";
@@ -102,6 +103,7 @@ export const load: PageServerLoad = async ({
 
   const isOwner = userId ? counter.ownerId === userId : false;
   const members = canManage ? await getCounterMembers(counter.id) : [];
+  const invitations = canManage ? await getCounterInvitations(counter.id) : [];
 
   // Check membership directly for follow button visibility (independent of admin permissions)
   let isMember = false;
@@ -209,6 +211,7 @@ export const load: PageServerLoad = async ({
     isMember,
     ownerUsername,
     members,
+    invitations,
     isFollowing,
     followerCount,
     initialCooldownSeconds,

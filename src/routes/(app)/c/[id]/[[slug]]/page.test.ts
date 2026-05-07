@@ -63,6 +63,7 @@ function makePageData(overrides: Record<string, unknown> = {}) {
     followerCount: 0,
     ownerUsername: null,
     members: [],
+    invitations: [],
     shareToken: null,
     hasValidToken: false,
     autoDeleteInfo: null,
@@ -207,11 +208,11 @@ describe("Counter detail page", () => {
 
     await fireEvent.click(screen.getByRole("button", { name: "Share" }));
 
-    expect(screen.getByRole("dialog", { name: "Share Counter" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Sharing" })).toBeTruthy();
 
     await fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByRole("dialog", { name: "Share Counter" })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Sharing" })).toBeNull();
   });
 
   it("closes the delete confirmation modal when Escape is pressed", async () => {

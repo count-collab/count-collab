@@ -180,6 +180,20 @@ export type UpdateDashboardMemberRoleInput = z.infer<
   typeof updateDashboardMemberRoleSchema
 >;
 
+export const updateInvitationRoleSchema = z.object({
+  role: counterMemberRoleEnum,
+});
+export type UpdateInvitationRoleInput = z.infer<
+  typeof updateInvitationRoleSchema
+>;
+
+export const updateDashboardInvitationRoleSchema = z.object({
+  role: dashboardMemberRoleEnum,
+});
+export type UpdateDashboardInvitationRoleInput = z.infer<
+  typeof updateDashboardInvitationRoleSchema
+>;
+
 export const addDashboardItemSchema = z.object({
   counterId: z.string().uuid("Invalid counter ID format"),
   positionX: z.number().int().min(0).max(4),

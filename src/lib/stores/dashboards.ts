@@ -1,5 +1,6 @@
-import { io, type Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 import { browser } from "$app/environment";
+import { getSocket } from "./socket";
 
 export type DashboardCreatedPayload = {
   dashboardId: string;
@@ -21,44 +22,47 @@ export type DashboardItemRemovedPayload = {
 
 type Listener<T> = (payload: T) => void;
 
-let socket: Socket | null = null;
-
 const createdListeners = new Set<Listener<DashboardCreatedPayload>>();
 const updatedListeners = new Set<Listener<DashboardUpdatedPayload>>();
 const itemAddedListeners = new Set<Listener<DashboardItemAddedPayload>>();
 const itemRemovedListeners = new Set<Listener<DashboardItemRemovedPayload>>();
 
-function ensureConnection(): Socket {
-  if (socket) return socket;
+let registered = false;
 
-  socket = io({ path: "/socket.io" });
+function ensureConnection(): Socket | null {
+  const socket = getSocket();
+  if (!socket) return null;
 
-  socket.on("dashboard:created", (payload: DashboardCreatedPayload) => {
-    for (const listener of createdListeners) {
-      listener(payload);
-    }
-  });
+  if (!registered) {
+    registered = true;
 
-  socket.on("dashboard:updated", (payload: DashboardUpdatedPayload) => {
-    for (const listener of updatedListeners) {
-      listener(payload);
-    }
-  });
-
-  socket.on("dashboard:item-added", (payload: DashboardItemAddedPayload) => {
-    for (const listener of itemAddedListeners) {
-      listener(payload);
-    }
-  });
-
-  socket.on(
-    "dashboard:item-removed",
-    (payload: DashboardItemRemovedPayload) => {
-      for (const listener of itemRemovedListeners) {
+    socket.on("dashboard:created", (payload: DashboardCreatedPayload) => {
+      for (const listener of createdListeners) {
         listener(payload);
       }
-    },
-  );
+    });
+
+    socket.on("dashboard:updated", (payload: DashboardUpdatedPayload) => {
+      for (const listener of updatedListeners) {
+        listener(payload);
+      }
+    });
+
+    socket.on("dashboard:item-added", (payload: DashboardItemAddedPayload) => {
+      for (const listener of itemAddedListeners) {
+        listener(payload);
+      }
+    });
+
+    socket.on(
+      "dashboard:item-removed",
+      (payload: DashboardItemRemovedPayload) => {
+        for (const listener of itemRemovedListeners) {
+          listener(payload);
+        }
+      },
+    );
+  }
 
   return socket;
 }

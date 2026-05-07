@@ -64,7 +64,7 @@ bun run test                 # Unit tests
 The deploy action (`.github/actions/deploy/action.yml`) implements health-check gated deployments with automatic rollback:
 
 1. **Previous image saved** — before pulling the new image, the current one is tagged as `-rollback`
-2. **Migrations run** — `db:push` applies schema changes (always backward-compatible per migration rules)
+2. **Migrations run** — `db:migrate` applies generated migration files (runs `scripts/migrate.ts` — programmatic Drizzle migrator)
 3. **New app starts** — container has a Docker health check hitting `/health` on port 3000
 4. **Health polling** — deploy script polls container health for up to 90 seconds
 5. **Healthy** → deploy succeeds
