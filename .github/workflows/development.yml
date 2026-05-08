@@ -9,6 +9,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/test-and-build
+        with:
+          PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
+          PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
 
   # Disable for now since e2e does not work, will be re-enabled in a future PR after fixing the underlying issues with the tests and/or CI environment
   # e2e:
