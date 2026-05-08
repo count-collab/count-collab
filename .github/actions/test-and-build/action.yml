@@ -25,12 +25,15 @@ runs:
       run: bun install --frozen-lockfile
       shell: bash
 
+    - name: Write .env for type generation
+      run: |
+        echo "PUBLIC_POSTHOG_PROJECT_TOKEN=${{ inputs.PUBLIC_POSTHOG_PROJECT_TOKEN }}" >> .env
+        echo "PUBLIC_POSTHOG_HOST=${{ inputs.PUBLIC_POSTHOG_HOST }}" >> .env
+      shell: bash
+
     - name: Prepare Svelte
       run: bunx svelte-kit sync
       shell: bash
-      env:
-        PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ inputs.PUBLIC_POSTHOG_PROJECT_TOKEN }}
-        PUBLIC_POSTHOG_HOST: ${{ inputs.PUBLIC_POSTHOG_HOST }}
 
     - name: Lint
       run: bun run lint
@@ -43,14 +46,9 @@ runs:
     - name: Check Svelte
       run: bun run svelte-check
       shell: bash
-      env:
-        PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ inputs.PUBLIC_POSTHOG_PROJECT_TOKEN }}
-        PUBLIC_POSTHOG_HOST: ${{ inputs.PUBLIC_POSTHOG_HOST }}
 
     - name: Build
       run: bun run build
       shell: bash
       env:
         DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
-        PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ inputs.PUBLIC_POSTHOG_PROJECT_TOKEN }}
-        PUBLIC_POSTHOG_HOST: ${{ inputs.PUBLIC_POSTHOG_HOST }}
