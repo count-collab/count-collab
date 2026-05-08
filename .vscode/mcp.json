@@ -2,12 +2,16 @@
   "servers": {
     "playwright": {
       "command": "npx",
-      "args": ["@playwright/mcp@latest", "--browser", "chromium"],
+      "args": [
+        "@playwright/mcp@latest",
+        "--cdp-endpoint",
+        "http://localhost:9222"
+      ],
       "env": {}
     },
     "chrome-devtools": {
       "command": "npx",
-      "args": ["-y", "chrome-devtools-mcp@latest"]
+      "args": ["-y", "chrome-devtools-mcp@latest", "--port=9222"]
     },
     "docker": {
       "command": "docker",
