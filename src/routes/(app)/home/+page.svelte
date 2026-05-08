@@ -151,28 +151,31 @@
 
   {#if allMyCounters.length > 0}
     <section aria-labelledby="your-counters-heading" class="relative z-10">
-      <div class="flex items-center justify-between mb-6">
-        <h2
-          id="your-counters-heading"
-          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
-        >
-          <ion-icon
-            name="person-outline"
-            style="font-size: 24px;"
-            aria-hidden="true"
-          ></ion-icon>
-          My Counters
-        </h2>
-        <a
-          href="/my/counters"
-          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
-        >
-          View all
-          <span
-            class="inline-block transition-transform group-hover:translate-x-0.5"
-            >&rarr;</span
+      <div class="mb-6">
+        <div class="flex items-center gap-4">
+          <h2
+            id="your-counters-heading"
+            class="text-3xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
           >
-        </a>
+            <ion-icon
+              name="person-outline"
+              style="font-size: 28px;"
+              aria-hidden="true"
+            ></ion-icon>
+            My Counters
+          </h2>
+          <a
+            href="/my/counters"
+            class="group flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition"
+          >
+            All my counters
+            <span
+              class="inline-block transition-transform group-hover:translate-x-0.5"
+              >&rarr;</span
+            >
+          </a>
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Counters you own or follow</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each allMyCounters as { counter, followed }, i (counter.id)}
@@ -189,28 +192,31 @@
       aria-labelledby="your-dashboards-heading"
       class="relative z-10 mt-16"
     >
-      <div class="flex items-center justify-between mb-6">
-        <h2
-          id="your-dashboards-heading"
-          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
-        >
-          <ion-icon
-            name="grid-outline"
-            style="font-size: 24px;"
-            aria-hidden="true"
-          ></ion-icon>
-          My Dashboards
-        </h2>
-        <a
-          href="/my/dashboards"
-          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
-        >
-          View all
-          <span
-            class="inline-block transition-transform group-hover:translate-x-0.5"
-            >&rarr;</span
+      <div class="mb-6">
+        <div class="flex items-center gap-4">
+          <h2
+            id="your-dashboards-heading"
+            class="text-3xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
           >
-        </a>
+            <ion-icon
+              name="grid-outline"
+              style="font-size: 28px;"
+              aria-hidden="true"
+            ></ion-icon>
+            My Dashboards
+          </h2>
+          <a
+            href="/my/dashboards"
+            class="group flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition"
+          >
+            All my dashboards
+            <span
+              class="inline-block transition-transform group-hover:translate-x-0.5"
+              >&rarr;</span
+            >
+          </a>
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Your dashboard collections</p>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
         {#each allMyDashboards as { dashboard, followed }, i (dashboard.id)}
@@ -225,25 +231,20 @@
   {#if data.popularCounters.length > 0}
     <section
       aria-labelledby="popular-counters-heading"
-      class="relative z-10 mt-16"
+      class="relative z-10 mt-16 border-t border-slate-200 dark:border-slate-700 pt-10"
     >
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3 mb-6">
         <h2
           id="popular-counters-heading"
-          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+          class="text-lg font-semibold text-slate-600 dark:text-slate-400"
         >
-          <ion-icon
-            name="trending-up-outline"
-            style="font-size: 24px;"
-            aria-hidden="true"
-          ></ion-icon>
           Popular Counters
         </h2>
         <a
           href="/counters"
-          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
+          class="group flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition"
         >
-          View all
+          Explore popular
           <span
             class="inline-block transition-transform group-hover:translate-x-0.5"
             >&rarr;</span
@@ -289,25 +290,20 @@
   {#if data.recentlyCreated.length > 0}
     <section
       aria-labelledby="recently-created-heading"
-      class="relative z-10 mt-16"
+      class="relative z-10 mt-16 border-t border-slate-200 dark:border-slate-700 pt-10"
     >
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3 mb-6">
         <h2
           id="recently-created-heading"
-          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+          class="text-lg font-semibold text-slate-600 dark:text-slate-400"
         >
-          <ion-icon
-            name="sparkles-outline"
-            style="font-size: 24px;"
-            aria-hidden="true"
-          ></ion-icon>
           Recently Created
         </h2>
         <a
           href="/counters?sort=newest"
-          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
+          class="group flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition"
         >
-          View all
+          See newest
           <span
             class="inline-block transition-transform group-hover:translate-x-0.5"
             >&rarr;</span
@@ -327,25 +323,20 @@
   {#if data.recentlyUpdated.length > 0}
     <section
       aria-labelledby="recently-updated-heading"
-      class="relative z-10 mt-16"
+      class="relative z-10 mt-16 border-t border-slate-200 dark:border-slate-700 pt-10"
     >
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3 mb-6">
         <h2
           id="recently-updated-heading"
-          class="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2"
+          class="text-lg font-semibold text-slate-600 dark:text-slate-400"
         >
-          <ion-icon
-            name="time-outline"
-            style="font-size: 24px;"
-            aria-hidden="true"
-          ></ion-icon>
           Recently Updated
         </h2>
         <a
           href="/counters?sort=updated"
-          class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
+          class="group flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition"
         >
-          View all
+          See latest activity
           <span
             class="inline-block transition-transform group-hover:translate-x-0.5"
             >&rarr;</span
