@@ -20,6 +20,9 @@ runs:
     - name: Prepare Svelte
       run: bunx svelte-kit sync
       shell: bash
+      env:
+        PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
+        PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
 
     - name: Lint
       run: bun run lint
@@ -38,3 +41,5 @@ runs:
       shell: bash
       env:
         DATABASE_URL: postgresql://user:password@localhost:5432/count_collab
+        PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
+        PUBLIC_POSTHOG_HOST: ${{ vars.PUBLIC_POSTHOG_HOST }}
