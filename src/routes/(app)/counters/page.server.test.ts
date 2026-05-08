@@ -191,6 +191,7 @@ describe("GET /counters (load)", () => {
         query: "",
         sort: "newest",
         counters: items,
+        total: 1,
         page: 1,
         totalPages: 1,
       });
