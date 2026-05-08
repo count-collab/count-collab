@@ -310,6 +310,54 @@ describe("updateGoalSchema", () => {
   });
 });
 
+describe("counter description validation", () => {
+  describe("createCounterSchema", () => {
+    it("accepts descriptions at exactly 500 characters", () => {
+      const result = createCounterSchema.parse({
+        title: "Test",
+        description: "a".repeat(500),
+      });
+      expect(result.description).toBe("a".repeat(500));
+    });
+
+    it("rejects descriptions over 500 characters", () => {
+      expect(() =>
+        createCounterSchema.parse({
+          title: "Test",
+          description: "a".repeat(501),
+        }),
+      ).toThrow("Description must be less than 500 characters");
+    });
+
+    it("accepts empty description", () => {
+      const result = createCounterSchema.parse({ title: "Test" });
+      expect(result.description).toBe("");
+    });
+  });
+
+  describe("updateCounterSchema", () => {
+    it("accepts descriptions at exactly 500 characters", () => {
+      const result = updateCounterSchema.parse({
+        description: "a".repeat(500),
+      });
+      expect(result.description).toBe("a".repeat(500));
+    });
+
+    it("rejects descriptions over 500 characters", () => {
+      expect(() =>
+        updateCounterSchema.parse({
+          description: "a".repeat(501),
+        }),
+      ).toThrow("Description must be less than 500 characters");
+    });
+
+    it("allows omitting description", () => {
+      const result = updateCounterSchema.parse({ title: "Test" });
+      expect(result.description).toBeUndefined();
+    });
+  });
+});
+
 describe("updateGlobalSettingsSchema", () => {
   it("accepts valid partial updates", () => {
     const result = updateGlobalSettingsSchema.parse({

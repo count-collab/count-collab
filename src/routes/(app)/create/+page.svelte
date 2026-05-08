@@ -535,6 +535,7 @@ import { untrack } from "svelte";
                 <input
                   type="text"
                   bind:value={description}
+                  maxlength={500}
                   placeholder="Add a description (optional)"
                   class="w-full bg-transparent border-0 border-b-2 border-slate-300 dark:border-slate-600 text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-0 py-1 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-0"
                 />

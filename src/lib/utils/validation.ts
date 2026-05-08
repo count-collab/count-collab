@@ -23,7 +23,7 @@ export const createCounterSchema = z.object({
     .trim(),
   description: z
     .string()
-    .max(1000, "Description must be less than 1000 characters")
+    .max(500, "Description must be less than 500 characters")
     .optional()
     .default("")
     .transform((val) => val?.trim() || ""),
@@ -45,7 +45,7 @@ export const updateCounterSchema = z.object({
     .optional(),
   description: z
     .string()
-    .max(1000, "Description must be less than 1000 characters")
+    .max(500, "Description must be less than 500 characters")
     .transform((val) => val?.trim() || "")
     .nullable()
     .optional(),

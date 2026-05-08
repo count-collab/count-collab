@@ -353,7 +353,7 @@ import { untrack } from "svelte";
         </h1>
         {#if data.counter.description}
           <p
-            class="text-sm text-slate-500 dark:text-slate-400 mt-0.5 break-words"
+            class="text-sm text-slate-500 dark:text-slate-400 mt-0.5 break-words max-h-[3.75rem] overflow-y-auto"
           >
             {data.counter.description}
           </p>
