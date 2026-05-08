@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ depends, url }) => {
     query,
     sort,
     counters: items,
+    total,
     page,
     totalPages: Math.max(1, Math.ceil(total / PER_PAGE)),
   };

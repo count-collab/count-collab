@@ -67,9 +67,8 @@
     };
   });
 
-  function handleSortChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    const newSort = target.value;
+  function handleSortChange(newSort: string) {
+    sort = newSort;
 
     const params = new URLSearchParams();
     const q = search.trim();
@@ -83,6 +82,22 @@
     const queryString = params.toString();
     const href = queryString ? `/counters?${queryString}` : "/counters";
 
+    goto(href, {
+      replaceState: true,
+      noScroll: true,
+      keepFocus: true,
+    });
+  }
+
+  function clearSearch() {
+    search = "";
+    const params = new URLSearchParams();
+    const currentSortValue = sort;
+    if (currentSortValue && currentSortValue !== "popular") {
+      params.set("sort", currentSortValue);
+    }
+    const queryString = params.toString();
+    const href = queryString ? `/counters?${queryString}` : "/counters";
     goto(href, {
       replaceState: true,
       noScroll: true,
@@ -122,37 +137,56 @@
     <p class="text-slate-600 dark:text-slate-400">
       Explore public counters and follow the latest activity.
     </p>
-    <div class="flex flex-col sm:flex-row gap-4 pt-2">
-      <div class="flex-1">
-        <label
-          for="counter-search"
-          class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-          >Search counters</label
-        >
+    <div class="flex flex-col gap-4 pt-2">
+      <div class="relative">
+        <label for="counter-search" class="sr-only">Search counters</label>
+        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+          <ion-icon
+            name="search-outline"
+            style="font-size: 18px;"
+            class="text-slate-400 dark:text-slate-500"
+            aria-hidden="true"
+          ></ion-icon>
+        </div>
         <input
           id="counter-search"
           type="search"
           placeholder="Search by title or description"
           bind:value={search}
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-800"
+          class="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-400 dark:focus:ring-blue-800"
         />
+        {#if search}
+          <button
+            type="button"
+            onclick={clearSearch}
+            class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition"
+            aria-label="Clear search"
+          >
+            <ion-icon name="close-circle" style="font-size: 18px;" aria-hidden="true"></ion-icon>
+          </button>
+        {/if}
       </div>
-      <div class="w-full sm:w-48">
-        <label
-          for="counter-sort"
-          class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-          >Sort by</label
-        >
-        <select
-          id="counter-sort"
-          bind:value={sort}
-          onchange={handleSortChange}
-          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-400 dark:focus:ring-blue-800"
-        >
-          <option value="popular">Popular</option>
-          <option value="newest">Newest</option>
-          <option value="updated">Recently Updated</option>
-        </select>
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-800" role="tablist" aria-label="Sort counters">
+          {#each [{ value: "popular", label: "Popular" }, { value: "newest", label: "Newest" }, { value: "updated", label: "Recently Updated" }] as option (option.value)}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={sort === option.value}
+              onclick={() => handleSortChange(option.value)}
+              class="rounded-md px-3 py-1.5 text-sm font-medium transition {sort === option.value
+                ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-100'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}"
+            >
+              {option.label}
+            </button>
+          {/each}
+        </div>
+        {#if data.total > 0}
+          <p class="text-sm text-slate-500 dark:text-slate-400 shrink-0">
+            {data.total} {data.total === 1 ? "counter" : "counters"}{data.query ? " found" : ""}
+          </p>
+        {/if}
       </div>
     </div>
   </header>
