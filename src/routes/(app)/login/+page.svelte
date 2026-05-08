@@ -69,7 +69,7 @@
         type="button"
         onclick={() => {
           posthog.capture("user_signed_in", { provider: provider.id });
-          signIn(provider.id, { callbackUrl: "/my-counters" });
+          signIn(provider.id, { callbackUrl: "/my" });
         }}
         class="w-full flex items-center justify-center gap-3 rounded-lg px-5 py-3 font-semibold transition {provider.bg} {provider.text}"
       >

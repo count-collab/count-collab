@@ -4,6 +4,7 @@
   import {
     addCircleOutline,
     addOutline,
+    appsOutline,
     arrowBackOutline,
     bookmark,
     bookmarkOutline,
@@ -36,6 +37,7 @@
     peopleOutline,
     personOutline,
     personRemoveOutline,
+    pulseOutline,
     removeCircleOutline,
     searchOutline,
     settingsOutline,
@@ -100,6 +102,8 @@
       "desktop-outline": desktopOutline,
       "swap-vertical-outline": swapVerticalOutline,
       "time-outline": timeOutline,
+      "pulse-outline": pulseOutline,
+      "apps-outline": appsOutline,
     });
     defineCustomElement();
   }

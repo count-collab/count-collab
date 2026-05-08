@@ -171,15 +171,15 @@
               class="invisible opacity-0 group-hover:visible group-hover:opacity-100 absolute right-0 top-full mt-1 w-60 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg dark:shadow-slate-900/50 py-1 transition-all duration-150 z-50"
             >
               <a
-                href="/my-counters"
+                href="/my"
                 class="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
               >
                 <ion-icon
-                  name="list-outline"
+                  name="grid-outline"
                   class="shrink-0"
                   style="font-size: 18px;"
                 ></ion-icon>
-                <span class="whitespace-nowrap">My Counters & Dashboards</span>
+                <span class="whitespace-nowrap">My Space</span>
               </a>
               <a
                 href="/settings"
@@ -276,12 +276,12 @@
             {/if}
           </a>
           <a
-            href="/my-counters"
+            href="/my"
             onclick={() => (mobileMenuOpen = false)}
             class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
           >
-            <ion-icon name="list-outline" style="font-size: 18px;"></ion-icon>
-            <span class="whitespace-nowrap">My Counters & Dashboards</span>
+            <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
+            <span class="whitespace-nowrap">My Space</span>
           </a>
           <a
             href="/settings"
@@ -307,7 +307,7 @@
             class="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2"
           >
             <a
-              href="/my-counters"
+              href="/my"
               onclick={() => (mobileMenuOpen = false)}
               class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition"
             >

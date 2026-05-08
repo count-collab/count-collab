@@ -285,3 +285,77 @@ export async function listAllDashboards(
 
   return { items, total: Number(total) };
 }
+
+/**
+ * Get only dashboards owned by a user.
+ */
+export async function getOwnedDashboards(
+  userId: string,
+  limit?: number,
+  offset = 0,
+): Promise<{ items: Dashboard[]; total: number }> {
+  const whereClause = eq(dashboardsTable.ownerId, userId);
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select()
+      .from(dashboardsTable)
+      .where(whereClause)
+      .orderBy(desc(dashboardsTable.updatedAt))
+      .limit(limit ?? 1000)
+      .offset(offset),
+    db.select({ total: countFn() }).from(dashboardsTable).where(whereClause),
+  ]);
+
+  return { items: rows, total: Number(total) };
+}
+
+export type SharedDashboard = Dashboard & { memberRole: string };
+
+/**
+ * Get dashboards shared with a user (where they are a member but NOT the owner).
+ */
+export async function getSharedDashboards(
+  userId: string,
+  limit?: number,
+  offset = 0,
+): Promise<{ items: SharedDashboard[]; total: number }> {
+  const baseCondition = and(
+    eq(dashboardMembers.userId, userId),
+    sql`${dashboardsTable.ownerId} IS DISTINCT FROM ${userId}`,
+  );
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: dashboardsTable.id,
+        title: dashboardsTable.title,
+        description: dashboardsTable.description,
+        visibilityMode: dashboardsTable.visibilityMode,
+        shareToken: dashboardsTable.shareToken,
+        ownerId: dashboardsTable.ownerId,
+        createdAt: dashboardsTable.createdAt,
+        updatedAt: dashboardsTable.updatedAt,
+        memberRole: dashboardMembers.role,
+      })
+      .from(dashboardMembers)
+      .innerJoin(
+        dashboardsTable,
+        eq(dashboardMembers.dashboardId, dashboardsTable.id),
+      )
+      .where(baseCondition)
+      .orderBy(desc(dashboardsTable.updatedAt))
+      .limit(limit ?? 1000)
+      .offset(offset),
+    db
+      .select({ total: countFn() })
+      .from(dashboardMembers)
+      .innerJoin(
+        dashboardsTable,
+        eq(dashboardMembers.dashboardId, dashboardsTable.id),
+      )
+      .where(baseCondition),
+  ]);
+
+  return { items: rows as SharedDashboard[], total: Number(total) };
+}

@@ -164,7 +164,7 @@
           My Counters
         </h2>
         <a
-          href="/my-counters"
+          href="/my/counters"
           class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
         >
           View all
@@ -202,7 +202,7 @@
           My Dashboards
         </h2>
         <a
-          href="/my-counters"
+          href="/my/dashboards"
           class="group flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
         >
           View all

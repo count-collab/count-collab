@@ -573,6 +573,14 @@ export async function getGlobalActionCount(): Promise<number> {
   return Number(row.total);
 }
 
+export async function getUserActionCount(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: countFn() })
+    .from(counterHistoryTable)
+    .where(eq(counterHistoryTable.changedBy, userId));
+  return Number(row?.count ?? 0);
+}
+
 export async function getCounterCount(): Promise<number> {
   const [row] = await db
     .select({ count: sql<string>`COUNT(*)` })
@@ -589,4 +597,147 @@ export async function getOwnedCounterCount(userId: string): Promise<number> {
     .from(countersTable)
     .where(eq(countersTable.ownerId, userId));
   return Number(row?.count ?? 0);
+}
+
+/**
+ * Get only counters owned by a user.
+ */
+export async function getOwnedCounters(
+  userId: string,
+  limit?: number,
+  offset = 0,
+): Promise<{ items: Counter[]; total: number }> {
+  const whereClause = eq(countersTable.ownerId, userId);
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select()
+      .from(countersTable)
+      .where(whereClause)
+      .orderBy(desc(countersTable.updatedAt))
+      .limit(limit ?? 1000)
+      .offset(offset),
+    db.select({ total: countFn() }).from(countersTable).where(whereClause),
+  ]);
+
+  return { items: rows, total: Number(total) };
+}
+
+export type SharedCounter = Counter & { memberRole: string };
+
+/**
+ * Get counters shared with a user (where they are a member but NOT the owner).
+ */
+export async function getSharedCounters(
+  userId: string,
+  limit?: number,
+  offset = 0,
+): Promise<{ items: SharedCounter[]; total: number }> {
+  const baseCondition = and(
+    eq(counterMembers.userId, userId),
+    sql`${countersTable.ownerId} IS DISTINCT FROM ${userId}`,
+  );
+
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: countersTable.id,
+        title: countersTable.title,
+        description: countersTable.description,
+        count: countersTable.count,
+        isPublic: countersTable.isPublic,
+        visibilityMode: countersTable.visibilityMode,
+        counterMode: countersTable.counterMode,
+        shareToken: countersTable.shareToken,
+        cooldownEnabled: countersTable.cooldownEnabled,
+        cooldownSeconds: countersTable.cooldownSeconds,
+        goalsEnabled: countersTable.goalsEnabled,
+        showAllReachedGoals: countersTable.showAllReachedGoals,
+        scoreboardEnabled: countersTable.scoreboardEnabled,
+        ownerId: countersTable.ownerId,
+        createdAt: countersTable.createdAt,
+        updatedAt: countersTable.updatedAt,
+        lastActivityAt: countersTable.lastActivityAt,
+        memberRole: counterMembers.role,
+      })
+      .from(counterMembers)
+      .innerJoin(countersTable, eq(counterMembers.counterId, countersTable.id))
+      .where(baseCondition)
+      .orderBy(desc(countersTable.updatedAt))
+      .limit(limit ?? 1000)
+      .offset(offset),
+    db
+      .select({ total: countFn() })
+      .from(counterMembers)
+      .innerJoin(countersTable, eq(counterMembers.counterId, countersTable.id))
+      .where(baseCondition),
+  ]);
+
+  return { items: rows as SharedCounter[], total: Number(total) };
+}
+
+export type UserActivity = {
+  id: number;
+  counterId: string;
+  counterTitle: string;
+  previousValue: number;
+  newValue: number;
+  changedBy: string | null;
+  changedByUsername: string | null;
+  changedAt: Date;
+  isOwnAction: boolean;
+};
+
+/**
+ * Get recent counter activity for counters the user owns, is a member of,
+ * or where the user performed the action.
+ */
+export async function getUserRecentActivity(
+  userId: string,
+  limit = 5,
+): Promise<UserActivity[]> {
+  const rows = await db.execute<{
+    id: number;
+    counter_id: string;
+    counter_title: string;
+    previous_value: number;
+    new_value: number;
+    changed_by: string | null;
+    changed_by_username: string | null;
+    changed_at: Date;
+  }>(sql`
+    SELECT
+      h.id,
+      h.counter_id,
+      c.title AS counter_title,
+      h.previous_value,
+      h.new_value,
+      h.changed_by,
+      u.username AS changed_by_username,
+      h.changed_at
+    FROM counter_history h
+    INNER JOIN counters c ON c.id = h.counter_id
+    LEFT JOIN "user" u ON u.id = h.changed_by
+    WHERE
+      c.owner_id = ${userId}
+      OR h.changed_by = ${userId}
+      OR EXISTS (
+        SELECT 1 FROM counter_members cm
+        WHERE cm.counter_id = h.counter_id AND cm.user_id = ${userId}
+      )
+    ORDER BY h.changed_at DESC
+    LIMIT ${limit}
+  `);
+
+  return rows.map((r) => ({
+    id: r.id,
+    counterId: r.counter_id,
+    counterTitle: r.counter_title,
+    previousValue: r.previous_value,
+    newValue: r.new_value,
+    changedBy: r.changed_by,
+    changedByUsername: r.changed_by_username,
+    changedAt: new Date(r.changed_at),
+    isOwnAction: r.changed_by === userId,
+  }));
 }
