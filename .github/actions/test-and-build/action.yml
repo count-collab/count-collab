@@ -43,6 +43,9 @@ runs:
     - name: Check Svelte
       run: bun run svelte-check
       shell: bash
+      env:
+        PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ inputs.PUBLIC_POSTHOG_PROJECT_TOKEN }}
+        PUBLIC_POSTHOG_HOST: ${{ inputs.PUBLIC_POSTHOG_HOST }}
 
     - name: Build
       run: bun run build
