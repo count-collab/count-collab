@@ -45,5 +45,8 @@ jobs:
         with:
           push: false
           tags: ghcr.io/count-collab/count-collab:latest
+          build-args: |
+            PUBLIC_POSTHOG_PROJECT_TOKEN=${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
+            PUBLIC_POSTHOG_HOST=${{ vars.PUBLIC_POSTHOG_HOST }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -20,11 +20,17 @@ ARG BUILD_BRANCH=unknown
 ENV BUILD_COMMIT=$BUILD_COMMIT
 ENV BUILD_BRANCH=$BUILD_BRANCH
 
+# Public env vars required at build time for SvelteKit $env/static/public
+ARG PUBLIC_POSTHOG_PROJECT_TOKEN=""
+ARG PUBLIC_POSTHOG_HOST=""
+
 # Copy application code
 COPY . .
 
-# Build application
-RUN bun run build
+# Build application with public env vars available
+RUN PUBLIC_POSTHOG_PROJECT_TOKEN=$PUBLIC_POSTHOG_PROJECT_TOKEN \
+    PUBLIC_POSTHOG_HOST=$PUBLIC_POSTHOG_HOST \
+    bun run build
 
 # Setup cron job for inactive counter cleanup (daily at 3 AM UTC)
 RUN echo '0 3 * * * . /app/.env.cron && cd /app && bun run scripts/cleanup-inactive-counters.ts >> /var/log/cron.log 2>&1' > /etc/crontabs/app \

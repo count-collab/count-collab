@@ -45,6 +45,8 @@ jobs:
           build-args: |
             BUILD_COMMIT=${{ github.sha }}
             BUILD_BRANCH=${{ github.ref_name }}
+            PUBLIC_POSTHOG_PROJECT_TOKEN=${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
+            PUBLIC_POSTHOG_HOST=${{ vars.PUBLIC_POSTHOG_HOST }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -84,5 +86,3 @@ jobs:
           auth-twitch-id: ${{ secrets.AUTH_TWITCH_ID_DEV }}
           auth-twitch-secret: ${{ secrets.AUTH_TWITCH_SECRET_DEV }}
           noindex: "true"
-          posthog-key: ${{ vars.PUBLIC_POSTHOG_KEY }}
-          posthog-host: ${{ vars.PUBLIC_POSTHOG_HOST }}
