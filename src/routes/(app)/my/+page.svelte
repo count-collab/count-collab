@@ -69,7 +69,7 @@
 </script>
 
 <MetaTags
-  title="My Space | Count Collab"
+  title="My Overview | Count Collab"
   description="Your counters, dashboards, and activity at a glance."
   path="/my"
 />

@@ -18,15 +18,10 @@
 </script>
 
 <div>
-  <!-- Header -->
-  <div class="mb-4">
-    <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">My Space</h1>
-  </div>
-
   <!-- Tabs -->
   <nav
     class="flex gap-1 border-b border-slate-200 dark:border-slate-700 mb-8"
-    aria-label="My Space navigation"
+    aria-label="Personal space navigation"
   >
     {#each tabs as tab (tab.href)}
       <a
