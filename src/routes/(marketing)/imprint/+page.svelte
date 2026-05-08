@@ -13,11 +13,8 @@
     <h1
       class="text-4xl sm:text-5xl font-extrabold text-slate-900 dark:text-slate-100"
     >
-      Impressum / Imprint
+      Impressum
     </h1>
-    <p class="mt-4 text-lg text-slate-500 dark:text-slate-400">
-      Rechtliche Informationen / Legal Information
-    </p>
   </div>
 
   <!-- Deutsch -->
@@ -25,7 +22,7 @@
     <h2
       class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-8 border-b border-slate-200 dark:border-slate-700 pb-2"
     >
-      Deutsch
+      Rechtliche Informationen
     </h2>
 
     <div class="space-y-8 text-slate-700 dark:text-slate-300">
@@ -140,129 +137,6 @@
           eine Urheberrechtsverletzung aufmerksam werden, bitten wir um einen
           entsprechenden Hinweis. Bei Bekanntwerden von Rechtsverletzungen
           werden wir derartige Inhalte umgehend entfernen.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- English -->
-  <section>
-    <h2
-      class="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-8 border-b border-slate-200 dark:border-slate-700 pb-2"
-    >
-      English
-    </h2>
-
-    <div class="space-y-8 text-slate-700 dark:text-slate-300">
-      <div>
-        <h3
-          class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2"
-        >
-          Information pursuant to §5 TMG
-        </h3>
-        <p>Marvin Ständer</p>
-        <p>Derendorfer Straße 14</p>
-        <p>40479 Düsseldorf</p>
-        <p>Germany</p>
-      </div>
-
-      <div>
-        <h3
-          class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2"
-        >
-          Contact
-        </h3>
-        <p>
-          Email:
-          <a
-            href="mailto:support@count-collab.cc"
-            class="text-blue-600 dark:text-blue-400 hover:underline"
-            >support@count-collab.cc</a
-          >
-        </p>
-        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          No phone number is available. Email is the primary and fastest contact
-          method pursuant to §5 TMG.
-        </p>
-      </div>
-
-      <div>
-        <h3
-          class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2"
-        >
-          Responsible for content pursuant to §18 Abs. 2 MStV
-        </h3>
-        <p>Marvin Ständer</p>
-        <p>Derendorfer Straße 14</p>
-        <p>40479 Düsseldorf</p>
-      </div>
-
-      <div>
-        <h3
-          class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2"
-        >
-          Liability for Content
-        </h3>
-        <p>
-          As a service provider, we are responsible for our own content on these
-          pages in accordance with §7 Abs. 1 TMG under general law. According to
-          §§8 to 10 TMG, however, we as a service provider are not obligated to
-          monitor transmitted or stored third-party information or to
-          investigate circumstances that indicate illegal activity.
-        </p>
-        <p class="mt-2">
-          Obligations to remove or block the use of information under general
-          law remain unaffected. However, liability in this regard is only
-          possible from the point in time at which a concrete infringement
-          becomes known. If we become aware of any such legal violations, we
-          will remove the content in question immediately.
-        </p>
-      </div>
-
-      <div>
-        <h3
-          class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2"
-        >
-          Liability for Links
-        </h3>
-        <p>
-          Our website contains links to external third-party websites over whose
-          content we have no control. Therefore, we cannot accept any liability
-          for this third-party content. The respective provider or operator of
-          the linked pages is always responsible for the content of the linked
-          pages. The linked pages were checked for possible legal violations at
-          the time of linking. Illegal content was not recognizable at the time
-          of linking.
-        </p>
-        <p class="mt-2">
-          However, permanent monitoring of the content of the linked pages is
-          not reasonable without concrete evidence of a legal violation. If we
-          become aware of any legal violations, we will remove such links
-          immediately.
-        </p>
-      </div>
-
-      <div>
-        <h3
-          class="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2"
-        >
-          Copyright
-        </h3>
-        <p>
-          The content and works created by the site operators on these pages are
-          subject to German copyright law. Duplication, processing,
-          distribution, and any form of commercialization of such material
-          beyond the scope of copyright law require the prior written consent of
-          the respective author or creator. Downloads and copies of this site
-          are only permitted for private, non-commercial use.
-        </p>
-        <p class="mt-2">
-          Insofar as the content on this site was not created by the operator,
-          the copyrights of third parties are respected. In particular,
-          third-party content is marked as such. Should you nevertheless become
-          aware of a copyright infringement, please inform us accordingly. If we
-          become aware of any infringements, we will remove such content
-          immediately.
         </p>
       </div>
     </div>
