@@ -19,7 +19,7 @@
     <div class="flex items-center gap-2 mb-4">
       <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Owned</h2>
       <span
-        class="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+        class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400"
       >
         {data.ownedCounters.total}
       </span>
@@ -61,7 +61,7 @@
     <div class="flex items-center gap-2 mb-4">
       <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Shared with me</h2>
       <span
-        class="inline-flex items-center rounded-full bg-violet-100 dark:bg-violet-900/30 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-400"
+        class="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300"
       >
         {data.sharedCounters.total}
       </span>
@@ -82,14 +82,7 @@
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {#each data.sharedCounters.items as counter (counter.id)}
-          <div class="relative">
-            <CounterCard {counter} showBadges />
-            <span
-              class="absolute top-2 right-2 z-10 inline-flex items-center rounded-full bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300 ring-1 ring-violet-200 dark:ring-violet-700"
-            >
-              {counter.memberRole}
-            </span>
-          </div>
+          <CounterCard {counter} showBadges />
         {/each}
       </div>
     {/if}
@@ -100,7 +93,7 @@
     <div class="flex items-center gap-2 mb-4">
       <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Following</h2>
       <span
-        class="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400"
+        class="inline-flex items-center rounded-full bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 text-xs font-medium text-purple-700 dark:text-purple-400"
       >
         {data.followedCounters.length}
       </span>
