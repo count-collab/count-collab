@@ -49,15 +49,34 @@
       scrollContainer.scrollHeight - 2;
   }
 
+  function scrollToGoalInContainer(goalId: number) {
+    if (!scrollContainer) return;
+    const el = scrollContainer.querySelector(`[data-goal-id="${goalId}"]`);
+    if (!el) return;
+    const elRect = el.getBoundingClientRect();
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const offsetInContainer =
+      elRect.top - containerRect.top + scrollContainer.scrollTop;
+    const centeredScroll =
+      offsetInContainer - scrollContainer.clientHeight / 2 + elRect.height / 2;
+    scrollContainer.scrollTo({
+      top: Math.max(0, centeredScroll),
+      behavior: "smooth",
+    });
+  }
+
   $effect(() => {
     if (!scrollContainer || visibleGoals.length <= 5) return;
+    // Prefer scrolling to the last reached goal so it stays visible
+    const lastReached = lastReachedGoalId();
+    if (lastReached != null) {
+      scrollToGoalInContainer(lastReached);
+      return;
+    }
+    // Fall back to next unreached goal
     const nextIds = nextGoalIds();
     if (nextIds.size === 0) return;
-    const firstNextId = [...nextIds][0];
-    const el = scrollContainer.querySelector(`[data-goal-id="${firstNextId}"]`);
-    if (el) {
-      el.scrollIntoView({ block: "center", behavior: "smooth" });
-    }
+    scrollToGoalInContainer([...nextIds][0]);
   });
 
   $effect(() => {
