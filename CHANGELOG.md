@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/count-collab/count-collab/compare/count-collab-v0.4.0...count-collab-v0.4.1) (2026-05-09)
+
+
+### Bug Fixes
+
+* scrolling behavior in GoalsSidebar causing page to scroll on mobile ([96d225c](https://github.com/count-collab/count-collab/commit/96d225cc6829cfc633a0d068f9b212bae3da0065))
+
 ## [0.4.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.3.0...count-collab-v0.4.0) (2026-05-08)
 
 
