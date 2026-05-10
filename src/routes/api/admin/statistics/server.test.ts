@@ -182,7 +182,7 @@ describe("GET /api/admin/statistics", () => {
     expect(body.granularity).toBe("hourly");
   });
 
-  it("uses hourly granularity for 7d timeframe", async () => {
+  it("uses 6h granularity for 7d timeframe", async () => {
     mockHasPermission.mockResolvedValue(true);
     setupDbQuery([]);
 
@@ -192,7 +192,7 @@ describe("GET /api/admin/statistics", () => {
 
     const body = await response.json();
     expect(body.timeframe).toBe("7d");
-    expect(body.granularity).toBe("hourly");
+    expect(body.granularity).toBe("6h");
   });
 
   it("returns stacked data when no eventType filter", async () => {

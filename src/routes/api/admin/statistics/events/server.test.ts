@@ -31,6 +31,10 @@ vi.mock("$lib/db/schema", () => ({
     username: "username",
     image: "image",
   },
+  counters: {
+    id: "id",
+    title: "title",
+  },
 }));
 
 vi.mock("$lib/server/logger", () => ({
@@ -77,9 +81,19 @@ function setupDbQueries(countTotal: number, events: unknown[] = []) {
   const eventsLeftJoin = vi.fn().mockReturnValue({ where: eventsWhere });
   const eventsFrom = vi.fn().mockReturnValue({ leftJoin: eventsLeftJoin });
 
+  // Counter title enrichment query: select → from → where
+  const counterWhere = vi.fn().mockResolvedValue([]);
+  const counterFrom = vi.fn().mockReturnValue({ where: counterWhere });
+
+  // Invited user enrichment query: select → from → where
+  const userWhere = vi.fn().mockResolvedValue([]);
+  const userFrom = vi.fn().mockReturnValue({ where: userWhere });
+
   mockDbSelect
     .mockReturnValueOnce({ from: countFrom })
-    .mockReturnValueOnce({ from: eventsFrom });
+    .mockReturnValueOnce({ from: eventsFrom })
+    .mockReturnValueOnce({ from: counterFrom })
+    .mockReturnValueOnce({ from: userFrom });
 }
 
 const SAMPLE_EVENT = {
@@ -96,7 +110,7 @@ const SAMPLE_EVENT = {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("GET /api/admin/statistics/events", () => {
