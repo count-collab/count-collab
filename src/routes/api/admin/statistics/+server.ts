@@ -1,7 +1,7 @@
 import { error, json } from "@sveltejs/kit";
 import { and, count as countFn, eq, gte, sql } from "drizzle-orm";
 import { db } from "$lib/db";
-import { counters, platformEvents, users } from "$lib/db/schema";
+import { platformEvents } from "$lib/db/schema";
 import { hasPermission } from "$lib/server/permissions";
 import type { RequestHandler } from "./$types";
 
@@ -12,7 +12,7 @@ const TIMEFRAME_MAP: Record<string, number> = {
   "90d": 90 * 24 * 60 * 60 * 1000,
 };
 
-const VALID_METRICS = [
+const VALID_EVENT_TYPES = [
   "counter_action",
   "counter_created",
   "counter_deleted",
@@ -38,136 +38,93 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const isAdmin = await hasPermission(session.user.id, "user:manage");
   if (!isAdmin) throw error(403, "Admin access required");
 
-  const metric = url.searchParams.get("metric");
   const timeframe = url.searchParams.get("timeframe") ?? "30d";
-  const userId = url.searchParams.get("userId") || null;
-  const counterId = url.searchParams.get("counterId") || null;
-
-  if (!metric || !VALID_METRICS.includes(metric)) {
-    throw error(
-      400,
-      `Invalid metric. Must be one of: ${VALID_METRICS.join(", ")}`,
-    );
-  }
 
   if (!TIMEFRAME_MAP[timeframe]) {
     throw error(400, "Invalid timeframe. Must be one of: 24h, 7d, 30d, 90d");
   }
 
-  const since = new Date(Date.now() - TIMEFRAME_MAP[timeframe]);
-  const useHourly = timeframe === "24h" || timeframe === "7d";
-
-  // Build the time bucket expression
-  const bucketExpr = useHourly
-    ? sql`date_trunc('hour', ${platformEvents.createdAt})`
-    : sql`date_trunc('day', ${platformEvents.createdAt})`;
-
-  // Build conditions
-  const conditions = [
-    eq(platformEvents.eventType, metric),
-    gte(platformEvents.createdAt, since),
-  ];
-
-  if (userId) {
-    conditions.push(eq(platformEvents.userId, userId));
+  // Parse filter.* params
+  const filterEventType = url.searchParams.get("filter.eventType") || null;
+  if (filterEventType && !VALID_EVENT_TYPES.includes(filterEventType)) {
+    throw error(
+      400,
+      `Invalid filter.eventType. Must be one of: ${VALID_EVENT_TYPES.join(", ")}`,
+    );
   }
 
-  if (counterId) {
-    conditions.push(eq(platformEvents.entityId, counterId));
+  const since = new Date(Date.now() - TIMEFRAME_MAP[timeframe]);
+
+  const granularity =
+    timeframe === "24h" ? "hourly" : timeframe === "7d" ? "6h" : "daily";
+
+  const bucketExpr =
+    granularity === "hourly"
+      ? sql`date_trunc('hour', ${platformEvents.createdAt})`
+      : granularity === "6h"
+        ? sql`to_timestamp(floor(extract(epoch from ${platformEvents.createdAt}) / 21600) * 21600)`
+        : sql`date_trunc('day', ${platformEvents.createdAt})`;
+
+  // Build conditions
+  const conditions = [gte(platformEvents.createdAt, since)];
+
+  if (filterEventType) {
+    conditions.push(eq(platformEvents.eventType, filterEventType));
+  }
+
+  for (const [key, value] of url.searchParams.entries()) {
+    if (!key.startsWith("filter.") || !value) continue;
+    const field = key.slice("filter.".length);
+
+    if (field === "eventType") continue; // already handled
+    if (field === "userId") {
+      conditions.push(eq(platformEvents.userId, value));
+    } else if (field === "entityId") {
+      conditions.push(eq(platformEvents.entityId, value));
+    } else if (field === "entityType") {
+      conditions.push(eq(platformEvents.entityType, value));
+    } else {
+      conditions.push(
+        sql`(CASE WHEN jsonb_typeof(${platformEvents.metadata}) = 'object' THEN ${platformEvents.metadata} ELSE (${platformEvents.metadata} #>> '{}')::jsonb END)->>${sql.raw(`'${field.replace(/'/g, "''")}'`)} = ${value}`,
+      );
+    }
   }
 
   const queryStart = performance.now();
 
-  // Get time-series data
-  const timeSeries = await db
+  // Query grouped by bucket AND event type
+  const rows = await db
     .select({
       bucket: bucketExpr.as("bucket"),
+      eventType: platformEvents.eventType,
       count: countFn().as("count"),
     })
     .from(platformEvents)
     .where(and(...conditions))
-    .groupBy(bucketExpr)
+    .groupBy(bucketExpr, platformEvents.eventType)
     .orderBy(bucketExpr);
 
-  // Get top users for this metric/timeframe (filtered by counterId if set)
-  const topUsers = await db
-    .select({
-      userId: platformEvents.userId,
-      count: countFn().as("count"),
-      userName: users.name,
-      userUsername: users.username,
-      userImage: users.image,
-    })
-    .from(platformEvents)
-    .leftJoin(users, eq(platformEvents.userId, users.id))
-    .where(
-      and(
-        eq(platformEvents.eventType, metric),
-        gte(platformEvents.createdAt, since),
-        ...(counterId ? [eq(platformEvents.entityId, counterId)] : []),
-      ),
-    )
-    .groupBy(platformEvents.userId, users.name, users.username, users.image)
-    .orderBy(sql`count(*) DESC`)
-    .limit(50);
-
-  // Get top counters (only for counter_action metric)
-  let topCounters: { counterId: string; title: string; count: number }[] = [];
-  if (metric === "counter_action") {
-    const counterRows = await db
-      .select({
-        entityId: platformEvents.entityId,
-        count: countFn().as("count"),
-        counterTitle: counters.title,
-      })
-      .from(platformEvents)
-      .leftJoin(
-        counters,
-        sql`${platformEvents.entityId} IS NOT NULL AND ${counters.id} = ${platformEvents.entityId}::uuid`,
-      )
-      .where(
-        and(
-          eq(platformEvents.eventType, metric),
-          eq(platformEvents.entityType, "counter"),
-          gte(platformEvents.createdAt, since),
-          ...(userId ? [eq(platformEvents.userId, userId)] : []),
-        ),
-      )
-      .groupBy(platformEvents.entityId, counters.title)
-      .orderBy(sql`count(*) DESC`)
-      .limit(50);
-
-    topCounters = counterRows
-      .filter((r) => r.entityId !== null)
-      .map((r) => ({
-        counterId: r.entityId as string,
-        title: r.counterTitle ?? "Deleted counter",
-        count: Number(r.count),
-      }));
+  // Restructure into Record<string, {timestamp, count}[]>
+  const timeSeries: Record<string, { timestamp: string; count: number }[]> = {};
+  for (const row of rows) {
+    const key = row.eventType;
+    if (!timeSeries[key]) {
+      timeSeries[key] = [];
+    }
+    timeSeries[key].push({
+      timestamp: row.bucket as string,
+      count: Number(row.count),
+    });
   }
 
   const queryDurationMs =
     Math.round((performance.now() - queryStart) * 100) / 100;
 
   return json({
-    metric,
     timeframe,
-    granularity: useHourly ? "hourly" : "daily",
+    granularity,
     since: since.toISOString(),
     queryDurationMs,
-    timeSeries: timeSeries.map((row) => ({
-      timestamp: row.bucket,
-      count: Number(row.count),
-    })),
-    topUsers: topUsers
-      .filter((u) => u.userId !== null)
-      .map((u) => ({
-        userId: u.userId,
-        name: u.userName,
-        username: u.userUsername,
-        image: u.userImage,
-        count: Number(u.count),
-      })),
-    topCounters,
+    timeSeries,
   });
 };

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   mockGetUserRole,
@@ -68,9 +68,11 @@ vi.mock("$lib/server/logger", () => ({
 
 import {
   checkCounterCooldown,
+  checkPrivateCounterCooldown,
   checkRateLimit,
   getClientIp,
   getEffectiveCooldownMs,
+  PRIVATE_COUNTER_DEBOUNCE_MS,
   recordCounterCooldown,
   resetCounterCooldownStore,
   resetSettingsCache,
@@ -383,6 +385,162 @@ describe("checkCounterCooldown", () => {
     );
     // Should use global (15s) since it's higher
     expect(result).toEqual({ blocked: false, cooldownSeconds: 15 });
+  });
+});
+
+describe("checkPrivateCounterCooldown", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetCounterCooldownStore();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns blocked=false with cooldownSeconds=0 for admins", async () => {
+    mockGetUserRole.mockResolvedValue("admin");
+
+    const result = await checkPrivateCounterCooldown(
+      "counter-private-1",
+      "admin-1",
+      {
+        cooldownEnabled: true,
+        cooldownSeconds: 10,
+      },
+    );
+
+    expect(result).toEqual({ blocked: false, cooldownSeconds: 0 });
+  });
+
+  it("enforces debounce when private cooldown is disabled", async () => {
+    mockGetUserRole.mockResolvedValue("user");
+
+    const first = await checkPrivateCounterCooldown(
+      "counter-private-2",
+      "user-1",
+      {
+        cooldownEnabled: false,
+        cooldownSeconds: 0,
+      },
+    );
+    expect(first).toEqual({ blocked: false, cooldownSeconds: 0 });
+
+    recordCounterCooldown("counter-private-2");
+
+    const second = await checkPrivateCounterCooldown(
+      "counter-private-2",
+      "user-1",
+      {
+        cooldownEnabled: false,
+        cooldownSeconds: 0,
+      },
+    );
+
+    expect(second.blocked).toBe(true);
+    if (second.blocked) {
+      expect(second.retryAfterSeconds).toBeGreaterThan(0);
+    }
+  });
+
+  it("unblocks after 100ms debounce when private cooldown is disabled", async () => {
+    mockGetUserRole.mockResolvedValue("user");
+    const nowSpy = vi.spyOn(Date, "now");
+
+    nowSpy.mockReturnValue(1_000);
+    recordCounterCooldown("counter-private-2b");
+
+    nowSpy.mockReturnValue(1_050);
+    const duringDebounce = await checkPrivateCounterCooldown(
+      "counter-private-2b",
+      "user-1",
+      {
+        cooldownEnabled: false,
+        cooldownSeconds: 0,
+      },
+    );
+    expect(duringDebounce.blocked).toBe(true);
+
+    nowSpy.mockReturnValue(1_101);
+    const afterDebounce = await checkPrivateCounterCooldown(
+      "counter-private-2b",
+      "user-1",
+      {
+        cooldownEnabled: false,
+        cooldownSeconds: 0,
+      },
+    );
+    expect(afterDebounce).toEqual({ blocked: false, cooldownSeconds: 0 });
+  });
+
+  it("enforces counter-specific cooldown when enabled", async () => {
+    mockGetUserRole.mockResolvedValue("user");
+    recordCounterCooldown("counter-private-3");
+
+    const result = await checkPrivateCounterCooldown(
+      "counter-private-3",
+      "user-1",
+      {
+        cooldownEnabled: true,
+        cooldownSeconds: 5,
+      },
+    );
+
+    expect(result.blocked).toBe(true);
+    if (result.blocked) {
+      expect(result.retryAfterSeconds).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it("keeps private counter blocked until configured cooldown expires when enabled", async () => {
+    mockGetUserRole.mockResolvedValue("user");
+    const nowSpy = vi.spyOn(Date, "now");
+
+    nowSpy.mockReturnValue(2_000);
+    recordCounterCooldown("counter-private-3b");
+
+    nowSpy.mockReturnValue(3_500);
+    const beforeConfiguredCooldown = await checkPrivateCounterCooldown(
+      "counter-private-3b",
+      "user-1",
+      {
+        cooldownEnabled: true,
+        cooldownSeconds: 2,
+      },
+    );
+    expect(beforeConfiguredCooldown.blocked).toBe(true);
+
+    nowSpy.mockReturnValue(4_001);
+    const afterConfiguredCooldown = await checkPrivateCounterCooldown(
+      "counter-private-3b",
+      "user-1",
+      {
+        cooldownEnabled: true,
+        cooldownSeconds: 2,
+      },
+    );
+    expect(afterConfiguredCooldown).toEqual({
+      blocked: false,
+      cooldownSeconds: 2,
+    });
+  });
+
+  it("applies debounce minimum even when configured cooldown is lower", async () => {
+    mockGetUserRole.mockResolvedValue("user");
+
+    const result = await checkPrivateCounterCooldown(
+      "counter-private-4",
+      "user-1",
+      {
+        cooldownEnabled: true,
+        cooldownSeconds: 0,
+      },
+    );
+
+    expect(result).toEqual({
+      blocked: false,
+      cooldownSeconds: Math.ceil(PRIVATE_COUNTER_DEBOUNCE_MS / 1000),
+    });
   });
 });
 

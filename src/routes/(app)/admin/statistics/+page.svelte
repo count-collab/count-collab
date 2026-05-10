@@ -1,4 +1,6 @@
 <script lang="ts">
+  import AggregationPanel from "$lib/components/admin/AggregationPanel.svelte";
+  import EventLog from "$lib/components/admin/EventLog.svelte";
   import StatisticsChart from "$lib/components/admin/StatisticsChart.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
 
@@ -9,65 +11,28 @@
     { value: "90d", label: "Past 90 days" },
   ] as const;
 
-  const metrics = [
-    { metric: "counter_action", title: "Counter Actions" },
-    { metric: "counter_created", title: "Counters Created" },
-    { metric: "counter_deleted", title: "Counters Deleted" },
-    { metric: "dashboard_created", title: "Dashboards Created" },
-    { metric: "dashboard_deleted", title: "Dashboards Deleted" },
-    { metric: "user_registered", title: "Users Registered" },
-    { metric: "user_deleted", title: "Users Deleted" },
-    { metric: "goal_created", title: "Goals Created" },
-    { metric: "goal_deleted", title: "Goals Deleted" },
-    { metric: "goal_reached", title: "Goals Reached" },
-    { metric: "invitation_sent", title: "Invitations Sent" },
-    { metric: "invitation_accepted", title: "Invitations Accepted" },
-    { metric: "invitation_deleted", title: "Invitations Deleted" },
-    { metric: "follower_added", title: "Followers Added" },
-    { metric: "follower_removed", title: "Followers Removed" },
-    { metric: "member_removed", title: "Members Removed" },
-  ] as const;
-
   let selectedTimeframe = $state("30d");
-  let selectedMetric = $state("counter_action");
-  let selectedUserId = $state<string | null>(null);
-  let selectedCounterId = $state<string | null>(null);
-
-  const activeMetric = $derived(
-    metrics.find((m) => m.metric === selectedMetric) ?? metrics[0],
-  );
+  let filters = $state<Record<string, string>>({});
+  let aggregateField = $state<string | null>(null);
 </script>
 
 <MetaTags
-  title="Statistics | Admin | Count Collab"
-  description="Platform usage statistics and trends"
+  title="Metrics | Admin | Count Collab"
+  description="Platform event activity and analytics"
   path="/admin/statistics"
 />
 
 <div class="space-y-8">
   <div>
     <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">
-      Statistics
+      Metrics
     </h1>
     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-      Platform usage metrics and activity trends over time
+      Platform event activity and analytics
     </p>
   </div>
 
   <div class="flex flex-wrap items-center gap-4">
-    <select
-      bind:value={selectedMetric}
-      onchange={() => {
-        selectedUserId = null;
-        selectedCounterId = null;
-      }}
-      class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-slate-900 dark:text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-    >
-      {#each metrics as m (m.metric)}
-        <option value={m.metric}>{m.title}</option>
-      {/each}
-    </select>
-
     <div
       class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1"
       role="group"
@@ -89,13 +54,21 @@
     </div>
   </div>
 
-  <StatisticsChart
-    metric={activeMetric.metric}
-    title={activeMetric.title}
+  <StatisticsChart {filters} timeframe={selectedTimeframe} />
+
+  {#if aggregateField}
+    <AggregationPanel
+      field={aggregateField}
+      timeframe={selectedTimeframe}
+      {filters}
+      onRemove={() => (aggregateField = null)}
+    />
+  {/if}
+
+  <EventLog
     timeframe={selectedTimeframe}
-    {selectedUserId}
-    {selectedCounterId}
-    onUserSelect={(userId) => (selectedUserId = userId)}
-    onCounterSelect={(counterId) => (selectedCounterId = counterId)}
+    {filters}
+    onFilterChange={(f) => (filters = f)}
+    onAggregateField={(f) => (aggregateField = f)}
   />
 </div>

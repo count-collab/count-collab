@@ -1,7 +1,9 @@
 import type { Handle, HandleServerError } from "@sveltejs/kit";
 import { redirect } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
-import { verifyDatabaseConnection } from "$lib/db";
+import { eq } from "drizzle-orm";
+import { db, verifyDatabaseConnection } from "$lib/db";
+import { counters } from "$lib/db/schema";
 import { authHandle } from "$lib/server/auth";
 import { logger } from "$lib/server/logger";
 import { getUserRole } from "$lib/server/permissions";
@@ -14,6 +16,58 @@ import {
   RATE_LIMIT_CONFIG,
   trackCounterIncrement,
 } from "$lib/server/ratelimit";
+
+async function getCounterVisibilityForIncrementPath(
+  pathname: string,
+  token: string | null,
+): Promise<"private" | "non_private" | "unknown"> {
+  const match = pathname.match(/^\/api\/counters\/([a-f0-9-]+)$/);
+  if (!match) return "unknown";
+
+  try {
+    const [counter] = await db
+      .select({
+        visibilityMode: counters.visibilityMode,
+        shareToken: counters.shareToken,
+      })
+      .from(counters)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+      .where(eq(counters.id, match[1] as any));
+
+    if (!counter) {
+      return "unknown";
+    }
+
+    if (counter.visibilityMode === "private") {
+      logger.warn("Increment route classified as private by visibility mode", {
+        pathname,
+      });
+      return "private";
+    }
+
+    // Private links should always bypass global increment IP cooldown.
+    if (token && counter.shareToken && token === counter.shareToken) {
+      logger.warn("Increment route classified as private by share token", {
+        pathname,
+      });
+      return "private";
+    }
+
+    logger.warn("Increment route classified as non-private", {
+      pathname,
+      visibilityMode: counter.visibilityMode,
+      hasShareToken: !!counter.shareToken,
+      hasToken: !!token,
+    });
+    return "non_private";
+  } catch (err) {
+    logger.warn("Unable to resolve counter visibility for rate-limit routing", {
+      pathname,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return "unknown";
+  }
+}
 
 const posthogProxyHandle: Handle = async ({ event, resolve }) => {
   const { pathname } = event.url;
@@ -159,9 +213,23 @@ const appHandle: Handle = async ({ event, resolve }) => {
 
         let config: RateLimitConfig | undefined;
         if (writeRoute === "/api/counters/[id]") {
-          // Use DB-backed global settings for counter increments
-          const dbConfig = await getRateLimitConfig(isAuthenticated);
-          config = dbConfig.increment;
+          const visibility = await getCounterVisibilityForIncrementPath(
+            event.url.pathname,
+            event.url.searchParams.get("token"),
+          );
+
+          if (visibility === "non_private") {
+            // Use DB-backed global settings for non-private counter increments
+            const dbConfig = await getRateLimitConfig(isAuthenticated);
+            config = dbConfig.increment;
+          } else if (visibility === "unknown") {
+            logger.debug(
+              "Skipping global increment rate limit due to unknown counter visibility",
+              {
+                pathname: event.url.pathname,
+              },
+            );
+          }
         } else {
           config =
             RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];

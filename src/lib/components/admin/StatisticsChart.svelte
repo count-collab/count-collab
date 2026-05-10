@@ -8,21 +8,11 @@
   }
 
   let {
-    metric,
-    title,
+    filters = {},
     timeframe,
-    selectedUserId,
-    selectedCounterId,
-    onUserSelect,
-    onCounterSelect,
   }: {
-    metric: string;
-    title: string;
+    filters: Record<string, string>;
     timeframe: string;
-    selectedUserId: string | null;
-    selectedCounterId: string | null;
-    onUserSelect: (userId: string | null) => void;
-    onCounterSelect: (counterId: string | null) => void;
   } = $props();
 
   interface TimeSeriesPoint {
@@ -30,47 +20,66 @@
     count: number;
   }
 
-  interface TopUser {
-    userId: string;
-    name: string | null;
-    username: string | null;
-    image: string | null;
-    count: number;
-  }
+  const EVENT_TYPE_COLORS: Record<string, string> = {
+    counter_action: "#3b82f6",
+    counter_created: "#10b981",
+    counter_deleted: "#ef4444",
+    user_registered: "#8b5cf6",
+    user_deleted: "#f97316",
+    goal_created: "#06b6d4",
+    goal_reached: "#eab308",
+    goal_deleted: "#a855f7",
+    dashboard_created: "#14b8a6",
+    dashboard_deleted: "#f43f5e",
+    invitation_sent: "#6366f1",
+    invitation_accepted: "#22c55e",
+    invitation_deleted: "#fb923c",
+    follower_added: "#0ea5e9",
+    follower_removed: "#e879f9",
+    member_removed: "#f87171",
+  };
 
-  interface TopCounter {
-    counterId: string;
-    title: string;
-    count: number;
+  const FALLBACK_COLORS = [
+    "#64748b",
+    "#a78bfa",
+    "#34d399",
+    "#fbbf24",
+    "#f472b6",
+    "#38bdf8",
+    "#fb7185",
+    "#4ade80",
+  ];
+
+  function colorFor(eventType: string, index: number): string {
+    return (
+      EVENT_TYPE_COLORS[eventType] ??
+      FALLBACK_COLORS[index % FALLBACK_COLORS.length]
+    );
   }
 
   let canvas: HTMLCanvasElement | undefined = $state();
   let chart: Chart | undefined;
   let loading = $state(false);
-  let timeSeries = $state<TimeSeriesPoint[]>([]);
-  let topUsers = $state<TopUser[]>([]);
-  let topCounters = $state<TopCounter[]>([]);
-  let granularity = $state<"hourly" | "daily">("daily");
+  let timeSeries = $state<Record<string, TimeSeriesPoint[]>>({});
+  let granularity = $state<"hourly" | "6h" | "daily">("daily");
   let queryDurationMs = $state<number | null>(null);
+  let hasData = $derived(Object.keys(timeSeries).length > 0);
 
   async function fetchData() {
     loading = true;
     try {
-      const params = new URLSearchParams({ metric, timeframe });
-      if (selectedUserId) params.set("userId", selectedUserId);
-      if (selectedCounterId) params.set("counterId", selectedCounterId);
+      const params = new URLSearchParams({ timeframe });
+      for (const [key, value] of Object.entries(filters)) {
+        if (value) params.set(`filter.${key}`, value);
+      }
       const res = await fetch(`/api/admin/statistics?${params}`);
       if (!res.ok) {
-        timeSeries = [];
-        topUsers = [];
-        topCounters = [];
+        timeSeries = {};
         queryDurationMs = null;
         return;
       }
       const data = await res.json();
       timeSeries = data.timeSeries;
-      topUsers = data.topUsers;
-      topCounters = data.topCounters ?? [];
       granularity = data.granularity;
       queryDurationMs = data.queryDurationMs ?? null;
     } finally {
@@ -90,22 +99,26 @@
   ): { timestamp: string; count: number }[] {
     const ms = TIMEFRAME_MS[timeframe] ?? 30 * 24 * 60 * 60 * 1000;
     const step =
-      granularity === "hourly" ? 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+      granularity === "hourly"
+        ? 60 * 60 * 1000
+        : granularity === "6h"
+          ? 6 * 60 * 60 * 1000
+          : 24 * 60 * 60 * 1000;
 
-    // Build a lookup map from existing data (DB returns UTC-truncated timestamps)
     const dataMap = new Map<string, number>();
     for (const point of data) {
       const key = new Date(point.timestamp).getTime().toString();
       dataMap.set(key, point.count);
     }
 
-    // Generate all buckets aligned to UTC (matching DB's date_trunc behavior)
     const now = new Date();
     const start = new Date(now.getTime() - ms);
 
-    // Truncate start to the beginning of the bucket in UTC
     if (granularity === "hourly") {
       start.setUTCMinutes(0, 0, 0);
+    } else if (granularity === "6h") {
+      const h = start.getUTCHours();
+      start.setUTCHours(h - (h % 6), 0, 0, 0);
     } else {
       start.setUTCHours(0, 0, 0, 0);
     }
@@ -135,48 +148,48 @@
 
     const isDark = document.documentElement.classList.contains("dark");
     const gridColor = isDark
-      ? "rgba(148, 163, 184, 0.1)"
-      : "rgba(148, 163, 184, 0.2)";
-    const textColor = isDark ? "#94a3b8" : "#64748b";
-    const lineColor = isDark ? "#60a5fa" : "#3b82f6";
-    const fillColor = isDark
-      ? "rgba(96, 165, 250, 0.1)"
-      : "rgba(59, 130, 246, 0.08)";
+      ? "rgba(148, 163, 184, 0.06)"
+      : "rgba(148, 163, 184, 0.15)";
+    const textColor = isDark ? "#64748b" : "#94a3b8";
 
-    const filledSeries = fillTimeSeries(timeSeries);
+    const eventTypes = Object.keys(timeSeries);
+    const isStacked = eventTypes.length > 1;
 
-    const labels = filledSeries.map((p) => {
+    // Use first event type's filled series for labels
+    const firstFilled = fillTimeSeries(timeSeries[eventTypes[0]] ?? []);
+    const labels = firstFilled.map((p) => {
       const d = new Date(p.timestamp);
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
       const yyyy = d.getFullYear();
-      if (granularity === "hourly") {
+      if (granularity === "hourly" || granularity === "6h") {
         const hh = String(d.getHours()).padStart(2, "0");
         return `${mm}/${dd}/${yyyy} ${hh}:00`;
       }
       return `${mm}/${dd}/${yyyy}`;
     });
 
-    const counts = filledSeries.map((p) => p.count);
+    const datasets = eventTypes.map((eventType, i) => {
+      const filled = fillTimeSeries(timeSeries[eventType] ?? []);
+      const color = colorFor(eventType, i);
+      return {
+        label: eventType
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase()),
+        data: filled.map((p) => p.count),
+        backgroundColor: `${color}cc`,
+        hoverBackgroundColor: color,
+        borderRadius: 0,
+        borderSkipped: false as const,
+        borderWidth: 0,
+        barPercentage: 0.7,
+        categoryPercentage: 0.8,
+      };
+    });
 
     chart = new Chart(canvas, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: title,
-            data: counts,
-            borderColor: lineColor,
-            backgroundColor: fillColor,
-            borderWidth: 2,
-            fill: true,
-            tension: 0.3,
-            pointRadius: filledSeries.length > 60 ? 0 : 3,
-            pointHoverRadius: 5,
-          },
-        ],
-      },
+      type: "bar",
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -187,22 +200,49 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: isDark ? "#1e293b" : "#ffffff",
-            titleColor: isDark ? "#e2e8f0" : "#1e293b",
-            bodyColor: isDark ? "#cbd5e1" : "#475569",
-            borderColor: isDark ? "#334155" : "#e2e8f0",
+            backgroundColor: isDark
+              ? "rgba(15, 23, 42, 0.95)"
+              : "rgba(255, 255, 255, 0.95)",
+            titleColor: isDark ? "#f1f5f9" : "#0f172a",
+            bodyColor: isDark ? "#94a3b8" : "#475569",
+            borderColor: isDark
+              ? "rgba(51, 65, 85, 0.5)"
+              : "rgba(226, 232, 240, 0.8)",
             borderWidth: 1,
+            cornerRadius: 10,
+            padding: 12,
+            boxPadding: 6,
+            titleFont: { size: 12, weight: "bold" as const },
+            bodyFont: { size: 12 },
+            usePointStyle: true,
+            filter: (item) => item.raw !== 0,
           },
         },
         scales: {
           x: {
-            grid: { color: gridColor },
-            ticks: { color: textColor, maxTicksLimit: 10 },
+            stacked: isStacked,
+            border: { display: false },
+            grid: { display: false },
+            ticks: {
+              color: textColor,
+              maxTicksLimit: 8,
+              font: { size: 11 },
+            },
           },
           y: {
+            stacked: isStacked,
             beginAtZero: true,
-            grid: { color: gridColor },
-            ticks: { color: textColor, precision: 0 },
+            border: { display: false },
+            grid: {
+              color: gridColor,
+              drawTicks: false,
+            },
+            ticks: {
+              color: textColor,
+              precision: 0,
+              padding: 8,
+              font: { size: 11 },
+            },
           },
         },
       },
@@ -210,11 +250,8 @@
   }
 
   $effect(() => {
-    // Track dependencies
-    metric;
+    filters;
     timeframe;
-    selectedUserId;
-    selectedCounterId;
 
     if (browser) {
       fetchData();
@@ -222,7 +259,6 @@
   });
 
   $effect(() => {
-    // Re-render chart when data changes
     timeSeries;
     if (browser && canvas) {
       renderChart();
@@ -240,48 +276,22 @@
 <div
   class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5"
 >
-  <div class="mb-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
-        {title}
-      </h2>
-      {#if queryDurationMs !== null}
-        <span
-          class="rounded-md px-2 py-0.5 text-xs font-mono tabular-nums {queryDurationMs >
-          500
-            ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-            : queryDurationMs > 100
-              ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
-              : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}"
-          title="Query duration"
-        >
-          {queryDurationMs}ms
-        </span>
-      {/if}
-    </div>
-    {#if selectedUserId || selectedCounterId}
-      <div class="flex items-center gap-2">
-        {#if selectedCounterId}
-          <button
-            type="button"
-            onclick={() => onCounterSelect(null)}
-            class="flex items-center gap-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
-          >
-            <ion-icon name="close-outline" style="font-size: 14px;"></ion-icon>
-            Clear counter
-          </button>
-        {/if}
-        {#if selectedUserId}
-          <button
-            type="button"
-            onclick={() => onUserSelect(null)}
-            class="flex items-center gap-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/40"
-          >
-            <ion-icon name="close-outline" style="font-size: 14px;"></ion-icon>
-            Clear user
-          </button>
-        {/if}
-      </div>
+  <div class="mb-4 flex items-center gap-3">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+      Event Activity
+    </h2>
+    {#if queryDurationMs !== null}
+      <span
+        class="rounded-md px-2 py-0.5 text-xs font-mono tabular-nums {queryDurationMs >
+        500
+          ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+          : queryDurationMs > 100
+            ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+            : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}"
+        title="Query duration"
+      >
+        {queryDurationMs}ms
+      </span>
     {/if}
   </div>
 
@@ -294,7 +304,7 @@
           class="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
         ></div>
       </div>
-    {:else if timeSeries.length === 0}
+    {:else if !hasData}
       <div
         class="flex h-full items-center justify-center rounded-lg border border-dashed border-slate-200 dark:border-slate-700"
       >
@@ -306,120 +316,4 @@
       <canvas bind:this={canvas}></canvas>
     {/if}
   </div>
-
-  {#if topUsers.length > 0 || topCounters.length > 0}
-    <div
-      class="mt-5 grid gap-5 border-t border-slate-100 dark:border-slate-700 pt-4"
-      class:grid-cols-2={topUsers.length > 0 && topCounters.length > 0}
-    >
-      {#if topCounters.length > 0}
-        <div>
-          <h3
-            class="mb-3 text-sm font-medium text-slate-500 dark:text-slate-400"
-          >
-            Top Counters
-          </h3>
-          <div class="space-y-1">
-            {#each topCounters as counter (counter.counterId)}
-              <button
-                type="button"
-                onclick={() =>
-                  onCounterSelect(
-                    selectedCounterId === counter.counterId
-                      ? null
-                      : counter.counterId,
-                  )}
-                class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors
-                  {selectedCounterId === counter.counterId
-                  ? 'bg-emerald-50 dark:bg-emerald-900/20 ring-1 ring-emerald-200 dark:ring-emerald-800'
-                  : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}"
-              >
-                <div
-                  class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-600"
-                >
-                  <ion-icon
-                    name="trending-up-outline"
-                    class="text-slate-500 dark:text-slate-300"
-                    style="font-size: 14px;"
-                  ></ion-icon>
-                </div>
-                <p
-                  class="min-w-0 flex-1 truncate text-sm font-medium text-slate-900 dark:text-slate-100"
-                >
-                  {counter.title}
-                </p>
-                <span
-                  class="tabular-nums text-sm font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  {counter.count.toLocaleString()}
-                </span>
-              </button>
-            {/each}
-          </div>
-        </div>
-      {/if}
-
-      {#if topUsers.length > 0}
-        <div>
-          <h3
-            class="mb-3 text-sm font-medium text-slate-500 dark:text-slate-400"
-          >
-            Top Users
-          </h3>
-          <div class="space-y-1">
-            {#each topUsers as user (user.userId)}
-              <button
-                type="button"
-                onclick={() =>
-                  onUserSelect(
-                    selectedUserId === user.userId ? null : user.userId,
-                  )}
-                class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors
-                  {selectedUserId === user.userId
-                  ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800'
-                  : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}"
-              >
-                {#if user.image}
-                  <img
-                    src={user.image}
-                    alt=""
-                    class="h-8 w-8 rounded-full object-cover"
-                  />
-                {:else}
-                  <div
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-600"
-                  >
-                    <ion-icon
-                      name="person-outline"
-                      class="text-slate-500 dark:text-slate-300"
-                      style="font-size: 14px;"
-                    ></ion-icon>
-                  </div>
-                {/if}
-                <div class="min-w-0 flex-1">
-                  <p
-                    class="truncate text-sm font-medium text-slate-900 dark:text-slate-100"
-                  >
-                    {user.name || user.username || "Unknown"}
-                  </p>
-                  {#if user.username && user.name}
-                    <p
-                      class="truncate text-xs text-slate-500 dark:text-slate-400"
-                    >
-                      @{user.username}
-                    </p>
-                  {/if}
-                </div>
-                <span
-                  class="tabular-nums text-sm font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  {user.count.toLocaleString()}
-                </span>
-              </button>
-            {/each}
-          </div>
-        </div>
-      {/if}
-    </div>
-  {/if}
 </div>

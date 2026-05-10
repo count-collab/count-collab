@@ -18,6 +18,7 @@ import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 import {
   checkCounterCooldown,
+  checkPrivateCounterCooldown,
   recordCounterCooldown,
 } from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
@@ -47,6 +48,7 @@ export const POST: RequestHandler = async ({
 
   const session = await locals.auth();
   const userId = session?.user?.id;
+  const token = url.searchParams.get("token");
 
   // Parse optional body for amount (body may be empty for simple +1 increments)
   let amount = 1;
@@ -80,7 +82,6 @@ export const POST: RequestHandler = async ({
       throw error(403, "You don't have permission to increment this counter");
     }
   } else if (counter.visibilityMode === "private") {
-    const token = url.searchParams.get("token");
     const hasValidToken =
       !!token && !!counter.shareToken && token === counter.shareToken;
 
@@ -96,6 +97,11 @@ export const POST: RequestHandler = async ({
     }
   }
 
+  const hasValidShareToken =
+    !!token && !!counter.shareToken && token === counter.shareToken;
+  const shouldUsePrivateCooldown =
+    counter.visibilityMode === "private" || hasValidShareToken;
+
   // Validate counter mode
   if (counter.counterMode === "increment_only" && amount < 0) {
     throw error(400, "This counter only supports incrementing");
@@ -104,11 +110,16 @@ export const POST: RequestHandler = async ({
     throw error(400, "This counter only supports decrementing");
   }
 
-  const cooldownCheck = await checkCounterCooldown(params.id, userId, {
-    cooldownEnabled: counter.cooldownEnabled ?? false,
-    cooldownSeconds: counter.cooldownSeconds ?? 0,
-    ownerId: counter.ownerId,
-  });
+  const cooldownCheck = shouldUsePrivateCooldown
+    ? await checkPrivateCounterCooldown(params.id, userId, {
+        cooldownEnabled: counter.cooldownEnabled ?? false,
+        cooldownSeconds: counter.cooldownSeconds ?? 0,
+      })
+    : await checkCounterCooldown(params.id, userId, {
+        cooldownEnabled: counter.cooldownEnabled ?? false,
+        cooldownSeconds: counter.cooldownSeconds ?? 0,
+        ownerId: counter.ownerId,
+      });
 
   if (cooldownCheck.blocked) {
     return new Response(

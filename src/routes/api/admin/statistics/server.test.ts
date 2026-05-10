@@ -3,12 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockHasPermission, mockDbSelect } = vi.hoisted(() => ({
   mockHasPermission: vi.fn(),
   mockDbSelect: vi.fn(),
-  mockDbFrom: vi.fn(),
-  mockDbWhere: vi.fn(),
-  mockDbGroupBy: vi.fn(),
-  mockDbOrderBy: vi.fn(),
-  mockDbLeftJoin: vi.fn(),
-  mockDbLimit: vi.fn(),
 }));
 
 vi.mock("$lib/server/permissions", () => ({
@@ -26,12 +20,9 @@ vi.mock("$lib/db/schema", () => ({
     eventType: "event_type",
     createdAt: "created_at",
     userId: "user_id",
-  },
-  users: {
-    id: "id",
-    name: "name",
-    username: "username",
-    image: "image",
+    entityId: "entity_id",
+    entityType: "entity_type",
+    metadata: "metadata",
   },
 }));
 
@@ -65,31 +56,15 @@ function makeEvent(
 }
 
 /**
- * Sets up the chained mock calls for both db.select() queries:
- * 1. timeSeries: select → from → where → groupBy → orderBy
- * 2. topUsers: select → from → leftJoin → where → groupBy → orderBy → limit
+ * Sets up the chained mock for the single db.select() query:
+ * select → from → where → groupBy → orderBy
  */
-function setupDbQueries(
-  timeSeriesResult: unknown[] = [],
-  topUsersResult: unknown[] = [],
-) {
-  // First select call: timeSeries
-  const tsOrderBy = vi.fn().mockResolvedValue(timeSeriesResult);
-  const tsGroupBy = vi.fn().mockReturnValue({ orderBy: tsOrderBy });
-  const tsWhere = vi.fn().mockReturnValue({ groupBy: tsGroupBy });
-  const tsFrom = vi.fn().mockReturnValue({ where: tsWhere });
-
-  // Second select call: topUsers
-  const tuLimit = vi.fn().mockResolvedValue(topUsersResult);
-  const tuOrderBy = vi.fn().mockReturnValue({ limit: tuLimit });
-  const tuGroupBy = vi.fn().mockReturnValue({ orderBy: tuOrderBy });
-  const tuWhere = vi.fn().mockReturnValue({ groupBy: tuGroupBy });
-  const tuLeftJoin = vi.fn().mockReturnValue({ where: tuWhere });
-  const tuFrom = vi.fn().mockReturnValue({ leftJoin: tuLeftJoin });
-
-  mockDbSelect
-    .mockReturnValueOnce({ from: tsFrom })
-    .mockReturnValueOnce({ from: tuFrom });
+function setupDbQuery(result: unknown[] = []) {
+  const orderBy = vi.fn().mockResolvedValue(result);
+  const groupBy = vi.fn().mockReturnValue({ orderBy });
+  const where = vi.fn().mockReturnValue({ groupBy });
+  const from = vi.fn().mockReturnValue({ where });
+  mockDbSelect.mockReturnValue({ from });
 }
 
 const USER_ID = "11111111-1111-1111-1111-111111111111";
@@ -100,16 +75,14 @@ beforeEach(() => {
 
 describe("GET /api/admin/statistics", () => {
   it("returns 401 when not authenticated", async () => {
-    await expect(
-      GET(makeEvent({ metric: "counter_created" })),
-    ).rejects.toMatchObject({ status: 401 });
+    await expect(GET(makeEvent())).rejects.toMatchObject({ status: 401 });
   });
 
   it("returns 401 when session has no user id", async () => {
     await expect(
       GET(
         makeEvent(
-          { metric: "counter_created" },
+          {},
           {
             locals: {
               auth: vi.fn(async () => ({ user: {} })),
@@ -124,105 +97,72 @@ describe("GET /api/admin/statistics", () => {
     mockHasPermission.mockResolvedValue(false);
 
     await expect(
-      GET(
-        makeEvent(
-          { metric: "counter_created" },
-          { locals: makeLocals(USER_ID) },
-        ),
-      ),
+      GET(makeEvent({}, { locals: makeLocals(USER_ID) })),
     ).rejects.toMatchObject({ status: 403 });
 
     expect(mockHasPermission).toHaveBeenCalledWith(USER_ID, "user:manage");
-  });
-
-  it("returns 400 when metric is missing", async () => {
-    mockHasPermission.mockResolvedValue(true);
-
-    await expect(
-      GET(makeEvent({}, { locals: makeLocals(USER_ID) })),
-    ).rejects.toMatchObject({ status: 400 });
-  });
-
-  it("returns 400 when metric is invalid", async () => {
-    mockHasPermission.mockResolvedValue(true);
-
-    await expect(
-      GET(
-        makeEvent(
-          { metric: "invalid_metric" },
-          { locals: makeLocals(USER_ID) },
-        ),
-      ),
-    ).rejects.toMatchObject({ status: 400 });
   });
 
   it("returns 400 for invalid timeframe", async () => {
     mockHasPermission.mockResolvedValue(true);
 
     await expect(
+      GET(makeEvent({ timeframe: "1y" }, { locals: makeLocals(USER_ID) })),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("returns 400 for invalid filter.eventType", async () => {
+    mockHasPermission.mockResolvedValue(true);
+
+    await expect(
       GET(
         makeEvent(
-          { metric: "counter_created", timeframe: "1y" },
+          { "filter.eventType": "invalid_type" },
           { locals: makeLocals(USER_ID) },
         ),
       ),
     ).rejects.toMatchObject({ status: 400 });
   });
 
-  it("returns correctly structured data for a valid request", async () => {
+  it("returns correctly structured data", async () => {
     mockHasPermission.mockResolvedValue(true);
-    setupDbQueries(
-      [
-        { bucket: "2025-05-01T00:00:00Z", count: 5 },
-        { bucket: "2025-05-02T00:00:00Z", count: 3 },
-      ],
-      [
-        {
-          userId: USER_ID,
-          count: 8,
-          userName: "Test User",
-          userUsername: "testuser",
-          userImage: "https://example.com/avatar.png",
-        },
-      ],
-    );
+    setupDbQuery([
+      { bucket: "2025-05-01T00:00:00Z", eventType: "counter_action", count: 5 },
+      {
+        bucket: "2025-05-01T00:00:00Z",
+        eventType: "counter_created",
+        count: 2,
+      },
+      { bucket: "2025-05-02T00:00:00Z", eventType: "counter_action", count: 3 },
+    ]);
 
     const response = await GET(
-      makeEvent(
-        { metric: "counter_created", timeframe: "30d" },
-        { locals: makeLocals(USER_ID) },
-      ),
+      makeEvent({ timeframe: "30d" }, { locals: makeLocals(USER_ID) }),
     );
 
     expect(response.status).toBe(200);
     const body = await response.json();
 
-    expect(body.metric).toBe("counter_created");
-    expect(body.timeframe).toBe("30d");
-    expect(body.granularity).toBe("daily");
-    expect(body.since).toBeDefined();
-    expect(body.timeSeries).toEqual([
-      { timestamp: "2025-05-01T00:00:00Z", count: 5 },
-      { timestamp: "2025-05-02T00:00:00Z", count: 3 },
-    ]);
-    expect(body.topUsers).toEqual([
-      {
-        userId: USER_ID,
-        name: "Test User",
-        username: "testuser",
-        image: "https://example.com/avatar.png",
-        count: 8,
+    expect(body).toEqual({
+      timeframe: "30d",
+      granularity: "daily",
+      since: expect.any(String),
+      queryDurationMs: expect.any(Number),
+      timeSeries: {
+        counter_action: [
+          { timestamp: "2025-05-01T00:00:00Z", count: 5 },
+          { timestamp: "2025-05-02T00:00:00Z", count: 3 },
+        ],
+        counter_created: [{ timestamp: "2025-05-01T00:00:00Z", count: 2 }],
       },
-    ]);
+    });
   });
 
   it("defaults timeframe to 30d", async () => {
     mockHasPermission.mockResolvedValue(true);
-    setupDbQueries([], []);
+    setupDbQuery([]);
 
-    const response = await GET(
-      makeEvent({ metric: "counter_created" }, { locals: makeLocals(USER_ID) }),
-    );
+    const response = await GET(makeEvent({}, { locals: makeLocals(USER_ID) }));
 
     const body = await response.json();
     expect(body.timeframe).toBe("30d");
@@ -231,13 +171,10 @@ describe("GET /api/admin/statistics", () => {
 
   it("uses hourly granularity for 24h timeframe", async () => {
     mockHasPermission.mockResolvedValue(true);
-    setupDbQueries([], []);
+    setupDbQuery([]);
 
     const response = await GET(
-      makeEvent(
-        { metric: "counter_created", timeframe: "24h" },
-        { locals: makeLocals(USER_ID) },
-      ),
+      makeEvent({ timeframe: "24h" }, { locals: makeLocals(USER_ID) }),
     );
 
     const body = await response.json();
@@ -247,13 +184,10 @@ describe("GET /api/admin/statistics", () => {
 
   it("uses hourly granularity for 7d timeframe", async () => {
     mockHasPermission.mockResolvedValue(true);
-    setupDbQueries([], []);
+    setupDbQuery([]);
 
     const response = await GET(
-      makeEvent(
-        { metric: "counter_created", timeframe: "7d" },
-        { locals: makeLocals(USER_ID) },
-      ),
+      makeEvent({ timeframe: "7d" }, { locals: makeLocals(USER_ID) }),
     );
 
     const body = await response.json();
@@ -261,37 +195,53 @@ describe("GET /api/admin/statistics", () => {
     expect(body.granularity).toBe("hourly");
   });
 
-  it("filters out null userId entries from topUsers", async () => {
+  it("returns stacked data when no eventType filter", async () => {
     mockHasPermission.mockResolvedValue(true);
-    setupDbQueries(
-      [],
-      [
-        {
-          userId: null,
-          count: 10,
-          userName: null,
-          userUsername: null,
-          userImage: null,
-        },
-        {
-          userId: USER_ID,
-          count: 5,
-          userName: "Test",
-          userUsername: "test",
-          userImage: null,
-        },
-      ],
-    );
+    setupDbQuery([
+      {
+        bucket: "2025-05-01T00:00:00Z",
+        eventType: "counter_action",
+        count: 10,
+      },
+      {
+        bucket: "2025-05-01T00:00:00Z",
+        eventType: "user_registered",
+        count: 1,
+      },
+    ]);
+
+    const response = await GET(makeEvent({}, { locals: makeLocals(USER_ID) }));
+
+    const body = await response.json();
+    expect(Object.keys(body.timeSeries)).toEqual([
+      "counter_action",
+      "user_registered",
+    ]);
+    expect(body.timeSeries.counter_action).toHaveLength(1);
+    expect(body.timeSeries.user_registered).toHaveLength(1);
+  });
+
+  it("returns single type when filter.eventType is set", async () => {
+    mockHasPermission.mockResolvedValue(true);
+    setupDbQuery([
+      {
+        bucket: "2025-05-01T00:00:00Z",
+        eventType: "counter_created",
+        count: 4,
+      },
+    ]);
 
     const response = await GET(
       makeEvent(
-        { metric: "counter_created", timeframe: "30d" },
+        { "filter.eventType": "counter_created" },
         { locals: makeLocals(USER_ID) },
       ),
     );
 
     const body = await response.json();
-    expect(body.topUsers).toHaveLength(1);
-    expect(body.topUsers[0].userId).toBe(USER_ID);
+    expect(Object.keys(body.timeSeries)).toEqual(["counter_created"]);
+    expect(body.timeSeries.counter_created).toEqual([
+      { timestamp: "2025-05-01T00:00:00Z", count: 4 },
+    ]);
   });
 });

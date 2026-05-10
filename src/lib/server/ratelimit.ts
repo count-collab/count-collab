@@ -21,6 +21,7 @@ interface IPRecord {
 const ipStore = new Map<string, IPRecord>();
 const counterAbuseStore = new Map<string, Record<string, number>>();
 const counterCooldownStore = new Map<string, number>(); // counterId → last increment timestamp (ms)
+export const PRIVATE_COUNTER_DEBOUNCE_MS = 100;
 
 // Fallback defaults (kept for backward compatibility)
 export const RATE_LIMIT_CONFIG = {
@@ -245,6 +246,60 @@ export async function checkCounterCooldown(
   }
 
   return { blocked: false, cooldownSeconds: effectiveCooldownSec };
+}
+
+/**
+ * Check cooldown for private counters.
+ *
+ * Private counters bypass global IP cooldown and rely on:
+ * - a 100ms debounce safeguard
+ * - optional counter-specific cooldown when enabled
+ */
+export async function checkPrivateCounterCooldown(
+  counterId: string,
+  userId: string | undefined,
+  counter: {
+    cooldownEnabled: boolean;
+    cooldownSeconds: number;
+  },
+): Promise<
+  | { blocked: true; retryAfterSeconds: number }
+  | { blocked: false; cooldownSeconds: number }
+> {
+  // Keep existing admin bypass behavior
+  if (userId) {
+    const role = await getUserRole(userId);
+    if (role === "admin") return { blocked: false, cooldownSeconds: 0 };
+  }
+
+  const configuredCooldownMs = counter.cooldownEnabled
+    ? counter.cooldownSeconds * 1000
+    : 0;
+  const effectiveCooldownMs = Math.max(
+    PRIVATE_COUNTER_DEBOUNCE_MS,
+    configuredCooldownMs,
+  );
+
+  const lastIncrement = counterCooldownStore.get(counterId);
+  if (lastIncrement !== undefined) {
+    const elapsed = Date.now() - lastIncrement;
+    if (elapsed < effectiveCooldownMs) {
+      const remainingMs = effectiveCooldownMs - elapsed;
+      return {
+        blocked: true,
+        retryAfterSeconds: Math.ceil(remainingMs / 1000),
+      };
+    }
+  }
+
+  if (!counter.cooldownEnabled) {
+    return { blocked: false, cooldownSeconds: 0 };
+  }
+
+  return {
+    blocked: false,
+    cooldownSeconds: Math.ceil(effectiveCooldownMs / 1000),
+  };
 }
 
 /**

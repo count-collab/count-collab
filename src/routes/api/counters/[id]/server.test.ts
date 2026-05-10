@@ -12,6 +12,7 @@ const {
   mockGetUserRole,
   mockEmitCounterUpdate,
   mockCheckCounterCooldown,
+  mockCheckPrivateCounterCooldown,
   mockRecordCounterCooldown,
 } = vi.hoisted(() => ({
   mockGetCounter: vi.fn(),
@@ -25,6 +26,7 @@ const {
   mockGetUserRole: vi.fn(),
   mockEmitCounterUpdate: vi.fn(),
   mockCheckCounterCooldown: vi.fn(),
+  mockCheckPrivateCounterCooldown: vi.fn(),
   mockRecordCounterCooldown: vi.fn(),
 }));
 
@@ -58,6 +60,7 @@ vi.mock("$lib/server/ratelimit", () => ({
     "/api/counters/[id]": { windowMs: 30000, maxRequests: 1 },
   },
   checkCounterCooldown: mockCheckCounterCooldown,
+  checkPrivateCounterCooldown: mockCheckPrivateCounterCooldown,
   recordCounterCooldown: mockRecordCounterCooldown,
 }));
 
@@ -118,6 +121,10 @@ beforeEach(() => {
     blocked: false,
     cooldownSeconds: 5,
   });
+  mockCheckPrivateCounterCooldown.mockResolvedValue({
+    blocked: false,
+    cooldownSeconds: 0,
+  });
 });
 
 describe("POST /api/counters/[id] (increment)", () => {
@@ -155,6 +162,12 @@ describe("POST /api/counters/[id] (increment)", () => {
     expect(body.count).toBe(42);
     expect(body.cooldownSeconds).toBe(5);
     expect(body.username).toEqual(expect.any(String));
+    expect(mockCheckCounterCooldown).toHaveBeenCalledWith(VALID_ID, "user-1", {
+      cooldownEnabled: false,
+      cooldownSeconds: 0,
+      ownerId: undefined,
+    });
+    expect(mockCheckPrivateCounterCooldown).not.toHaveBeenCalled();
     expect(mockEmitCounterUpdate).toHaveBeenCalledWith(
       VALID_ID,
       42,
@@ -337,6 +350,58 @@ describe("POST /api/counters/[id] (increment)", () => {
     const body = await response.json();
 
     expect(body.count).toBe(5);
+  });
+
+  it("uses private cooldown logic for private counters", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      visibilityMode: "private",
+      shareToken: "valid-token-123",
+      cooldownEnabled: false,
+      cooldownSeconds: 0,
+    });
+    mockIncrementCounter.mockResolvedValue({
+      id: VALID_ID,
+      count: 6,
+      updatedAt: "2026-01-01T00:00:00Z",
+    });
+
+    await POST(
+      makeEvent(VALID_ID, {
+        url: new URL(
+          `http://localhost/api/counters/${VALID_ID}?token=valid-token-123`,
+        ),
+      }),
+    );
+
+    expect(mockCheckPrivateCounterCooldown).toHaveBeenCalled();
+    expect(mockCheckCounterCooldown).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 when private cooldown/debounce is active", async () => {
+    mockGetCounter.mockResolvedValue({
+      id: VALID_ID,
+      visibilityMode: "private",
+      shareToken: "valid-token-123",
+      cooldownEnabled: false,
+      cooldownSeconds: 0,
+    });
+    mockCheckPrivateCounterCooldown.mockResolvedValue({
+      blocked: true,
+      retryAfterSeconds: 1,
+    });
+
+    const response = await POST(
+      makeEvent(VALID_ID, {
+        url: new URL(
+          `http://localhost/api/counters/${VALID_ID}?token=valid-token-123`,
+        ),
+      }),
+    );
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("1");
+    expect(mockIncrementCounter).not.toHaveBeenCalled();
   });
 
   it("allows private counter increment for authorized member", async () => {
