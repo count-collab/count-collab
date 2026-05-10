@@ -1,9 +1,11 @@
 // Database schema and types
 
 import {
+  bigserial,
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   serial,
@@ -461,6 +463,68 @@ export const globalSettings = pgTable("global_settings", {
     .notNull(),
 });
 
+// ── Platform Events (Analytics) ─────────────────────────────────
+
+export const platformEventTypes = [
+  "counter_action",
+  "counter_created",
+  "counter_deleted",
+  "dashboard_created",
+  "dashboard_deleted",
+  "user_registered",
+  "user_deleted",
+  "goal_created",
+  "goal_deleted",
+  "goal_reached",
+  "invitation_sent",
+  "invitation_accepted",
+  "invitation_deleted",
+  "follower_added",
+  "follower_removed",
+  "member_removed",
+] as const;
+
+export type PlatformEventType = (typeof platformEventTypes)[number];
+
+export const platformEntityTypes = [
+  "counter",
+  "dashboard",
+  "user",
+  "goal",
+  "invitation",
+  "follower",
+  "member",
+] as const;
+
+export type PlatformEntityType = (typeof platformEntityTypes)[number];
+
+export const platformEvents = pgTable(
+  "platform_events",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    eventType: text("event_type").notNull(),
+    userId: text("user_id"),
+    entityId: text("entity_id"),
+    entityType: text("entity_type"),
+    metadata: jsonb("metadata").default({}).$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => ({
+    eventTypeCreatedAtIdx: index(
+      "platform_events_event_type_created_at_idx",
+    ).on(t.eventType, t.createdAt),
+    userEventTypeCreatedAtIdx: index(
+      "platform_events_user_event_type_created_at_idx",
+    ).on(t.userId, t.eventType, t.createdAt),
+    // Note: actual DB uses BRIN via migration SQL; drizzle-orm 0.29 lacks .using() support
+    createdAtBrinIdx: index("platform_events_created_at_brin_idx").on(
+      t.createdAt,
+    ),
+  }),
+);
+
 // ── Type exports ────────────────────────────────────────────────
 
 export type User = typeof users.$inferSelect;
@@ -501,6 +565,9 @@ export type NewCounterGoal = typeof counterGoals.$inferInsert;
 
 export type GlobalSettings = typeof globalSettings.$inferSelect;
 export type NewGlobalSettings = typeof globalSettings.$inferInsert;
+
+export type PlatformEvent = typeof platformEvents.$inferSelect;
+export type NewPlatformEvent = typeof platformEvents.$inferInsert;
 
 export type SparklinePoint = {
   value: number;

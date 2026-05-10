@@ -31,6 +31,7 @@
     "@resvg/resvg-js": "^2.6.2",
     "@sveltejs/adapter-node": "^5.0.0",
     "@sveltejs/kit": "^2.0.0",
+    "chart.js": "^4.5.1",
     "drizzle-orm": "^0.29.0",
     "ionicons": "^8.0.13",
     "lru-cache": "^11.2.7",

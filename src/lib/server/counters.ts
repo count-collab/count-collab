@@ -27,6 +27,7 @@ import {
 } from "$lib/db/schema";
 import { createCache } from "$lib/server/cache";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 
 export const sparklineCache = createCache<SparklinePoint[]>({
@@ -89,6 +90,14 @@ export async function createCounter(
     title: counter.title,
     isPublic: counter.isPublic,
     visibilityMode: counter.visibilityMode,
+  });
+
+  logEvent({
+    eventType: "counter_created",
+    userId: counter.ownerId,
+    entityId: counter.id,
+    entityType: "counter",
+    metadata: { counter_title: counter.title, user_name: null },
   });
 
   return counter;
@@ -257,6 +266,18 @@ export async function incrementCounter(
       to: nextValue,
     });
 
+    logEvent({
+      eventType: "counter_action",
+      userId: userId ?? null,
+      entityId: counterId,
+      entityType: "counter",
+      metadata: {
+        counter_title: counter.title,
+        direction: delta > 0 ? "increment" : "decrement",
+        amount: Math.abs(delta),
+      },
+    });
+
     sparklineCache.delete(counterId);
 
     return updated;
@@ -381,7 +402,17 @@ export async function transferCounterOwnership(
   return updated ?? null;
 }
 
-export async function deleteCounter(counterId: string): Promise<boolean> {
+export async function deleteCounter(
+  counterId: string,
+  deletedByUserId?: string | null,
+): Promise<boolean> {
+  // Fetch before deleting so we can log metadata
+  const [existing] = await db
+    .select({ title: countersTable.title, ownerId: countersTable.ownerId })
+    .from(countersTable)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+    .where(eq(countersTable.id, counterId as any));
+
   const result = await db
     .delete(countersTable)
     // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
@@ -390,6 +421,16 @@ export async function deleteCounter(counterId: string): Promise<boolean> {
 
   if (result.length > 0) {
     logger.info("Counter deleted", { id: counterId });
+    logEvent({
+      eventType: "counter_deleted",
+      userId: deletedByUserId ?? null,
+      entityId: counterId,
+      entityType: "counter",
+      metadata: {
+        counter_title: existing?.title ?? null,
+        owner_id: existing?.ownerId ?? null,
+      },
+    });
   }
 
   return result.length > 0;

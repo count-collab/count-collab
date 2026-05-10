@@ -14,6 +14,7 @@ import {
   incrementCounter,
   updateCounter,
 } from "$lib/server/counters";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 import {
   checkCounterCooldown,
@@ -164,6 +165,20 @@ export const POST: RequestHandler = async ({
           .update(counterGoals)
           .set({ reachedAt: now })
           .where(eq(counterGoals.id, g.id));
+
+        logEvent({
+          eventType: "goal_reached",
+          userId: userId ?? null,
+          entityId: String(g.id),
+          entityType: "goal",
+          metadata: {
+            counter_id: params.id,
+            counter_title: counter.title,
+            goal_amount: g.amount,
+            goal_description: g.description,
+            user_name: session?.user?.username ?? session?.user?.name ?? null,
+          },
+        });
       }
     }
 
@@ -290,7 +305,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     throw error(403, "You don't have permission to delete this counter");
   }
 
-  const deleted = await deleteCounter(params.id);
+  const deleted = await deleteCounter(params.id, session.user.id);
   if (!deleted) {
     throw error(404, "Counter not found");
   }

@@ -20,6 +20,10 @@ vi.mock("$lib/server/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+vi.mock("$lib/server/events", () => ({
+  logEvent: vi.fn(),
+}));
+
 mockSelect.mockReturnValue({ from: mockFrom });
 mockFrom.mockReturnValue({ where: mockWhere });
 mockDelete.mockReturnValue({ where: mockDeleteWhere });
@@ -31,9 +35,15 @@ describe("deleteUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDelete.mockReturnValue({ where: mockDeleteWhere });
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockFrom.mockReturnValue({ where: mockWhere });
   });
 
   it("deletes owned counters first, then deletes user, returns true", async () => {
+    // Select call to fetch user info before deletion
+    mockWhere.mockResolvedValueOnce([
+      { name: "Test User", username: "testuser", email: "test@test.com" },
+    ]);
     // First delete call (counters): db.delete(counters).where(...) — awaited directly
     mockDeleteWhere.mockResolvedValueOnce(undefined);
     // Second delete call (users): db.delete(users).where(...).returning()
@@ -48,7 +58,11 @@ describe("deleteUser", () => {
   });
 
   it("returns false when user not found", async () => {
+    // Select call to fetch user info before deletion
+    mockWhere.mockResolvedValueOnce([]);
+    // First delete call (counters)
     mockDeleteWhere.mockResolvedValueOnce(undefined);
+    // Second delete call (users)
     mockDeleteWhere.mockReturnValueOnce({ returning: mockDeleteReturning });
     mockDeleteReturning.mockResolvedValueOnce([]);
 

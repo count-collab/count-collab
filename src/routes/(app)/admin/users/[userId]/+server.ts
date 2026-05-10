@@ -50,7 +50,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     throw error(400, "Cannot delete your own account");
   }
 
-  const deleted = await deleteUser(params.userId);
+  const deleted = await deleteUser(params.userId, session.user.id);
   if (!deleted) {
     throw error(404, "User not found");
   }

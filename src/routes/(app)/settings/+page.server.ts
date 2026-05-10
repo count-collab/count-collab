@@ -33,7 +33,7 @@ export const actions: Actions = {
       return fail(400, { error: "Username does not match" });
     }
 
-    await deleteUser(session.user.id);
+    await deleteUser(session.user.id, session.user.id);
 
     // Session is already invalidated by FK cascade (user deletion removes sessions).
     // The cookie will reference a deleted session, and Auth.js returns null on next auth() call.

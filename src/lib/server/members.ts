@@ -6,6 +6,7 @@ import {
   counterMembers,
   users,
 } from "$lib/db/schema";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 
 type MemberWithUser = CounterMember & {
@@ -69,6 +70,16 @@ export async function removeMember(
       ),
     )
     .returning();
+
+  if (result.length > 0) {
+    logEvent({
+      eventType: "member_removed",
+      userId,
+      entityId: counterId,
+      entityType: "member",
+      metadata: { target_type: "counter" },
+    });
+  }
 
   return result.length > 0;
 }

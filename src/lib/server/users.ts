@@ -17,6 +17,7 @@ import {
   roles,
   users,
 } from "$lib/db/schema";
+import { logEvent } from "$lib/server/events";
 
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
@@ -108,11 +109,33 @@ export async function updateUserRole(
 /**
  * Delete a user and cascade their data.
  */
-export async function deleteUser(userId: string): Promise<boolean> {
+export async function deleteUser(
+  userId: string,
+  deletedByUserId?: string | null,
+): Promise<boolean> {
+  // Fetch user info before deletion for event logging
+  const [existing] = await db
+    .select({ name: users.name, username: users.username, email: users.email })
+    .from(users)
+    .where(eq(users.id, userId));
+
   // Delete all counters owned by this user (cascades to counter_history and counter_members)
   await db.delete(counters).where(eq(counters.ownerId, userId));
 
   const result = await db.delete(users).where(eq(users.id, userId)).returning();
+
+  if (result.length > 0) {
+    logEvent({
+      eventType: "user_deleted",
+      userId: deletedByUserId ?? userId,
+      entityId: userId,
+      entityType: "user",
+      metadata: {
+        user_name: existing?.username ?? existing?.name ?? null,
+        email: existing?.email ?? null,
+      },
+    });
+  }
 
   return result.length > 0;
 }

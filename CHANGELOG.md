@@ -2,42 +2,39 @@
 
 ## [0.4.1](https://github.com/count-collab/count-collab/compare/count-collab-v0.4.0...count-collab-v0.4.1) (2026-05-09)
 
-
 ### Bug Fixes
 
-* scrolling behavior in GoalsSidebar causing page to scroll on mobile ([96d225c](https://github.com/count-collab/count-collab/commit/96d225cc6829cfc633a0d068f9b212bae3da0065))
+- scrolling behavior in GoalsSidebar causing page to scroll on mobile ([96d225c](https://github.com/count-collab/count-collab/commit/96d225cc6829cfc633a0d068f9b212bae3da0065))
 
 ## [0.4.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.3.0...count-collab-v0.4.0) (2026-05-08)
 
-
 ### Features
 
-* add additional type definitions to the include section in tsconfig ([e1540cf](https://github.com/count-collab/count-collab/commit/e1540cf3b2e81c6263601a7c0136ab3b32d3c7b8))
-* add PostHog analytics environment variables to configuration ([b9c455d](https://github.com/count-collab/count-collab/commit/b9c455d5b7fee9cd642ea987ecbd330f9aa64614))
-* add PostHog environment variables for build process in workflows and Dockerfile ([81c86ce](https://github.com/count-collab/count-collab/commit/81c86ce40c806080945ca772e8805499349f2683))
-* add PostHog inputs to test-and-build action in workflows ([2da247f](https://github.com/count-collab/count-collab/commit/2da247f8b66b17dfe7981501f4c4438c7d63288a))
-* counter member management rework, invitations, invitation notifications ([f4677d6](https://github.com/count-collab/count-collab/commit/f4677d68b96a87b1a0353537e6a88ed222f5956c))
-* **counters:** add sorting functionality for public counters ([e7d1ee1](https://github.com/count-collab/count-collab/commit/e7d1ee1837552abea010a4c7c107a8fb6a96eb16))
-* enforce description length limit to 500 characters in counter schemas and UI ([86f2eaf](https://github.com/count-collab/count-collab/commit/86f2eaf15464fa413748e0f40381b0cb1070b17a))
-* enhance counter sorting and search functionality with improved UI elements ([e20cfd0](https://github.com/count-collab/count-collab/commit/e20cfd0cd2f21d2f01497473335b3ac2b955410a))
-* enhance UI for counters and dashboards sections with improved headings and descriptions ([b8dfe60](https://github.com/count-collab/count-collab/commit/b8dfe6018e014e4f765d98603cd4c0fbdf07d139))
-* **GoalsSidebar:** integrate scrollbar hiding for improved UI experience ([ed88e27](https://github.com/count-collab/count-collab/commit/ed88e27fa56cfedf962bf6a0fa9f19c7a76fae12))
-* integrate PostHog analytics into SvelteKit project ([8794b6e](https://github.com/count-collab/count-collab/commit/8794b6e3a95156f2add2e6613c9b10d8bce9e5e1))
-* rename "My Space" to "My Overview" for improved clarity and consistency ([a0772a5](https://github.com/count-collab/count-collab/commit/a0772a578ff1b24307737b2e2f38fd1a6a6f66ea))
-* restructure user dashboard navigation and enhance dashboard management ([928d095](https://github.com/count-collab/count-collab/commit/928d095aaf85f9f7a73ea223c1ebce1403c28e79))
-* update imprint & privacy notices ([775377a](https://github.com/count-collab/count-collab/commit/775377a91ed441a77e3e67cba97e7881e7ece16f))
-* update MCP configuration for Playwright and add dev-chrome script for remote debugging ([194bc1e](https://github.com/count-collab/count-collab/commit/194bc1ec70e2afc790e901c1f7c2517a9050442e))
-* update SiteFooter with legal links and add imprint, privacy, and terms pages ([52cbb2f](https://github.com/count-collab/count-collab/commit/52cbb2f55742c56c957ac405aaab995bf84f084b))
-* update UI colors for counters and dashboards sections to enhance visual consistency ([f85792b](https://github.com/count-collab/count-collab/commit/f85792b3b8e26e1fd1bb486dc55271ef89fd4984))
-
+- add additional type definitions to the include section in tsconfig ([e1540cf](https://github.com/count-collab/count-collab/commit/e1540cf3b2e81c6263601a7c0136ab3b32d3c7b8))
+- add PostHog analytics environment variables to configuration ([b9c455d](https://github.com/count-collab/count-collab/commit/b9c455d5b7fee9cd642ea987ecbd330f9aa64614))
+- add PostHog environment variables for build process in workflows and Dockerfile ([81c86ce](https://github.com/count-collab/count-collab/commit/81c86ce40c806080945ca772e8805499349f2683))
+- add PostHog inputs to test-and-build action in workflows ([2da247f](https://github.com/count-collab/count-collab/commit/2da247f8b66b17dfe7981501f4c4438c7d63288a))
+- counter member management rework, invitations, invitation notifications ([f4677d6](https://github.com/count-collab/count-collab/commit/f4677d68b96a87b1a0353537e6a88ed222f5956c))
+- **counters:** add sorting functionality for public counters ([e7d1ee1](https://github.com/count-collab/count-collab/commit/e7d1ee1837552abea010a4c7c107a8fb6a96eb16))
+- enforce description length limit to 500 characters in counter schemas and UI ([86f2eaf](https://github.com/count-collab/count-collab/commit/86f2eaf15464fa413748e0f40381b0cb1070b17a))
+- enhance counter sorting and search functionality with improved UI elements ([e20cfd0](https://github.com/count-collab/count-collab/commit/e20cfd0cd2f21d2f01497473335b3ac2b955410a))
+- enhance UI for counters and dashboards sections with improved headings and descriptions ([b8dfe60](https://github.com/count-collab/count-collab/commit/b8dfe6018e014e4f765d98603cd4c0fbdf07d139))
+- **GoalsSidebar:** integrate scrollbar hiding for improved UI experience ([ed88e27](https://github.com/count-collab/count-collab/commit/ed88e27fa56cfedf962bf6a0fa9f19c7a76fae12))
+- integrate PostHog analytics into SvelteKit project ([8794b6e](https://github.com/count-collab/count-collab/commit/8794b6e3a95156f2add2e6613c9b10d8bce9e5e1))
+- rename "My Space" to "My Overview" for improved clarity and consistency ([a0772a5](https://github.com/count-collab/count-collab/commit/a0772a578ff1b24307737b2e2f38fd1a6a6f66ea))
+- restructure user dashboard navigation and enhance dashboard management ([928d095](https://github.com/count-collab/count-collab/commit/928d095aaf85f9f7a73ea223c1ebce1403c28e79))
+- update imprint & privacy notices ([775377a](https://github.com/count-collab/count-collab/commit/775377a91ed441a77e3e67cba97e7881e7ece16f))
+- update MCP configuration for Playwright and add dev-chrome script for remote debugging ([194bc1e](https://github.com/count-collab/count-collab/commit/194bc1ec70e2afc790e901c1f7c2517a9050442e))
+- update SiteFooter with legal links and add imprint, privacy, and terms pages ([52cbb2f](https://github.com/count-collab/count-collab/commit/52cbb2f55742c56c957ac405aaab995bf84f084b))
+- update UI colors for counters and dashboards sections to enhance visual consistency ([f85792b](https://github.com/count-collab/count-collab/commit/f85792b3b8e26e1fd1bb486dc55271ef89fd4984))
 
 ### Bug Fixes
 
-* add missing environment variables for Svelte check step in action workflow ([5410d4a](https://github.com/count-collab/count-collab/commit/5410d4adeaa4a27fba0bc87da93a1d77a783411b))
-* **GoalsSidebar:** add role and tabindex for accessibility on goal tap area ([5f579ef](https://github.com/count-collab/count-collab/commit/5f579efef7ccb819e7a668dad468f3620ee13bdd))
-* move PostHog environment variable writing step before Svelte preparation in action workflow ([94ec164](https://github.com/count-collab/count-collab/commit/94ec164500293b313076c3dfd8b3c41f8e2a4d59))
-* move Svelte preparation step to the correct position in the action workflow ([487b485](https://github.com/count-collab/count-collab/commit/487b485e4cb465684ad3040dbcbe867b9224a2fc))
-* update permissions for dev-chrome script to make it executable ([e96112a](https://github.com/count-collab/count-collab/commit/e96112a6de1e0d669c8f491986a2a7f3ead83214))
+- add missing environment variables for Svelte check step in action workflow ([5410d4a](https://github.com/count-collab/count-collab/commit/5410d4adeaa4a27fba0bc87da93a1d77a783411b))
+- **GoalsSidebar:** add role and tabindex for accessibility on goal tap area ([5f579ef](https://github.com/count-collab/count-collab/commit/5f579efef7ccb819e7a668dad468f3620ee13bdd))
+- move PostHog environment variable writing step before Svelte preparation in action workflow ([94ec164](https://github.com/count-collab/count-collab/commit/94ec164500293b313076c3dfd8b3c41f8e2a4d59))
+- move Svelte preparation step to the correct position in the action workflow ([487b485](https://github.com/count-collab/count-collab/commit/487b485e4cb465684ad3040dbcbe867b9224a2fc))
+- update permissions for dev-chrome script to make it executable ([e96112a](https://github.com/count-collab/count-collab/commit/e96112a6de1e0d669c8f491986a2a7f3ead83214))
 
 ## [0.3.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.2.3...count-collab-v0.3.0) (2026-05-07)
 

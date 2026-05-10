@@ -23,6 +23,7 @@ import {
   users,
 } from "$lib/db/schema";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 
 export type DashboardWithFollowerCount = Dashboard & { followerCount: number };
@@ -58,6 +59,14 @@ export async function createDashboard(
     id: dashboard.id,
     title: dashboard.title,
     visibilityMode: dashboard.visibilityMode,
+  });
+
+  logEvent({
+    eventType: "dashboard_created",
+    userId: dashboard.ownerId,
+    entityId: dashboard.id,
+    entityType: "dashboard",
+    metadata: { dashboard_title: dashboard.title, user_name: null },
   });
 
   return dashboard;
@@ -113,7 +122,17 @@ export async function updateDashboard(
   return updated ?? null;
 }
 
-export async function deleteDashboard(dashboardId: string): Promise<boolean> {
+export async function deleteDashboard(
+  dashboardId: string,
+  deletedByUserId?: string | null,
+): Promise<boolean> {
+  // Fetch before deleting so we can log metadata
+  const [existing] = await db
+    .select({ title: dashboardsTable.title, ownerId: dashboardsTable.ownerId })
+    .from(dashboardsTable)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    .where(eq(dashboardsTable.id, dashboardId as any));
+
   const result = await db
     .delete(dashboardsTable)
     // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
@@ -122,6 +141,16 @@ export async function deleteDashboard(dashboardId: string): Promise<boolean> {
 
   if (result.length > 0) {
     logger.info("Dashboard deleted", { id: dashboardId });
+    logEvent({
+      eventType: "dashboard_deleted",
+      userId: deletedByUserId ?? null,
+      entityId: dashboardId,
+      entityType: "dashboard",
+      metadata: {
+        dashboard_title: existing?.title ?? null,
+        owner_id: existing?.ownerId ?? null,
+      },
+    });
   }
 
   return result.length > 0;

@@ -7,6 +7,7 @@ import {
   dashboardMembers,
   users,
 } from "$lib/db/schema";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 
 type InvitationWithUser = DashboardInvitation & {
@@ -63,6 +64,14 @@ export async function createDashboardInvitation(
     invitedBy,
   });
 
+  logEvent({
+    eventType: "invitation_sent",
+    userId: invitedBy,
+    entityId: dashboardId,
+    entityType: "invitation",
+    metadata: { target_type: "dashboard", invited_user_id: userId, role },
+  });
+
   return withUser ?? null;
 }
 
@@ -80,6 +89,16 @@ export async function deleteDashboardInvitation(
       ),
     )
     .returning();
+
+  if (result.length > 0) {
+    logEvent({
+      eventType: "invitation_deleted",
+      userId,
+      entityId: dashboardId,
+      entityType: "invitation",
+      metadata: { target_type: "dashboard" },
+    });
+  }
 
   return result.length > 0;
 }
@@ -185,6 +204,14 @@ export async function acceptDashboardInvitation(
       .where(eq(dashboardInvitations.id, invitation.id));
 
     logger.info("Dashboard invitation accepted", { dashboardId, userId });
+
+    logEvent({
+      eventType: "invitation_accepted",
+      userId,
+      entityId: dashboardId,
+      entityType: "invitation",
+      metadata: { target_type: "dashboard", role: invitation.role },
+    });
 
     return member;
   });

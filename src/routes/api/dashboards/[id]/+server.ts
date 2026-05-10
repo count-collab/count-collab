@@ -106,7 +106,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     throw error(403, "You don't have permission to delete this dashboard");
   }
 
-  const deleted = await deleteDashboard(params.id);
+  const deleted = await deleteDashboard(params.id, session.user.id);
   if (!deleted) {
     throw error(404, "Dashboard not found");
   }

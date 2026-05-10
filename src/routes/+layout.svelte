@@ -6,6 +6,7 @@
     addOutline,
     appsOutline,
     arrowBackOutline,
+    barChartOutline,
     bookmark,
     bookmarkOutline,
     cafeOutline,
@@ -104,6 +105,7 @@
       "time-outline": timeOutline,
       "pulse-outline": pulseOutline,
       "apps-outline": appsOutline,
+      "bar-chart-outline": barChartOutline,
     });
     defineCustomElement();
   }

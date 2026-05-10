@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { counterGoals } from "$lib/db/schema";
 import { canEditCounter } from "$lib/server/authorize";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 import { parseAndValidateBody } from "$lib/server/request";
 import { counterIdSchema, updateGoalSchema } from "$lib/utils/validation";
@@ -120,5 +121,17 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   }
 
   logger.info("Goal deleted", { counterId: params.id, goalId });
+  logEvent({
+    eventType: "goal_deleted",
+    userId: session.user.id,
+    entityId: String(goalId),
+    entityType: "goal",
+    metadata: {
+      counter_id: params.id,
+      goal_amount: result[0].amount,
+      goal_description: result[0].description,
+      user_name: session.user.username ?? session.user.name ?? null,
+    },
+  });
   return new Response(null, { status: 204 });
 };

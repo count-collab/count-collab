@@ -10,6 +10,7 @@ import {
   dashboards,
   users,
 } from "$lib/db/schema";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 
 type InvitationWithUser = CounterInvitation & {
@@ -66,6 +67,14 @@ export async function createCounterInvitation(
     invitedBy,
   });
 
+  logEvent({
+    eventType: "invitation_sent",
+    userId: invitedBy,
+    entityId: counterId,
+    entityType: "invitation",
+    metadata: { target_type: "counter", invited_user_id: userId, role },
+  });
+
   return withUser ?? null;
 }
 
@@ -83,6 +92,16 @@ export async function deleteCounterInvitation(
       ),
     )
     .returning();
+
+  if (result.length > 0) {
+    logEvent({
+      eventType: "invitation_deleted",
+      userId,
+      entityId: counterId,
+      entityType: "invitation",
+      metadata: { target_type: "counter" },
+    });
+  }
 
   return result.length > 0;
 }
@@ -243,6 +262,14 @@ export async function acceptCounterInvitation(
       .where(eq(counterInvitations.id, invitation.id));
 
     logger.info("Counter invitation accepted", { counterId, userId });
+
+    logEvent({
+      eventType: "invitation_accepted",
+      userId,
+      entityId: counterId,
+      entityType: "invitation",
+      metadata: { target_type: "counter", role: invitation.role },
+    });
 
     return member;
   });

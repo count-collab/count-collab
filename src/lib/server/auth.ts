@@ -6,6 +6,7 @@ import Twitch from "@auth/sveltekit/providers/twitch";
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { accounts, sessions, users, verificationTokens } from "$lib/db/schema";
+import { logEvent } from "$lib/server/events";
 
 // Type assertion needed: drizzle-orm 0.29.x columns lack metadata fields
 // (isAutoincrement, isPrimaryKey, etc.) that @auth/drizzle-adapter 1.x expects.
@@ -55,4 +56,18 @@ export const {
     },
   },
   trustHost: true,
+  events: {
+    async createUser({ user }) {
+      logEvent({
+        eventType: "user_registered",
+        userId: user.id ?? null,
+        entityId: user.id ?? null,
+        entityType: "user",
+        metadata: {
+          user_name: user.name ?? null,
+          email: user.email ?? null,
+        },
+      });
+    },
+  },
 });

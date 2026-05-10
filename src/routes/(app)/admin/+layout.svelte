@@ -4,11 +4,42 @@
   const { children } = $props();
 
   const navItems = [
-    { href: "/admin", label: "Overview", icon: "sparkles-outline", exact: true },
-    { href: "/admin/users", label: "Users", icon: "people-outline", exact: false },
-    { href: "/admin/counters", label: "Counters", icon: "trending-up-outline", exact: false },
-    { href: "/admin/dashboards", label: "Dashboards", icon: "grid-outline", exact: false },
-    { href: "/admin/settings", label: "Settings", icon: "settings-outline", exact: false },
+    {
+      href: "/admin",
+      label: "Overview",
+      icon: "sparkles-outline",
+      exact: true,
+    },
+    {
+      href: "/admin/users",
+      label: "Users",
+      icon: "people-outline",
+      exact: false,
+    },
+    {
+      href: "/admin/counters",
+      label: "Counters",
+      icon: "trending-up-outline",
+      exact: false,
+    },
+    {
+      href: "/admin/dashboards",
+      label: "Dashboards",
+      icon: "grid-outline",
+      exact: false,
+    },
+    {
+      href: "/admin/statistics",
+      label: "Statistics",
+      icon: "bar-chart-outline",
+      exact: false,
+    },
+    {
+      href: "/admin/settings",
+      label: "Settings",
+      icon: "settings-outline",
+      exact: false,
+    },
   ];
 
   function isActive(href: string, exact: boolean, pathname: string): boolean {

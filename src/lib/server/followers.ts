@@ -8,6 +8,7 @@ import {
   dashboardFollowers,
   dashboards,
 } from "$lib/db/schema";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 
 // ── Counter Followers ───────────────────────────────────────────
@@ -24,6 +25,13 @@ export async function followCounter(
 
   if (result.length > 0) {
     logger.info("User followed counter", { userId, counterId });
+    logEvent({
+      eventType: "follower_added",
+      userId,
+      entityId: counterId,
+      entityType: "follower",
+      metadata: { target_type: "counter" },
+    });
     return true;
   }
   return false;
@@ -46,6 +54,13 @@ export async function unfollowCounter(
 
   if (result.length > 0) {
     logger.info("User unfollowed counter", { userId, counterId });
+    logEvent({
+      eventType: "follower_removed",
+      userId,
+      entityId: counterId,
+      entityType: "follower",
+      metadata: { target_type: "counter" },
+    });
     return true;
   }
   return false;
@@ -115,6 +130,13 @@ export async function followDashboard(
 
   if (result.length > 0) {
     logger.info("User followed dashboard", { userId, dashboardId });
+    logEvent({
+      eventType: "follower_added",
+      userId,
+      entityId: dashboardId,
+      entityType: "follower",
+      metadata: { target_type: "dashboard" },
+    });
     return true;
   }
   return false;
@@ -137,6 +159,13 @@ export async function unfollowDashboard(
 
   if (result.length > 0) {
     logger.info("User unfollowed dashboard", { userId, dashboardId });
+    logEvent({
+      eventType: "follower_removed",
+      userId,
+      entityId: dashboardId,
+      entityType: "follower",
+      metadata: { target_type: "dashboard" },
+    });
     return true;
   }
   return false;

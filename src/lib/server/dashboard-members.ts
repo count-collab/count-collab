@@ -6,6 +6,7 @@ import {
   dashboardMembers,
   users,
 } from "$lib/db/schema";
+import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 
 type MemberWithUser = DashboardMember & {
@@ -63,6 +64,16 @@ export async function removeDashboardMember(
       ),
     )
     .returning();
+
+  if (result.length > 0) {
+    logEvent({
+      eventType: "member_removed",
+      userId,
+      entityId: dashboardId,
+      entityType: "member",
+      metadata: { target_type: "dashboard" },
+    });
+  }
 
   return result.length > 0;
 }
