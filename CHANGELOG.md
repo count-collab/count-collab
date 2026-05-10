@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.4.1...count-collab-v0.5.0) (2026-05-10)
+
+
+### Features
+
+* implement event logging for user interactions and analytics ([193d30c](https://github.com/count-collab/count-collab/commit/193d30c209bedb2d6ef5e91b3bf6707706b4a448))
+
 ## [0.4.1](https://github.com/count-collab/count-collab/compare/count-collab-v0.4.0...count-collab-v0.4.1) (2026-05-09)
 
 ### Bug Fixes
