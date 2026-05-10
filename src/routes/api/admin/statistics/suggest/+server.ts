@@ -215,7 +215,7 @@ async function handleEntityIdValues(query: string, limit: number, since: Date) {
 
   if (query) {
     const escaped = escapeIlike(query);
-    conditions.push(sql`${platformEvents.entityId} ILIKE ${escaped + "%"}`);
+    conditions.push(sql`${platformEvents.entityId} ILIKE ${`${escaped}%`}`);
   }
 
   const rows = await db
@@ -248,7 +248,7 @@ async function handleMetadataValues(
 
   if (query) {
     const escaped = escapeIlike(query);
-    conditions.push(sql`${metaExpr} ILIKE ${escaped + "%"}`);
+    conditions.push(sql`${metaExpr} ILIKE ${`${escaped}%`}`);
   }
 
   const rows = await db
