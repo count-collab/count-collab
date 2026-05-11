@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.5.0...count-collab-v0.6.0) (2026-05-11)
+
+
+### Features
+
+* add event statistics API with filtering and pagination ([e694261](https://github.com/count-collab/count-collab/commit/e69426156d581cbb1a972bbdf1a427b46348374f))
+* add suggest API for event fields and values ([e694261](https://github.com/count-collab/count-collab/commit/e69426156d581cbb1a972bbdf1a427b46348374f))
+
+
+### Bug Fixes
+
+* correct string interpolation in SQL conditions for entity and metadata queries ([c2de5c4](https://github.com/count-collab/count-collab/commit/c2de5c4120cda807605b070632f91d71dbd180aa))
+* enhance counter increment logic for private counters ([e694261](https://github.com/count-collab/count-collab/commit/e69426156d581cbb1a972bbdf1a427b46348374f))
+* update tests ([dd9c5e9](https://github.com/count-collab/count-collab/commit/dd9c5e9bd4703a323a4918b70f7e15e3bcc8dbbc))
+
 ## [0.5.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.4.1...count-collab-v0.5.0) (2026-05-10)
 
 
