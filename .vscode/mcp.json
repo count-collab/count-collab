@@ -17,6 +17,10 @@
       "command": "docker",
       "args": ["mcp", "gateway", "run"],
       "type": "stdio"
+    },
+    "posthog": {
+      "type": "http",
+      "url": "https://mcp.posthog.com/mcp"
     }
   }
 }
