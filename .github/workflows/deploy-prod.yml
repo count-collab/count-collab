@@ -88,7 +88,7 @@ jobs:
           docker-image: ghcr.io/count-collab/count-collab:latest
           deploy-dir: $HOME/count-collab
           container-name: count-collab
-          app-port: "80:3000"
+          app-port: "3000:3000"
           compose-filename: docker-compose.yml
           volume-name: postgres_data
           postgres-user: ${{ secrets.POSTGRES_USER }}

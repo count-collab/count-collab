@@ -4,13 +4,17 @@
 
   let {
     timeframe,
+    page,
     filters = {},
     onFilterChange,
+    onPageChange,
     onAggregateField,
   }: {
     timeframe: string;
+    page: number;
     filters: Record<string, string>;
     onFilterChange: (filters: Record<string, string>) => void;
+    onPageChange: (page: number) => void;
     onAggregateField: (field: string) => void;
   } = $props();
 
@@ -33,7 +37,6 @@
 
   let events = $state<PlatformEvent[]>([]);
   let loading = $state(false);
-  let page = $state(1);
   let total = $state(0);
   let totalPages = $state(0);
   let queryDurationMs = $state<number | null>(null);
@@ -284,13 +287,6 @@
     const ss = String(d.getSeconds()).padStart(2, "0");
     return `${mm}/${dd}/${yyyy} ${hh}:${min}:${ss}`;
   }
-
-  // Reset page when filters or timeframe change
-  $effect(() => {
-    timeframe;
-    filters;
-    page = 1;
-  });
 
   $effect(() => {
     timeframe;
@@ -819,7 +815,7 @@
         <button
           type="button"
           disabled={page <= 1}
-          onclick={() => (page = page - 1)}
+          onclick={() => onPageChange(page - 1)}
           class="px-3 py-1.5 text-sm rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           &larr; Prev
@@ -839,7 +835,7 @@
           {:else}
             <button
               type="button"
-              onclick={() => (page = item)}
+              onclick={() => onPageChange(item)}
               class="px-3 py-1.5 text-sm rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
             >
               {item}
@@ -850,7 +846,7 @@
         <button
           type="button"
           disabled={page >= totalPages}
-          onclick={() => (page = page + 1)}
+          onclick={() => onPageChange(page + 1)}
           class="px-3 py-1.5 text-sm rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Next &rarr;

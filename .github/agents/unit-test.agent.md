@@ -24,6 +24,7 @@ src/
 ├── lib/
 │   ├── counter.ts / counter.test.ts             # Shared counter logic
 │   ├── components/
+│   │   ├── admin/EventLog.svelte / admin/EventLog.test.ts
 │   │   ├── CounterCard.svelte / CounterCard.test.ts
 │   │   ├── Fireworks.svelte / Fireworks.test.ts
 │   │   ├── HistoryEntry.svelte / HistoryEntry.test.ts
@@ -42,7 +43,11 @@ src/
 │       ├── socket-dev.ts / socket-dev.test.ts
 │       └── validation.ts / validation.test.ts
 └── routes/
+  ├── (app)/admin/statistics/page.test.ts
     ├── api/counters/[id]/server.test.ts
+  ├── api/admin/statistics/server.test.ts
+  ├── api/admin/statistics/events/server.test.ts
+  ├── api/admin/statistics/aggregate/server.test.ts
     ├── api/dashboards/[id]/search-counters/server.test.ts
     ├── api/og/[id]/server.test.ts
     ├── api/version/server.test.ts
@@ -100,6 +105,13 @@ describe("CounterCard", () => {
   it("displays counter title", () => {
     render(CounterCard, { props: { counter: { title: "Test", count: 0 } } });
     expect(screen.getByText("Test")).toBeInTheDocument();
+  });
+});
+
+// For admin components, prefer asserting callback contracts and rendered state.
+describe("EventLog", () => {
+  it("calls onPageChange when pagination is clicked", async () => {
+    /* ... */
   });
 });
 ```

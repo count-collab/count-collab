@@ -18,7 +18,9 @@ You are an end-to-end testing specialist for the Count Collab project. Your job 
 
 ```
 e2e/
-└── homepage.test.ts          # Homepage/landing page flow
+├── homepage.test.ts                        # Homepage/landing page flow
+├── private-counter-cooldown.test.ts        # Private counter cooldown behavior
+└── admin-statistics-shareable-url.test.ts  # Shareable admin statistics URL state
 playwright.config.ts
 ```
 
@@ -36,6 +38,7 @@ New test files should be added to the `e2e/` directory following the naming conv
 6. **Dashboards**: Create dashboard → add counters → view dashboard at /d/[id]
 7. **Admin**: Logged in as admin → access /admin → manage counters/users
 8. **Rate limiting**: Rapid increments → receive 429 → retry after cooldown
+9. **Statistics share links**: Set timeframe/filters on /admin/statistics → URL updates → reload restores state
 
 ## Auth Mocking Strategy
 
