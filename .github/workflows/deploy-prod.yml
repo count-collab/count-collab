@@ -101,3 +101,4 @@ jobs:
           auth-discord-secret: ${{ secrets.AUTH_DISCORD_SECRET }}
           auth-twitch-id: ${{ secrets.AUTH_TWITCH_ID }}
           auth-twitch-secret: ${{ secrets.AUTH_TWITCH_SECRET }}
+          domain: count-collab.cc

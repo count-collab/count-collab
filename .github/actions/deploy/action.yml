@@ -74,6 +74,9 @@ inputs:
     description: "Set to 'true' to prevent search engine indexing (dev environments)"
     required: false
     default: "false"
+  domain:
+    description: "Domain name for Traefik routing (e.g. count-collab.cc)"
+    required: true
   posthog-key:
     description: PostHog public API key
     required: false
@@ -158,8 +161,6 @@ runs:
               image: ${{ inputs.docker-image }}
               container_name: ${{ inputs.container-name }}
               restart: unless-stopped
-              ports:
-                - "${{ inputs.app-port }}"
               env_file:
                 - .env
               depends_on:
@@ -171,8 +172,15 @@ runs:
                 timeout: 5s
                 retries: 5
                 start_period: 5s
+              labels:
+                - "traefik.enable=true"
+                - "traefik.http.routers.${{ inputs.container-name }}.rule=Host(\`${{ inputs.domain }}\`)"
+                - "traefik.http.routers.${{ inputs.container-name }}.entrypoints=websecure"
+                - "traefik.http.routers.${{ inputs.container-name }}.tls=true"
+                - "traefik.http.services.${{ inputs.container-name }}.loadbalancer.server.port=3000"
               networks:
                 - ${{ inputs.container-name }}
+                - web
 
             db:
               image: postgres:16-alpine
@@ -199,6 +207,8 @@ runs:
           networks:
             ${{ inputs.container-name }}:
               driver: bridge
+            web:
+              external: true
           EOF
 
           cd "$DEPLOY_DIR"
