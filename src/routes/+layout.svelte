@@ -19,6 +19,7 @@
     createOutline,
     desktopOutline,
     ellipsisVertical,
+    eyeOffOutline,
     eyeOutline,
     flagOutline,
     flashOutline,
@@ -110,6 +111,7 @@
       "pulse-outline": pulseOutline,
       "apps-outline": appsOutline,
       "bar-chart-outline": barChartOutline,
+      "eye-off-outline": eyeOffOutline,
     });
     defineCustomElement();
   }

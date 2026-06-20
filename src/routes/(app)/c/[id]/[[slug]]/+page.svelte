@@ -13,6 +13,7 @@ import { untrack } from "svelte";
   import HistoryEntry from "$lib/components/HistoryEntry.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import PersonalStats from "$lib/components/PersonalStats.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import Scoreboard from "$lib/components/Scoreboard.svelte";
   import SharingOverlay from "$lib/components/SharingOverlay.svelte";
@@ -581,7 +582,7 @@ import { untrack } from "svelte";
     <div class="flex-1 flex flex-col">
       <!-- Counter — centered focal point -->
       <section
-        class="relative flex-1 flex flex-col items-center justify-center py-6 select-none"
+        class="relative min-h-[65vh] flex flex-col items-center justify-center py-6 select-none"
       >
         <div
           class="absolute bottom-0 h-2/3 left-1/2 w-screen -translate-x-1/2 pointer-events-none"
@@ -669,24 +670,6 @@ import { untrack } from "svelte";
       </section>
     </div>
 
-    <!-- Desktop sidebar -->
-    {#if (data.counter.goalsEnabled && data.goals.length > 0) || (data.counter.scoreboardEnabled && data.scoreboard.length > 0)}
-      <aside
-        class="hidden xl:flex xl:flex-col xl:w-72 gap-4 py-6 absolute right-0 top-0"
-      >
-        {#if data.counter.goalsEnabled && data.goals.length > 0}
-          <GoalsSidebar
-            goals={data.goals}
-            currentCount={displayCount}
-            counterMode={data.counter.counterMode ?? "increment_only"}
-            showAllReachedGoals={data.counter.showAllReachedGoals}
-          />
-        {/if}
-        {#if data.counter.scoreboardEnabled && data.scoreboard.length > 0}
-          <Scoreboard scoreboard={data.scoreboard} />
-        {/if}
-      </aside>
-    {/if}
   </div>
 
   <!-- History — subtle footer -->
@@ -721,24 +704,33 @@ import { untrack } from "svelte";
       {/if}
     </footer>
   {/if}
-</div>
 
-<!-- Mobile/tablet: goals & scoreboard below activity -->
-{#if (data.counter.goalsEnabled && data.goals.length > 0) || (data.counter.scoreboardEnabled && data.scoreboard.length > 0)}
-  <div class="xl:hidden mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-    {#if data.counter.goalsEnabled && data.goals.length > 0}
-      <GoalsSidebar
-        goals={data.goals}
-        currentCount={displayCount}
-        counterMode={data.counter.counterMode ?? "increment_only"}
-        showAllReachedGoals={data.counter.showAllReachedGoals}
+  <!-- Goals, scoreboard & stats always below history -->
+  {#if (data.counter.goalsEnabled && data.goals.length > 0) || (data.counter.scoreboardEnabled && data.scoreboard.length > 0)}
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {#if data.counter.goalsEnabled && data.goals.length > 0}
+        <GoalsSidebar
+          goals={data.goals}
+          currentCount={displayCount}
+          counterMode={data.counter.counterMode ?? "increment_only"}
+          showAllReachedGoals={data.counter.showAllReachedGoals}
+        />
+      {/if}
+      {#if data.counter.scoreboardEnabled && data.scoreboard.length > 0}
+        <Scoreboard scoreboard={data.scoreboard} />
+      {/if}
+    </div>
+  {/if}
+  {#if data.userStats || data.anonymousStats.total > 0}
+    <div class="mt-4">
+      <PersonalStats
+        userStats={data.userStats}
+        anonymousStats={data.anonymousStats}
       />
-    {/if}
-    {#if data.counter.scoreboardEnabled && data.scoreboard.length > 0}
-      <Scoreboard scoreboard={data.scoreboard} />
-    {/if}
-  </div>
-{/if}
+    </div>
+  {/if}
+
+</div>
 
 <!-- Share Overlay -->
 <SharingOverlay

@@ -15,7 +15,12 @@ import {
   canManageMembers,
   canViewPrivateCounter,
 } from "$lib/server/authorize";
-import { getCounter, getCounterHistory } from "$lib/server/counters";
+import {
+  getCounter,
+  getCounterAnonymousStats,
+  getCounterHistory,
+  getCounterUserStats,
+} from "$lib/server/counters";
 import {
   getCounterFollowerCount,
   isFollowingCounter,
@@ -185,6 +190,11 @@ export const load: PageServerLoad = async ({
         .limit(20)
     : [];
 
+  const [userStats, anonymousStats] = await Promise.all([
+    userId ? getCounterUserStats(params.id, userId) : null,
+    getCounterAnonymousStats(params.id),
+  ]);
+
   depends(`counter:${params.id}`);
 
   // Check current cooldown state so the UI can show it on load
@@ -226,6 +236,8 @@ export const load: PageServerLoad = async ({
         ...s,
         actionCount: Number(s.actionCount),
       })),
+    userStats,
+    anonymousStats,
     // Only expose the share token to users who can manage the counter
     shareToken: canManage ? (counter.shareToken ?? null) : null,
     hasValidToken,

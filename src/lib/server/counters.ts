@@ -622,6 +622,124 @@ export async function getUserActionCount(userId: string): Promise<number> {
   return Number(row?.count ?? 0);
 }
 
+export type DailyBreakdown = { date: string; actions: number };
+
+export type CounterTimeStats = {
+  thisWeek: number;
+  thisMonth: number;
+  thisQuarter: number;
+  thisYear: number;
+  total: number;
+};
+
+export type CounterUserStats = {
+  totals: CounterTimeStats;
+  dailyBreakdown: DailyBreakdown[];
+};
+
+export async function getCounterUserStats(
+  counterId: string,
+  userId: string,
+): Promise<CounterUserStats> {
+  const [totals] = await db.execute<{
+    thisWeek: number;
+    thisMonth: number;
+    thisQuarter: number;
+    thisYear: number;
+    total: number;
+  }>(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE changed_at >= date_trunc('week', now())) AS "thisWeek",
+      COUNT(*) FILTER (WHERE changed_at >= date_trunc('month', now())) AS "thisMonth",
+      COUNT(*) FILTER (WHERE changed_at >= date_trunc('quarter', now())) AS "thisQuarter",
+      COUNT(*) FILTER (WHERE changed_at >= date_trunc('year', now())) AS "thisYear",
+      COUNT(*) AS total
+    FROM counter_history
+    WHERE counter_id = ${counterId}::uuid
+      AND changed_by = ${userId}
+  `);
+
+  const dailyRows = await db.execute<{
+    date: string;
+    actions: number;
+  }>(sql`
+    SELECT
+      date_trunc('day', changed_at)::text AS "date",
+      COUNT(*) AS actions
+    FROM counter_history
+    WHERE counter_id = ${counterId}::uuid
+      AND changed_by = ${userId}
+    GROUP BY date_trunc('day', changed_at)
+    ORDER BY "date" ASC
+  `);
+
+  return {
+    totals: {
+      thisWeek: Number(totals?.thisWeek ?? 0),
+      thisMonth: Number(totals?.thisMonth ?? 0),
+      thisQuarter: Number(totals?.thisQuarter ?? 0),
+      thisYear: Number(totals?.thisYear ?? 0),
+      total: Number(totals?.total ?? 0),
+    },
+    dailyBreakdown: dailyRows.map((r) => ({
+      date: r.date,
+      actions: Number(r.actions),
+    })),
+  };
+}
+
+type CounterAnonymousStats = CounterTimeStats & {
+  dailyBreakdown: DailyBreakdown[];
+};
+
+export async function getCounterAnonymousStats(
+  counterId: string,
+): Promise<CounterAnonymousStats> {
+  const [totals] = await db.execute<{
+    thisWeek: number;
+    thisMonth: number;
+    thisQuarter: number;
+    thisYear: number;
+    total: number;
+  }>(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE changed_at >= date_trunc('week', now())) AS "thisWeek",
+      COUNT(*) FILTER (WHERE changed_at >= date_trunc('month', now())) AS "thisMonth",
+      COUNT(*) FILTER (WHERE changed_at >= date_trunc('quarter', now())) AS "thisQuarter",
+      COUNT(*) FILTER (WHERE changed_at >= date_trunc('year', now())) AS "thisYear",
+      COUNT(*) AS total
+    FROM counter_history
+    WHERE counter_id = ${counterId}::uuid
+      AND changed_by IS NULL
+  `);
+
+  const dailyRows = await db.execute<{
+    date: string;
+    actions: number;
+  }>(sql`
+    SELECT
+      date_trunc('day', changed_at)::text AS "date",
+      COUNT(*) AS actions
+    FROM counter_history
+    WHERE counter_id = ${counterId}::uuid
+      AND changed_by IS NULL
+    GROUP BY date_trunc('day', changed_at)
+    ORDER BY "date" ASC
+  `);
+
+  return {
+    thisWeek: Number(totals?.thisWeek ?? 0),
+    thisMonth: Number(totals?.thisMonth ?? 0),
+    thisQuarter: Number(totals?.thisQuarter ?? 0),
+    thisYear: Number(totals?.thisYear ?? 0),
+    total: Number(totals?.total ?? 0),
+    dailyBreakdown: dailyRows.map((r) => ({
+      date: r.date,
+      actions: Number(r.actions),
+    })),
+  };
+}
+
 export async function getCounterCount(): Promise<number> {
   const [row] = await db
     .select({ count: sql<string>`COUNT(*)` })
