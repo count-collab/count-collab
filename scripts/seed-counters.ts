@@ -16,6 +16,10 @@ const COFFEE_COUNTER_ID = "600cdb27-5261-4004-a1c3-458727c4501e";
 // Prefix to identify seed users for cleanup
 const SEED_EMAIL_DOMAIN = "seed.countcollab.local";
 
+// Real user ID to include in history for mixed stats during testing
+// Kai
+const REAL_USER_ID = "4094c0ae-ef4e-457a-81f2-697a215d63e6";
+
 const SEED_USERS: NewUser[] = [
   {
     name: "Alice Chen",
@@ -430,7 +434,29 @@ async function seedCounters() {
     const userIds = insertedUsers.map((u) => u.id);
     console.info(`Created ${userIds.length} mock users.`);
 
+    // Verify real user exists so their ID can be mixed into history
+    const [realUser] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, REAL_USER_ID));
+    if (realUser) {
+      console.info(`Found real user (${realUser.id}) — will mix into history.`);
+    } else {
+      console.info(`Real user ${REAL_USER_ID} not found — skipping.`);
+    }
+
     function randomUserId(): string {
+      return userIds[Math.floor(Math.random() * userIds.length)];
+    }
+
+    // Pick a user for history entries: null = anonymous, real user, or seed user
+    function pickHistoryChanger(): string | null {
+      const roll = Math.random();
+      // 30% anonymous (only for public counters — all seed counters are public)
+      if (roll < 0.3) return null;
+      // 20% real user (when available)
+      if (realUser && roll < 0.5) return realUser.id;
+      // 50% random seed user
       return userIds[Math.floor(Math.random() * userIds.length)];
     }
 
@@ -610,7 +636,7 @@ async function seedCounters() {
             counterId,
             previousValue,
             newValue: currentValue,
-            changedBy: randomUserId(),
+            changedBy: pickHistoryChanger(),
             changedAt,
           });
         }
