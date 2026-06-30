@@ -338,7 +338,6 @@ import { untrack } from "svelte";
 <MetaTags
   title={data.title}
   description={data.description}
-  path="/c/{data.counter.id}"
   image="/api/og/{data.counter.id}"
 />
 
