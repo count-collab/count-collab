@@ -3,6 +3,7 @@
   import { fade } from "svelte/transition";
   import Slider from "$lib/components/Slider.svelte";
   import Switch from "$lib/components/Switch.svelte";
+  import TransferOwnershipSection from "$lib/components/TransferOwnershipSection.svelte";
   import type { CounterMode, CounterVisibilityMode } from "$lib/db/schema";
 
   type Goal = {
@@ -25,6 +26,9 @@
     counter,
     goals,
     canEdit,
+    canTransfer = false,
+    team = null,
+    transferTargets = [],
     onsave,
   }: {
     open: boolean;
@@ -42,6 +46,9 @@
     };
     goals: Goal[];
     canEdit: boolean;
+    canTransfer?: boolean;
+    team?: { id: string; name: string } | null;
+    transferTargets?: { id: string; name: string }[];
     onsave?: () => void;
   } = $props();
 
@@ -596,6 +603,16 @@
             Display a ranked list of top contributors on the counter page.
           </p>
         </section>
+
+        {#if canTransfer}
+          <TransferOwnershipSection
+            type="counter"
+            entityId={counter.id}
+            {team}
+            {transferTargets}
+            ontransferred={close}
+          />
+        {/if}
       </div>
     </div>
 

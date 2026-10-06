@@ -1,10 +1,12 @@
 <script lang="ts">
   import { signOut } from "@auth/sveltekit/client";
-  import { invalidateAll } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
+  import { page } from "$app/state";
   import SiteFooter from "$lib/components/SiteFooter.svelte";
   import ThemeToggle from "$lib/components/ThemeToggle.svelte";
   import ToastContainer, {
     addInvitationToast,
+    addMessageToast,
   } from "$lib/components/ToastContainer.svelte";
   import {
     type InvitationPayload,
@@ -12,6 +14,10 @@
     onInvitationDeleted,
     onInvitationUpdated,
   } from "$lib/stores/invitations";
+  import {
+    onTeamMembershipChanged,
+    type TeamMembershipChangedPayload,
+  } from "$lib/stores/teams";
 
   const { children, data } = $props();
   const session = $derived(data.session);
@@ -24,6 +30,29 @@
     if (payload.userId === session?.user?.id) {
       invalidateAll();
     }
+  }
+
+  function handleTeamMembershipChange(payload: TeamMembershipChangedPayload) {
+    if (payload.userId !== session?.user?.id) return;
+
+    const teamPath = `/t/${payload.teamId}`;
+    const { pathname } = page.url;
+    const onTeamPage =
+      pathname === teamPath || pathname.startsWith(`${teamPath}/`);
+    const lostAccess =
+      payload.reason === "removed" || payload.reason === "team_deleted";
+
+    if (onTeamPage && lostAccess) {
+      addMessageToast(
+        payload.reason === "team_deleted"
+          ? "This team was deleted."
+          : "You are no longer a member of this team.",
+      );
+      goto("/my/teams", { invalidateAll: true });
+      return;
+    }
+
+    invalidateAll();
   }
 
   $effect(() => {
@@ -39,11 +68,13 @@
     });
     const unsubUpdated = onInvitationUpdated(handleInvitationChange);
     const unsubDeleted = onInvitationDeleted(handleInvitationChange);
+    const unsubTeam = onTeamMembershipChanged(handleTeamMembershipChange);
 
     return () => {
       unsubCreated();
       unsubUpdated();
       unsubDeleted();
+      unsubTeam();
     };
   });
 </script>

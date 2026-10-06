@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSelect = vi.fn();
 const mockFrom = vi.fn();
+const mockLeftJoin = vi.fn();
 const mockWhere = vi.fn();
 const mockHasPermission = vi.fn();
 const mockIsFollowingDashboard = vi.fn();
@@ -21,29 +22,58 @@ vi.mock("$lib/server/followers", () => ({
     mockIsFollowingDashboard(...args),
 }));
 
-mockSelect.mockReturnValue({ from: mockFrom });
-mockFrom.mockReturnValue({ where: mockWhere });
+function setupQueryChain() {
+  mockSelect.mockReturnValue({ from: mockFrom });
+  mockFrom.mockReturnValue({ leftJoin: mockLeftJoin });
+  mockLeftJoin.mockReturnValue({ leftJoin: mockLeftJoin, where: mockWhere });
+}
+
+setupQueryChain();
 
 import {
   canDeleteDashboard,
   canEditDashboard,
   canManageDashboardMembers,
   canViewDashboard,
+  getDashboardAccess,
   isDashboardOwner,
 } from "./dashboard-authorize";
 
-function mockDbResponses(...responses: unknown[]) {
+type AccessRow = {
+  ownerId: string | null;
+  teamId: string | null;
+  directRole: string | null;
+  teamRole: string | null;
+};
+
+function mockAccessRow(row: Partial<AccessRow>) {
   mockWhere.mockReset();
-  for (const response of responses) {
-    mockWhere.mockResolvedValueOnce(response);
-  }
+  mockWhere.mockResolvedValueOnce([
+    {
+      ownerId: "owner-1",
+      teamId: null,
+      directRole: null,
+      teamRole: null,
+      ...row,
+    },
+  ]);
+}
+
+/** Legacy shape: dashboard rows + direct-member rows, merged into one joined row. */
+function mockDbResponses(
+  dashboardRows: { ownerId: string }[],
+  memberRows: { role: string }[] = [],
+) {
+  mockAccessRow({
+    ownerId: dashboardRows[0]?.ownerId,
+    directRole: memberRows[0]?.role ?? null,
+  });
 }
 
 describe("dashboard authorize helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSelect.mockReturnValue({ from: mockFrom });
-    mockFrom.mockReturnValue({ where: mockWhere });
+    setupQueryChain();
     mockHasPermission.mockResolvedValue(false);
     mockIsFollowingDashboard.mockResolvedValue(false);
   });
@@ -61,6 +91,62 @@ describe("dashboard authorize helpers", () => {
       mockDbResponses([{ ownerId: "other-user" }]);
 
       await expect(isDashboardOwner("user-1", "dashboard-1")).resolves.toBe(
+        false,
+      );
+    });
+
+    it("returns false for the creator of a team-owned dashboard", async () => {
+      mockAccessRow({ ownerId: "user-1", teamId: "team-1" });
+
+      await expect(isDashboardOwner("user-1", "dashboard-1")).resolves.toBe(
+        false,
+      );
+    });
+  });
+
+  describe("team-owned dashboards", () => {
+    it("grants access via team role", async () => {
+      mockAccessRow({ teamId: "team-1", teamRole: "editor" });
+
+      await expect(canEditDashboard("user-1", "dashboard-1")).resolves.toBe(
+        true,
+      );
+      expect(mockHasPermission).not.toHaveBeenCalled();
+    });
+
+    it("ignores ownerId when teamId is set", async () => {
+      mockAccessRow({ ownerId: "user-1", teamId: "team-1" });
+
+      await expect(canDeleteDashboard("user-1", "dashboard-1")).resolves.toBe(
+        false,
+      );
+    });
+
+    it("uses the higher of direct and team role", async () => {
+      mockAccessRow({
+        teamId: "team-1",
+        directRole: "viewer",
+        teamRole: "owner",
+      });
+
+      await expect(
+        getDashboardAccess("user-1", "dashboard-1"),
+      ).resolves.toMatchObject({ effectiveRole: "admin", isOwner: false });
+    });
+
+    it("treats a team incrementer as a dashboard viewer", async () => {
+      mockAccessRow({ teamId: "team-1", teamRole: "incrementer" });
+      await expect(
+        getDashboardAccess("user-1", "dashboard-1"),
+      ).resolves.toMatchObject({ effectiveRole: "viewer" });
+
+      mockAccessRow({ teamId: "team-1", teamRole: "incrementer" });
+      await expect(canViewDashboard("user-1", "dashboard-1")).resolves.toBe(
+        true,
+      );
+
+      mockAccessRow({ teamId: "team-1", teamRole: "incrementer" });
+      await expect(canEditDashboard("user-1", "dashboard-1")).resolves.toBe(
         false,
       );
     });

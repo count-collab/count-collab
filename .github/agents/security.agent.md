@@ -23,6 +23,11 @@ src/lib/server/ratelimit.ts            # IP-based rate limiting logic
 src/lib/server/auth.ts                 # Auth.js configuration
 src/lib/server/authorize.ts            # Counter-level authorization
 src/lib/server/dashboard-authorize.ts  # Dashboard-level authorization
+src/lib/server/team-authorize.ts       # Team-level authorization
+src/lib/roles.ts                       # Role ranks, team→resource mapping, canAssignTeamRole
+src/lib/server/transfer.ts             # Ownership transfers (locks + permission matrix)
+src/lib/server/team-members.ts         # Last-owner guard, join-link tokens (constant-time compare)
+src/lib/utils/redirect.ts              # safeRedirectPath (open-redirect guard)
 src/lib/server/permissions.ts          # Role-based permission checks
 src/lib/server/crypto.ts               # Cryptographic utilities (share tokens, etc.)
 src/lib/utils/validation.ts            # Zod input validation schemas

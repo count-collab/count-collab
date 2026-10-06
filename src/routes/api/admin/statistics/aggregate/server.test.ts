@@ -170,6 +170,26 @@ describe("GET /api/admin/statistics/aggregate", () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it.each([
+    "team_created",
+    "team_deleted",
+    "team_member_added",
+    "team_member_removed",
+    "resource_transferred",
+  ])("accepts filter.eventType=%s", async (eventType) => {
+    mockHasPermission.mockResolvedValue(true);
+    setupStandardQueries(0, []);
+
+    const response = await GET(
+      makeEvent(
+        { field: "eventType", "filter.eventType": eventType },
+        { locals: makeLocals(USER_ID) },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
   it("returns aggregation for standard field (eventType)", async () => {
     mockHasPermission.mockResolvedValue(true);
     setupStandardQueries(3, [

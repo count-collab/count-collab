@@ -9,6 +9,10 @@
     count: number;
     visibilityMode: CounterVisibilityMode;
     ownerId: string | null;
+    teamId: string | null;
+    teamName: string | null;
+    /** Personally owned or owned by one of the user's teams. */
+    isMine: boolean;
   };
 
   let {
@@ -65,13 +69,13 @@
 
   const ownedSuggestions = $derived(
     currentUserId
-      ? filteredSuggestions.filter((r) => r.ownerId === currentUserId)
+      ? filteredSuggestions.filter((r) => r.isMine)
       : [],
   );
 
   const popularSuggestions = $derived(
     currentUserId
-      ? filteredSuggestions.filter((r) => r.ownerId !== currentUserId)
+      ? filteredSuggestions.filter((r) => !r.isMine)
       : filteredSuggestions,
   );
 

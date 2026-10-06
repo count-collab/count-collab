@@ -1,19 +1,17 @@
 import { error, redirect } from "@sveltejs/kit";
-import { and, asc, count as countFn, desc, eq } from "drizzle-orm";
+import { asc, count as countFn, desc, eq } from "drizzle-orm";
 import { slugify } from "$lib/counter";
 import { db } from "$lib/db";
-import {
-  counterGoals,
-  counterHistory,
-  counterMembers,
-  users,
-} from "$lib/db/schema";
+import { counterGoals, counterHistory, users } from "$lib/db/schema";
+import { isTeamRoleAtLeast } from "$lib/roles";
 import {
   canDeleteCounter,
   canEditCounter,
   canIncrementCounter,
+  canIncrementPrivateCounter,
   canManageMembers,
   canViewPrivateCounter,
+  getCounterAccess,
 } from "$lib/server/authorize";
 import {
   getCounter,
@@ -29,6 +27,8 @@ import { getCounterInvitations } from "$lib/server/invitations";
 import { logger } from "$lib/server/logger";
 import { getCounterMembers } from "$lib/server/members";
 import { checkCounterCooldown } from "$lib/server/ratelimit";
+import { getActingTeamRole } from "$lib/server/team-authorize";
+import { getTeam, listEditableTeams } from "$lib/server/teams";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { PageServerLoad } from "./$types";
 
@@ -103,28 +103,36 @@ export const load: PageServerLoad = async ({
       ? await canIncrementCounter(userId, counter.id)
       : false;
   } else {
-    canIncrement = hasValidToken || canViewPrivate;
+    canIncrement =
+      hasValidToken ||
+      (!!userId &&
+        (await canIncrementPrivateCounter(userId, counter.id)) === "allowed");
   }
 
-  const isOwner = userId ? counter.ownerId === userId : false;
+  const access = userId ? await getCounterAccess(userId, counter.id) : null;
+  const isOwner = access?.isOwner ?? false;
+  // Follow button visibility: any direct or team role counts as membership
+  const isMember = !isOwner && !!access?.effectiveRole;
+  const teamRole = access?.teamRole ?? null;
+
   const members = canManage ? await getCounterMembers(counter.id) : [];
   const invitations = canManage ? await getCounterInvitations(counter.id) : [];
 
-  // Check membership directly for follow button visibility (independent of admin permissions)
-  let isMember = false;
-  if (userId && !isOwner) {
-    const [memberRow] = await db
-      .select({ id: counterMembers.id })
-      .from(counterMembers)
-      .where(
-        and(
-          // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
-          eq(counterMembers.counterId, counter.id as any),
-          eq(counterMembers.userId, userId),
-        ),
-      );
-    isMember = !!memberRow;
-  }
+  const owningTeam = counter.teamId ? await getTeam(counter.teamId) : null;
+  const team = owningTeam ? { id: owningTeam.id, name: owningTeam.name } : null;
+
+  const canTransfer =
+    !!userId &&
+    (isOwner ||
+      (!!counter.teamId &&
+        isTeamRoleAtLeast(
+          await getActingTeamRole(userId, counter.teamId),
+          "admin",
+        )));
+  const transferTargets =
+    userId && canTransfer
+      ? (await listEditableTeams(userId)).filter((t) => t.id !== counter.teamId)
+      : [];
 
   const isFollowing = userId
     ? await isFollowingCounter(userId, counter.id)
@@ -141,7 +149,9 @@ export const load: PageServerLoad = async ({
   }
 
   const isSubjectToAutoDelete =
-    counter.ownerId === null && counter.visibilityMode !== "private";
+    counter.ownerId === null &&
+    counter.teamId === null &&
+    counter.visibilityMode !== "private";
 
   let autoDeleteInfo: {
     inactiveDays: number;
@@ -219,6 +229,10 @@ export const load: PageServerLoad = async ({
     canIncrement,
     isOwner,
     isMember,
+    team,
+    teamRole,
+    canTransfer,
+    transferTargets,
     ownerUsername,
     members,
     invitations,

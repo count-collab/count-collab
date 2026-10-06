@@ -34,6 +34,8 @@
     canManage: boolean;
     isMember: boolean;
     currentUserId: string | null;
+    team?: { id: string; name: string } | null;
+    teamLinked?: boolean;
     onupdate: () => void;
   };
 
@@ -50,6 +52,8 @@
     canManage,
     isMember,
     currentUserId,
+    team = null,
+    teamLinked = false,
     onupdate,
   }: Props = $props();
 
@@ -488,6 +492,30 @@
             >
               Members
             </h3>
+            {#if team}
+              <div
+                class="flex items-center gap-3 rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-3"
+              >
+                <div
+                  class="w-8 h-8 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                >
+                  <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+                </div>
+                <p class="text-sm text-slate-700 dark:text-slate-300">
+                  Members of
+                  {#if teamLinked}
+                    <a
+                      href="/t/{team.id}"
+                      class="font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                      >{team.name}</a
+                    >
+                  {:else}
+                    <span class="font-medium">{team.name}</span>
+                  {/if}
+                  have access via their team role
+                </p>
+              </div>
+            {/if}
             {#if members.length > 0}
               <ul class="divide-y divide-slate-200 dark:divide-slate-700">
                 {#each members as member (member.id)}
@@ -545,7 +573,7 @@
                   </li>
                 {/each}
               </ul>
-            {:else}
+            {:else if !team}
               <p class="text-sm text-slate-500 dark:text-slate-400">
                 No members yet.
               </p>

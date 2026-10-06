@@ -546,8 +546,28 @@ import { untrack } from "svelte";
           {data.followerCount === 1 ? "follower" : "followers"}
         </span>
       {/if}
+      {#if data.team}
+        <span
+          class="text-xs text-slate-400 dark:text-slate-500 inline-flex items-center gap-1"
+        >
+          <ion-icon name="people-outline" style="font-size: 14px;" aria-hidden="true"
+          ></ion-icon>
+          Team:
+          {#if data.teamRole}
+            <a
+              href="/t/{data.team.id}"
+              class="font-medium text-slate-500 dark:text-slate-400 hover:underline"
+              >{data.team.name}</a
+            >
+          {:else}
+            <span class="font-medium text-slate-500 dark:text-slate-400"
+              >{data.team.name}</span
+            >
+          {/if}
+        </span>
+      {/if}
       <span class="text-xs text-slate-400 dark:text-slate-500">
-        Created {#if data.ownerUsername}by <span
+        Created {#if !data.team && data.ownerUsername}by <span
             class="font-medium text-slate-500 dark:text-slate-400"
             >@{data.ownerUsername}</span
           > ·
@@ -745,6 +765,8 @@ import { untrack } from "svelte";
   canManage={data.canManage}
   isMember={data.isMember}
   currentUserId={data.session?.user?.id ?? null}
+  team={data.team}
+  teamLinked={data.teamRole !== null}
   onupdate={() => invalidate(`counter:${data.counter.id}`)}
 />
 
@@ -795,6 +817,9 @@ import { untrack } from "svelte";
     }}
     goals={data.goals}
     canEdit={data.canEdit}
+    canTransfer={data.canTransfer}
+    team={data.team}
+    transferTargets={data.transferTargets}
     onsave={() => invalidate(`counter:${data.counter.id}`)}
   />
 {/if}

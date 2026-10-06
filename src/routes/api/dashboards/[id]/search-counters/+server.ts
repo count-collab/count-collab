@@ -1,7 +1,22 @@
 import { error, json } from "@sveltejs/kit";
-import { and, desc, eq, ilike, inArray, notInArray, or } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  notInArray,
+  or,
+} from "drizzle-orm";
 import { db } from "$lib/db";
-import { counterMembers, counters as countersTable } from "$lib/db/schema";
+import {
+  counterMembers,
+  counters as countersTable,
+  teamMembers,
+  teams,
+} from "$lib/db/schema";
 import { escapeLikePattern } from "$lib/server/crypto";
 import { canEditDashboard } from "$lib/server/dashboard-authorize";
 import { getDashboardItems } from "$lib/server/dashboard-items";
@@ -41,13 +56,14 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     .from(counterMembers)
     .where(eq(counterMembers.userId, userId));
 
-  // Visibility: public counters OR owned by user OR user is a member
+  // Visibility: public, personally owned, direct member, or member of the owning team
   const visibilityCondition = or(
     eq(countersTable.visibilityMode, "public"),
     eq(countersTable.visibilityMode, "public_readonly"),
-    eq(countersTable.ownerId, userId),
+    and(eq(countersTable.ownerId, userId), isNull(countersTable.teamId)),
     // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
     inArray(countersTable.id, memberCounterIds as any),
+    isNotNull(teamMembers.userId),
   );
 
   const conditions = [visibilityCondition];
@@ -62,7 +78,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     conditions.push(notInArray(countersTable.id, existingCounterIds));
   }
 
-  const items = await db
+  const rows = await db
     .select({
       id: countersTable.id,
       title: countersTable.title,
@@ -70,11 +86,29 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
       count: countersTable.count,
       visibilityMode: countersTable.visibilityMode,
       ownerId: countersTable.ownerId,
+      teamId: countersTable.teamId,
+      teamName: teams.name,
+      teamMemberUserId: teamMembers.userId,
     })
     .from(countersTable)
+    .leftJoin(
+      teamMembers,
+      and(
+        eq(teamMembers.teamId, countersTable.teamId),
+        eq(teamMembers.userId, userId),
+      ),
+    )
+    .leftJoin(teams, eq(teams.id, countersTable.teamId))
     .where(and(...conditions))
     .orderBy(desc(countersTable.count), desc(countersTable.updatedAt))
     .limit(limit);
+
+  const items = rows.map(({ teamMemberUserId, ...counter }) => ({
+    ...counter,
+    isMine:
+      (counter.teamId === null && counter.ownerId === userId) ||
+      teamMemberUserId !== null,
+  }));
 
   return json({ items, userId });
 };

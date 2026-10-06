@@ -1,10 +1,15 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
+  import TransferOwnershipSection from "$lib/components/TransferOwnershipSection.svelte";
   import type { DashboardVisibilityMode } from "$lib/db/schema";
 
   let {
     open = $bindable(),
     dashboard,
+    canTransfer = false,
+    team = null,
+    transferTargets = [],
+    dashboardCounters = [],
     onsave,
   }: {
     open: boolean;
@@ -14,6 +19,15 @@
       description: string | null;
       visibilityMode: DashboardVisibilityMode;
     };
+    canTransfer?: boolean;
+    team?: { id: string; name: string } | null;
+    transferTargets?: { id: string; name: string }[];
+    dashboardCounters?: {
+      id: string;
+      title: string | null;
+      teamId: string | null;
+      owned: boolean;
+    }[];
     onsave?: () => void;
   } = $props();
 
@@ -177,6 +191,17 @@
             {/each}
           </div>
         </section>
+
+        {#if canTransfer}
+          <TransferOwnershipSection
+            type="dashboard"
+            entityId={dashboard.id}
+            {team}
+            {transferTargets}
+            {dashboardCounters}
+            ontransferred={close}
+          />
+        {/if}
       </div>
     </div>
 

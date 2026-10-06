@@ -6,7 +6,7 @@ import {
   canDeleteCounter,
   canEditCounter,
   canIncrementCounter,
-  canViewPrivateCounter,
+  canIncrementPrivateCounter,
 } from "$lib/server/authorize";
 import {
   deleteCounter,
@@ -86,12 +86,14 @@ export const POST: RequestHandler = async ({
       !!token && !!counter.shareToken && token === counter.shareToken;
 
     if (!hasValidToken) {
-      if (userId) {
-        const canView = await canViewPrivateCounter(userId, counter.id);
-        if (!canView) {
-          throw error(404, "Counter not found");
-        }
-      } else {
+      if (!userId) {
+        throw error(404, "Counter not found");
+      }
+      const access = await canIncrementPrivateCounter(userId, counter.id);
+      if (access === "forbidden") {
+        throw error(403, "You don't have permission to increment this counter");
+      }
+      if (access === "not_found") {
         throw error(404, "Counter not found");
       }
     }

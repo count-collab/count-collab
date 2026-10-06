@@ -1,5 +1,5 @@
 import { error, json } from "@sveltejs/kit";
-import { getUserDashboardRole } from "$lib/server/dashboard-members";
+import { getDashboardAccess } from "$lib/server/dashboard-authorize";
 import { getDashboard } from "$lib/server/dashboards";
 import { followDashboard, unfollowDashboard } from "$lib/server/followers";
 import { dashboardIdSchema } from "$lib/utils/validation";
@@ -32,15 +32,9 @@ export const POST: RequestHandler = async ({ params, locals, url }) => {
     }
   }
 
-  if (dashboard.ownerId === session.user.id) {
-    return json({ already: true }, { status: 200 });
-  }
-
-  const existingRole = await getUserDashboardRole(
-    session.user.id,
-    dashboard.id,
-  );
-  if (existingRole) {
+  // Owners and members (direct or via team) don't need to follow
+  const access = await getDashboardAccess(session.user.id, dashboard.id);
+  if (access.isOwner || access.effectiveRole) {
     return json({ already: true }, { status: 200 });
   }
 

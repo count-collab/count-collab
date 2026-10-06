@@ -32,6 +32,15 @@
       iconBg: "bg-blue-100 dark:bg-blue-900/40",
       href: "/admin/dashboards",
     },
+    {
+      label: "Total Teams",
+      value: data.stats.teamCount,
+      icon: "people-circle-outline",
+      accent: "text-amber-600 dark:text-amber-400",
+      bg: "bg-amber-50 dark:bg-amber-900/20",
+      iconBg: "bg-amber-100 dark:bg-amber-900/40",
+      href: "/admin/teams",
+    },
   ]);
 </script>
 

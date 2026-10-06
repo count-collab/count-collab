@@ -2,6 +2,7 @@
 	import { enhance } from "$app/forms";
 	import MetaTags from "$lib/components/MetaTags.svelte";
 	import Modal from "$lib/components/Modal.svelte";
+	import SoleOwnedTeamsWarning from "$lib/components/SoleOwnedTeamsWarning.svelte";
 	import type { ActionData, PageData } from "./$types";
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
@@ -66,6 +67,9 @@
 
 <Modal bind:open={showDeleteModal} title="Delete Account">
 	<div class="space-y-4">
+		{#if data.soleOwnedTeams.length > 0}
+			<SoleOwnedTeamsWarning teams={data.soleOwnedTeams} />
+		{/if}
 		<ul class="list-disc pl-5 text-sm text-slate-700 dark:text-slate-300 space-y-1">
 			{#if data.ownedCounterCount > 0}
 				<li>

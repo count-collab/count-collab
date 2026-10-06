@@ -47,4 +47,31 @@ describe("CounterCard", () => {
 
     expect(screen.getByText("Owner")).toBeTruthy();
   });
+
+  it("shows a team badge instead of the ownership label for team counters", () => {
+    render(CounterCard, {
+      props: {
+        counter: {
+          id: "counter-2",
+          title: "Team Counter",
+          description: null,
+          count: 3,
+          isPublic: true,
+          visibilityMode: "public",
+          ownerId: "owner-1",
+          teamId: "team-1",
+          teamName: "Alpha",
+          createdAt: "2026-03-01T00:00:00.000Z",
+          updatedAt: "2026-03-02T00:00:00.000Z",
+          shareToken: null,
+        },
+        showBadges: true,
+      } as never,
+    });
+
+    expect(screen.getByText("Alpha")).toBeTruthy();
+    expect(screen.getByText("Team:")).toBeTruthy();
+    expect(screen.queryByText("Owner")).toBeNull();
+    expect(screen.queryByText("Shared")).toBeNull();
+  });
 });

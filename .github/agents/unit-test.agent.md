@@ -13,9 +13,9 @@ You are a unit testing specialist for the Count Collab project. Your job is to w
 - **Test runner**: Vitest (with `@sveltejs/vite-plugin-svelte` for component tests)
 - **Component testing**: `@testing-library/svelte` + `@testing-library/jest-dom`
 - **Validation**: Zod 4 schemas in `src/lib/utils/validation.ts`
-- **Server logic**: `src/lib/server/` (counters, members, permissions, users, ratelimit, authorize, dashboard-authorize, dashboards, dashboard-items, followers, grid-relayout, cache, crypto)
-- **Stores**: `src/lib/stores/` (counters, dashboards, ratelimit, theme.svelte.ts)
-- **Utilities**: `src/lib/utils/` (context, socket, socket-dev, validation)
+- **Server logic**: `src/lib/server/` (counters, members, permissions, users, ratelimit, authorize, dashboard-authorize, dashboards, dashboard-items, followers, grid-relayout, cache, crypto, teams, team-members, team-authorize, transfer, invitations)
+- **Stores**: `src/lib/stores/` (counters, dashboards, invitations, teams, ratelimit, theme.svelte.ts)
+- **Utilities**: `src/lib/utils/` (context, socket, socket-dev, validation, redirect, owner-filter); shared roles in `src/lib/roles.ts`
 
 ## File Conventions
 
@@ -36,6 +36,10 @@ src/
 │   │   ├── counters.ts / counters.test.ts
 │   │   ├── dashboard-authorize.ts / dashboard-authorize.test.ts
 │   │   ├── followers.ts / followers.test.ts
+│   │   ├── teams.ts / teams.test.ts
+│   │   ├── team-members.ts / team-members.test.ts
+│   │   ├── team-authorize.ts / team-authorize.test.ts
+│   │   ├── transfer.ts / transfer.test.ts
 │   │   ├── grid-relayout.ts / grid-relayout.test.ts
 │   │   ├── members.ts / members.test.ts
 │   │   └── users.ts / users.test.ts

@@ -44,12 +44,16 @@
         class="flex items-center justify-center w-9 h-9 rounded-lg shrink-0 {invitation.type ===
         'counter'
           ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-          : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}"
+          : invitation.type === 'team'
+            ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+            : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}"
       >
         <ion-icon
           name={invitation.type === "counter"
             ? "trending-up-outline"
-            : "grid-outline"}
+            : invitation.type === "team"
+              ? "people-outline"
+              : "grid-outline"}
           style="font-size: 18px;"
         ></ion-icon>
       </div>

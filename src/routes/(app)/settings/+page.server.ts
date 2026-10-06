@@ -1,6 +1,7 @@
 import { fail, redirect } from "@sveltejs/kit";
 import { getOwnedCounterCount } from "$lib/server/counters";
 import { getMembershipCount } from "$lib/server/members";
+import { getSoleOwnedTeams } from "$lib/server/teams";
 import { deleteUser, getConnectedProviders } from "$lib/server/users";
 import type { Actions, PageServerLoad } from "./$types";
 
@@ -10,13 +11,15 @@ export const load: PageServerLoad = async ({ locals }) => {
     throw redirect(303, "/login");
   }
 
-  const [providers, ownedCounterCount, membershipCount] = await Promise.all([
-    getConnectedProviders(session.user.id),
-    getOwnedCounterCount(session.user.id),
-    getMembershipCount(session.user.id),
-  ]);
+  const [providers, ownedCounterCount, membershipCount, soleOwnedTeams] =
+    await Promise.all([
+      getConnectedProviders(session.user.id),
+      getOwnedCounterCount(session.user.id),
+      getMembershipCount(session.user.id),
+      getSoleOwnedTeams(session.user.id),
+    ]);
 
-  return { providers, ownedCounterCount, membershipCount };
+  return { providers, ownedCounterCount, membershipCount, soleOwnedTeams };
 };
 
 export const actions: Actions = {

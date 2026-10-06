@@ -59,6 +59,8 @@ Unique constraint on (`dashboardId`, `userId`).
 | Delete dashboard                           | ✓     | ✓     | ✗      | ✗      |
 | Invite members / change visibility         | ✓     | ✓     | ✗      | ✗      |
 
+Dashboards owned by a team (`teamId` set) grant roles to team members as described in [teams.md](teams.md); the creator's `ownerId` then has no owner privileges.
+
 ### Counter Permissions on Dashboards
 
 Dashboard roles **do not** affect how a user interacts with individual counters. The counter's own permission model always applies:

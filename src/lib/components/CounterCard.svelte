@@ -10,7 +10,7 @@
   import Sparkline from "./Sparkline.svelte";
 
   type Props = {
-    counter: Counter;
+    counter: Counter & { teamName?: string | null };
     showBadges?: boolean;
     followed?: boolean;
   };
@@ -19,6 +19,9 @@
 
   const userId = $derived($page.data.session?.user?.id);
   const isOwner = $derived(userId != null && counter.ownerId === userId);
+  const ownership = $derived(
+    followed ? null : counter.teamName ? "team" : isOwner ? "owner" : "shared",
+  );
   const visibilityBadgeClasses: Record<CounterVisibilityMode, string> = {
     public:
       "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-700/60",
@@ -124,7 +127,8 @@
       {#if showBadges}
         <CounterBadges
           {visibilityMode}
-          ownership={followed ? null : isOwner ? "owner" : "shared"}
+          {ownership}
+          teamName={counter.teamName}
           containerClass="flex gap-1.5"
           visibilityBadgeBaseClass="text-xs font-medium px-2 py-0.5 rounded-full"
           {visibilityBadgeClasses}

@@ -5,14 +5,18 @@ import {
   count as countFn,
   desc,
   eq,
+  getTableColumns,
   ilike,
   inArray,
+  isNotNull,
+  isNull,
   or,
   sql,
 } from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
   Counter,
+  CounterMemberRole,
   CounterMode,
   CounterVisibilityMode,
   NewCounter,
@@ -23,8 +27,11 @@ import {
   counterHistory as counterHistoryTable,
   counterMembers,
   counters as countersTable,
+  teamMembers,
+  teams,
   users,
 } from "$lib/db/schema";
+import { mapTeamRoleToCounterRole, maxCounterRole } from "$lib/roles";
 import { createCache } from "$lib/server/cache";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
 import { logEvent } from "$lib/server/events";
@@ -62,6 +69,7 @@ type CreateCounterInput = {
   visibilityMode?: CounterVisibilityMode;
   counterMode?: CounterMode;
   ownerId?: string | null;
+  teamId?: string | null;
 };
 
 export async function createCounter(
@@ -78,6 +86,7 @@ export async function createCounter(
     counterMode: input.counterMode ?? "increment_only",
     shareToken: visibilityMode === "private" ? generateShareToken() : null,
     ownerId: input.ownerId ?? null,
+    teamId: input.teamId ?? null,
   };
 
   const [counter] = await db
@@ -151,6 +160,7 @@ export async function listPublicCounters(
         showAllReachedGoals: countersTable.showAllReachedGoals,
         scoreboardEnabled: countersTable.scoreboardEnabled,
         ownerId: countersTable.ownerId,
+        teamId: countersTable.teamId,
         createdAt: countersTable.createdAt,
         updatedAt: countersTable.updatedAt,
         lastActivityAt: countersTable.lastActivityAt,
@@ -436,54 +446,67 @@ export async function deleteCounter(
   return result.length > 0;
 }
 
+export type UserCounter = Counter & { teamName: string | null };
+
+/** Team-owned counters are never personally owned, even by their creator. */
+function personallyOwnedCounter(userId: string) {
+  return and(eq(countersTable.ownerId, userId), isNull(countersTable.teamId));
+}
+
+// Unique indexes on (counterId, userId) and (teamId, userId) keep these joins at most one row per counter.
+function directCounterMemberJoin(userId: string) {
+  return and(
+    eq(counterMembers.counterId, countersTable.id),
+    eq(counterMembers.userId, userId),
+  );
+}
+
+function counterTeamMemberJoin(userId: string) {
+  return and(
+    eq(teamMembers.teamId, countersTable.teamId),
+    eq(teamMembers.userId, userId),
+  );
+}
+
 /**
- * Get all counters owned by or shared with a user.
+ * Get all counters the user owns personally, is a direct member of, or can access through a team.
+ * Personally owned counters come first.
  */
 export async function getUserCounters(
   userId: string,
   limit?: number,
   offset = 0,
-): Promise<{ items: Counter[]; total: number }> {
-  const owned = await db
-    .select()
+): Promise<{ items: UserCounter[]; total: number }> {
+  const whereClause = or(
+    personallyOwnedCounter(userId),
+    isNotNull(counterMembers.userId),
+    isNotNull(teamMembers.userId),
+  );
+
+  const itemsQuery = db
+    .select({ ...getTableColumns(countersTable), teamName: teams.name })
     .from(countersTable)
-    .where(eq(countersTable.ownerId, userId))
-    .orderBy(desc(countersTable.updatedAt));
+    .leftJoin(counterMembers, directCounterMemberJoin(userId))
+    .leftJoin(teamMembers, counterTeamMemberJoin(userId))
+    .leftJoin(teams, eq(teams.id, countersTable.teamId))
+    .where(whereClause)
+    .orderBy(
+      sql`CASE WHEN ${countersTable.ownerId} = ${userId} AND ${countersTable.teamId} IS NULL THEN 0 ELSE 1 END`,
+      desc(countersTable.updatedAt),
+    )
+    .$dynamic();
 
-  const shared = await db
-    .select({
-      id: countersTable.id,
-      title: countersTable.title,
-      description: countersTable.description,
-      count: countersTable.count,
-      isPublic: countersTable.isPublic,
-      visibilityMode: countersTable.visibilityMode,
-      counterMode: countersTable.counterMode,
-      shareToken: countersTable.shareToken,
-      cooldownEnabled: countersTable.cooldownEnabled,
-      cooldownSeconds: countersTable.cooldownSeconds,
-      goalsEnabled: countersTable.goalsEnabled,
-      showAllReachedGoals: countersTable.showAllReachedGoals,
-      scoreboardEnabled: countersTable.scoreboardEnabled,
-      ownerId: countersTable.ownerId,
-      createdAt: countersTable.createdAt,
-      updatedAt: countersTable.updatedAt,
-      lastActivityAt: countersTable.lastActivityAt,
-    })
-    .from(counterMembers)
-    .innerJoin(countersTable, eq(counterMembers.counterId, countersTable.id))
-    .where(eq(counterMembers.userId, userId))
-    .orderBy(desc(countersTable.updatedAt));
+  const [items, [{ total }]] = await Promise.all([
+    limit !== undefined ? itemsQuery.limit(limit).offset(offset) : itemsQuery,
+    db
+      .select({ total: countFn() })
+      .from(countersTable)
+      .leftJoin(counterMembers, directCounterMemberJoin(userId))
+      .leftJoin(teamMembers, counterTeamMemberJoin(userId))
+      .where(whereClause),
+  ]);
 
-  // Deduplicate (owner could also be a member)
-  const seen = new Set(owned.map((c) => c.id));
-  const all = [...owned, ...shared.filter((c) => !seen.has(c.id))];
-  const total = all.length;
-
-  if (limit !== undefined) {
-    return { items: all.slice(offset, offset + limit), total };
-  }
-  return { items: all, total };
+  return { items, total: Number(total) };
 }
 
 /**
@@ -748,25 +771,25 @@ export async function getCounterCount(): Promise<number> {
 }
 
 /**
- * Count how many counters a user owns.
+ * Count how many counters a user owns personally (excludes team counters).
  */
 export async function getOwnedCounterCount(userId: string): Promise<number> {
   const [row] = await db
     .select({ count: countFn() })
     .from(countersTable)
-    .where(eq(countersTable.ownerId, userId));
+    .where(personallyOwnedCounter(userId));
   return Number(row?.count ?? 0);
 }
 
 /**
- * Get only counters owned by a user.
+ * Get only counters owned personally by a user (excludes team counters).
  */
 export async function getOwnedCounters(
   userId: string,
   limit?: number,
   offset = 0,
 ): Promise<{ items: Counter[]; total: number }> {
-  const whereClause = eq(countersTable.ownerId, userId);
+  const whereClause = personallyOwnedCounter(userId);
 
   const [rows, [{ total }]] = await Promise.all([
     db
@@ -782,10 +805,11 @@ export async function getOwnedCounters(
   return { items: rows, total: Number(total) };
 }
 
-export type SharedCounter = Counter & { memberRole: string };
+export type SharedCounter = UserCounter & { memberRole: CounterMemberRole };
 
 /**
- * Get counters shared with a user (where they are a member but NOT the owner).
+ * Get counters the user can access via direct membership or a team, excluding personally owned ones.
+ * memberRole is the effective role (highest of direct and team-derived role).
  */
 export async function getSharedCounters(
   userId: string,
@@ -793,46 +817,47 @@ export async function getSharedCounters(
   offset = 0,
 ): Promise<{ items: SharedCounter[]; total: number }> {
   const baseCondition = and(
-    eq(counterMembers.userId, userId),
-    sql`${countersTable.ownerId} IS DISTINCT FROM ${userId}`,
+    or(isNotNull(counterMembers.userId), isNotNull(teamMembers.userId)),
+    or(
+      isNotNull(countersTable.teamId),
+      sql`${countersTable.ownerId} IS DISTINCT FROM ${userId}`,
+    ),
   );
 
   const [rows, [{ total }]] = await Promise.all([
     db
       .select({
-        id: countersTable.id,
-        title: countersTable.title,
-        description: countersTable.description,
-        count: countersTable.count,
-        isPublic: countersTable.isPublic,
-        visibilityMode: countersTable.visibilityMode,
-        counterMode: countersTable.counterMode,
-        shareToken: countersTable.shareToken,
-        cooldownEnabled: countersTable.cooldownEnabled,
-        cooldownSeconds: countersTable.cooldownSeconds,
-        goalsEnabled: countersTable.goalsEnabled,
-        showAllReachedGoals: countersTable.showAllReachedGoals,
-        scoreboardEnabled: countersTable.scoreboardEnabled,
-        ownerId: countersTable.ownerId,
-        createdAt: countersTable.createdAt,
-        updatedAt: countersTable.updatedAt,
-        lastActivityAt: countersTable.lastActivityAt,
-        memberRole: counterMembers.role,
+        ...getTableColumns(countersTable),
+        teamName: teams.name,
+        directRole: counterMembers.role,
+        teamRole: teamMembers.role,
       })
-      .from(counterMembers)
-      .innerJoin(countersTable, eq(counterMembers.counterId, countersTable.id))
+      .from(countersTable)
+      .leftJoin(counterMembers, directCounterMemberJoin(userId))
+      .leftJoin(teamMembers, counterTeamMemberJoin(userId))
+      .leftJoin(teams, eq(teams.id, countersTable.teamId))
       .where(baseCondition)
       .orderBy(desc(countersTable.updatedAt))
       .limit(limit ?? 1000)
       .offset(offset),
     db
       .select({ total: countFn() })
-      .from(counterMembers)
-      .innerJoin(countersTable, eq(counterMembers.counterId, countersTable.id))
+      .from(countersTable)
+      .leftJoin(counterMembers, directCounterMemberJoin(userId))
+      .leftJoin(teamMembers, counterTeamMemberJoin(userId))
       .where(baseCondition),
   ]);
 
-  return { items: rows as SharedCounter[], total: Number(total) };
+  const items = rows.map(({ directRole, teamRole, ...counter }) => ({
+    ...counter,
+    memberRole:
+      maxCounterRole(
+        directRole,
+        teamRole ? mapTeamRoleToCounterRole(teamRole) : null,
+      ) ?? "viewer",
+  }));
+
+  return { items, total: Number(total) };
 }
 
 export type UserActivity = {
@@ -878,11 +903,15 @@ export async function getUserRecentActivity(
     INNER JOIN counters c ON c.id = h.counter_id
     LEFT JOIN "user" u ON u.id = h.changed_by
     WHERE
-      c.owner_id = ${userId}
+      (c.owner_id = ${userId} AND c.team_id IS NULL)
       OR h.changed_by = ${userId}
       OR EXISTS (
         SELECT 1 FROM counter_members cm
         WHERE cm.counter_id = h.counter_id AND cm.user_id = ${userId}
+      )
+      OR EXISTS (
+        SELECT 1 FROM team_members tm
+        WHERE tm.team_id = c.team_id AND tm.user_id = ${userId}
       )
     ORDER BY h.changed_at DESC
     LIMIT ${limit}

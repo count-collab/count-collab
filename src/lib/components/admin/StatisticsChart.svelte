@@ -37,6 +37,11 @@
     follower_added: "#0ea5e9",
     follower_removed: "#e879f9",
     member_removed: "#f87171",
+    team_created: "#84cc16",
+    team_deleted: "#b91c1c",
+    team_member_added: "#d946ef",
+    team_member_removed: "#c2410c",
+    resource_transferred: "#0891b2",
   };
 
   const FALLBACK_COLORS = [

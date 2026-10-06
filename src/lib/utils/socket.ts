@@ -51,7 +51,7 @@ export function emitDashboardItemRemoved(
 export function emitInvitationCreated(
   userId: string,
   payload: {
-    type: "counter" | "dashboard";
+    type: "counter" | "dashboard" | "team";
     entityId: string;
     entityTitle: string;
     role: string;
@@ -67,4 +67,28 @@ export function emitInvitationUpdated(userId: string): void {
 
 export function emitInvitationDeleted(userId: string): void {
   getIO()?.emit("invitation:deleted", { userId });
+}
+
+export type TeamMembershipChangeReason =
+  | "joined"
+  | "removed"
+  | "role_changed"
+  | "team_deleted"
+  | "team_updated";
+
+export function emitTeamMembershipChanged(
+  userIds: string[],
+  payload: { teamId: string; reason: TeamMembershipChangeReason },
+): void {
+  const io = getIO();
+  if (!io) return;
+
+  // Broadcast + client-side userId filter, same as invitation events
+  for (const userId of new Set(userIds)) {
+    io.emit("team:membership-changed", {
+      userId,
+      teamId: payload.teamId,
+      reason: payload.reason,
+    });
+  }
 }

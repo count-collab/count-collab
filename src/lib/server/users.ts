@@ -1,10 +1,12 @@
 import {
   type AnyColumn,
+  and,
   asc,
   count as countFn,
   desc,
   eq,
   ilike,
+  isNull,
   or,
   sql,
 } from "drizzle-orm";
@@ -15,9 +17,12 @@ import {
   counters,
   dashboards,
   roles,
+  teams,
   users,
 } from "$lib/db/schema";
 import { logEvent } from "$lib/server/events";
+import { deleteTeam, getSoleOwnedTeams } from "$lib/server/teams";
+import { emitTeamMembershipChanged } from "$lib/utils/socket";
 
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
@@ -119,8 +124,25 @@ export async function deleteUser(
     .from(users)
     .where(eq(users.id, userId));
 
-  // Delete all counters owned by this user (cascades to counter_history and counter_members)
-  await db.delete(counters).where(eq(counters.ownerId, userId));
+  // Teams without another owner would be left unmanageable, so they go with the user
+  const soleOwnedTeams = await getSoleOwnedTeams(userId);
+  for (const team of soleOwnedTeams) {
+    const deleted = await deleteTeam(team.id, deletedByUserId ?? userId);
+    if (deleted.deleted) {
+      emitTeamMembershipChanged(
+        deleted.memberIds.filter((id) => id !== userId),
+        { teamId: team.id, reason: "team_deleted" },
+      );
+    }
+  }
+
+  // Personal resources only; team resources survive with ownerId set null by the FK
+  await db
+    .delete(dashboards)
+    .where(and(eq(dashboards.ownerId, userId), isNull(dashboards.teamId)));
+  await db
+    .delete(counters)
+    .where(and(eq(counters.ownerId, userId), isNull(counters.teamId)));
 
   const result = await db.delete(users).where(eq(users.id, userId)).returning();
 
@@ -184,6 +206,7 @@ export async function getAdminStats(): Promise<{
   userCount: number;
   counterCount: number;
   dashboardCount: number;
+  teamCount: number;
 }> {
   const [userRow] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -194,11 +217,15 @@ export async function getAdminStats(): Promise<{
   const [dashboardRow] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(dashboards);
+  const [teamRow] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(teams);
 
   return {
     userCount: userRow?.count ?? 0,
     counterCount: counterRow?.count ?? 0,
     dashboardCount: dashboardRow?.count ?? 0,
+    teamCount: teamRow?.count ?? 0,
   };
 }
 

@@ -124,6 +124,26 @@ describe("GET /api/admin/statistics", () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it.each([
+    "team_created",
+    "team_deleted",
+    "team_member_added",
+    "team_member_removed",
+    "resource_transferred",
+  ])("accepts filter.eventType=%s", async (eventType) => {
+    mockHasPermission.mockResolvedValue(true);
+    setupDbQuery([]);
+
+    const response = await GET(
+      makeEvent(
+        { "filter.eventType": eventType },
+        { locals: makeLocals(USER_ID) },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
   it("returns correctly structured data", async () => {
     mockHasPermission.mockResolvedValue(true);
     setupDbQuery([

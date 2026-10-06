@@ -29,6 +29,11 @@ const VALID_EVENT_TYPES = [
   "follower_added",
   "follower_removed",
   "member_removed",
+  "team_created",
+  "team_deleted",
+  "team_member_added",
+  "team_member_removed",
+  "resource_transferred",
 ];
 
 export const GET: RequestHandler = async ({ url, locals }) => {

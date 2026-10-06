@@ -2,6 +2,8 @@
   import { goto, invalidateAll } from "$app/navigation";
   import AdminTable from "$lib/components/AdminTable.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import Modal from "$lib/components/Modal.svelte";
+  import SoleOwnedTeamsWarning from "$lib/components/SoleOwnedTeamsWarning.svelte";
   import { slugify } from "$lib/counter";
   import type { PageData } from "./$types";
 
@@ -74,10 +76,19 @@
     invalidateAll();
   }
 
+  let showDeleteConfirm = $state(false);
+  let isDeleting = $state(false);
+
   async function handleDeleteUser(userId: string) {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-    await fetch(`/admin/users/${userId}`, { method: "DELETE" });
-    goto("/admin/users");
+    if (isDeleting) return;
+    isDeleting = true;
+    try {
+      await fetch(`/admin/users/${userId}`, { method: "DELETE" });
+      showDeleteConfirm = false;
+      goto("/admin/users");
+    } finally {
+      isDeleting = false;
+    }
   }
 </script>
 
@@ -148,7 +159,7 @@
         </select>
         <button
           type="button"
-          onclick={() => handleDeleteUser(user.id)}
+          onclick={() => (showDeleteConfirm = true)}
           class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
         >
           Delete
@@ -276,3 +287,34 @@
     {/if}
   </div>
 </div>
+
+<Modal
+  bind:open={showDeleteConfirm}
+  title="Delete User?"
+  describedBy="delete-user-description"
+>
+  {#if data.soleOwnedTeams.length > 0}
+    <SoleOwnedTeamsWarning teams={data.soleOwnedTeams} isSelf={false} />
+  {/if}
+  <p id="delete-user-description" class="text-sm text-slate-600 dark:text-slate-400">
+    Are you sure you want to delete {user.username ?? user.name ?? "this user"}?
+    This action cannot be undone.
+  </p>
+  <div class="flex justify-end gap-3">
+    <button
+      type="button"
+      onclick={() => (showDeleteConfirm = false)}
+      class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      onclick={() => handleDeleteUser(user.id)}
+      disabled={isDeleting}
+      class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+    >
+      {isDeleting ? "Deleting..." : "Delete"}
+    </button>
+  </div>
+</Modal>

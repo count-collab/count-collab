@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { teamJoinLinkRoles, teamMemberRoles } from "$lib/db/schema";
 
 export const counterVisibilityEnum = z.enum([
   "public",
@@ -29,6 +30,7 @@ export const createCounterSchema = z.object({
     .transform((val) => val?.trim() || ""),
   visibility: counterVisibilityEnum.default("public").optional(),
   counterMode: counterModeEnum.default("increment_only").optional(),
+  teamId: z.string().uuid("Invalid team ID format").optional(),
 });
 
 export type CreateCounterInput = z.infer<typeof createCounterSchema>;
@@ -141,6 +143,7 @@ export const createDashboardSchema = z.object({
     .default("")
     .transform((val) => val?.trim() || ""),
   visibility: dashboardVisibilityEnum.default("public").optional(),
+  teamId: z.string().uuid("Invalid team ID format").optional(),
 });
 export type CreateDashboardInput = z.infer<typeof createDashboardSchema>;
 
@@ -239,6 +242,68 @@ export const updateGoalSchema = z.object({
 });
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;
 
+// ── Teams ───────────────────────────────────────────────────────
+
+export const teamIdSchema = z.string().uuid("Invalid team ID format");
+
+export const teamMemberRoleEnum = z.enum(teamMemberRoles);
+export const teamJoinLinkRoleEnum = z.enum(teamJoinLinkRoles);
+
+export const createTeamSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .max(50, "Name must be at most 50 characters"),
+  description: z
+    .string()
+    .trim()
+    .max(500, "Description must be less than 500 characters")
+    .nullish()
+    // Keep undefined so a partial update leaves the description untouched
+    .transform((val) => (val === undefined ? undefined : val || null)),
+});
+export type CreateTeamInput = z.infer<typeof createTeamSchema>;
+
+export const updateTeamSchema = createTeamSchema.partial();
+export type UpdateTeamInput = z.infer<typeof updateTeamSchema>;
+
+export const teamInviteSchema = z.object({
+  username: usernameSchema,
+  role: teamMemberRoleEnum,
+});
+export type TeamInviteInput = z.infer<typeof teamInviteSchema>;
+
+export const teamRoleSchema = z.object({
+  role: teamMemberRoleEnum,
+});
+export type TeamRoleInput = z.infer<typeof teamRoleSchema>;
+
+export const joinLinkRoleSchema = z.object({
+  role: teamJoinLinkRoleEnum,
+});
+export type JoinLinkRoleInput = z.infer<typeof joinLinkRoleSchema>;
+
+export const joinTeamSchema = z.object({
+  token: z.string().min(1, "Token is required").max(200),
+});
+export type JoinTeamInput = z.infer<typeof joinTeamSchema>;
+
+export const deleteTeamSchema = z.object({
+  confirmName: z.string(),
+});
+export type DeleteTeamInput = z.infer<typeof deleteTeamSchema>;
+
+export const transferSchema = z.object({
+  teamId: z.string().uuid("Invalid team ID format").nullable(),
+  counterIds: z
+    .array(z.string().uuid("Invalid counter ID format"))
+    .max(100)
+    .optional()
+    .default([]),
+});
+export type TransferInput = z.infer<typeof transferSchema>;
+
 // ── Global Settings ─────────────────────────────────────────────
 
 export const updateGlobalSettingsSchema = z.object({
@@ -250,6 +315,8 @@ export const updateGlobalSettingsSchema = z.object({
   dashboardCreationWindowAuth: z.number().int().positive().optional(),
   dashboardCreationLimitUnauth: z.number().int().positive().optional(),
   dashboardCreationWindowUnauth: z.number().int().positive().optional(),
+  teamCreationLimitAuth: z.number().int().positive().optional(),
+  teamCreationWindowAuth: z.number().int().positive().optional(),
   incrementCooldownMsAuth: z.number().int().positive().optional(),
   incrementCooldownMsUnauth: z.number().int().positive().optional(),
 });

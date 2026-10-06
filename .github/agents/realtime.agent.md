@@ -11,7 +11,7 @@ You are a real-time communication specialist for the Count Collab project. Your 
 - **Socket.IO**: v4.7 (both `socket.io` server and `socket.io-client`)
 - **Production server**: `server.js` — creates HTTP server, initializes Socket.IO, exposes `globalThis.__socketIO`
 - **Dev mode**: Socket.IO initialized via Vite plugin in `vite.config.ts`
-- **Server emitters**: `src/lib/utils/socket.ts` — `emitCounterUpdate()`, `emitCounterCreated()`
+- **Server emitters**: `src/lib/utils/socket.ts` — `emitCounterUpdate()`, `emitCounterCreated()`, invitation emitters (type `counter`/`dashboard`/`team`), `emitTeamMembershipChanged()` (`team:membership-changed`, broadcast + client-side userId filter)
 - **Client stores**: `src/lib/stores/counters.ts` — subscribes to realtime updates
 - **Client init**: `src/lib/utils/socket-dev.ts` — Socket.IO client connection setup
 
@@ -46,6 +46,8 @@ You are a real-time communication specialist for the Count Collab project. Your 
 - `src/lib/utils/socket-dev.ts` — Client-side socket initialization
 - `src/lib/stores/counters.ts` — Reactive Svelte store with socket subscriptions for counters
 - `src/lib/stores/dashboards.ts` — Reactive Svelte store for dashboard data
+- `src/lib/stores/invitations.ts` — Invitation event subscriptions (counter/dashboard/team)
+- `src/lib/stores/teams.ts` — `onTeamMembershipChanged()`; `(app)/+layout.svelte` calls `invalidateAll()` or redirects off a lost team page
 - `src/lib/stores/ratelimit.ts` — Client-side rate limit tracking
 - `src/lib/stores/theme.svelte.ts` — Theme preference store (runes-based)
 

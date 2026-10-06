@@ -26,10 +26,14 @@ src/lib/components/
 ├── HistoryEntry.svelte     # Single entry in counter history log
 ├── MetaTags.svelte         # SEO meta tags (title, description, OG)
 ├── Modal.svelte            # Reusable modal dialog component
+├── MessageToast.svelte     # Plain-text toast (via ToastContainer addMessageToast)
+├── OwnerFilter.svelte      # All / Personal / per-team filter chips for /my lists
 ├── Pagination.svelte       # Page navigation for lists
 ├── RollingNumber.svelte    # Animated number transitions for count display
+├── SoleOwnedTeamsWarning.svelte # Account-deletion warning for sole-owned teams
 ├── Sparkline.svelte        # Inline sparkline chart for counter trends
-└── ThemeToggle.svelte      # Light/dark theme toggle
+├── ThemeToggle.svelte      # Light/dark theme toggle
+└── TransferOwnershipSection.svelte # Move counter/dashboard to/from a team (settings overlays)
 ```
 
 ## Page Components
@@ -43,8 +47,12 @@ src/routes/
 ├── d/[id]/+page.svelte       # Dashboard detail page
 ├── dashboards/+page.svelte   # Browse public dashboards
 ├── my-counters/+page.svelte  # User's counters list
+├── my/teams/+page.svelte     # User's teams + create team modal
+├── t/[id]/[[slug]]/+page.svelte # Team page (Counters / Dashboards / Members / Settings tabs)
+├── t/[id]/join/+page.svelte  # Join team via link
 ├── admin/+page.svelte        # Admin dashboard
 ├── admin/counters/+page.svelte # Admin counter management
+├── admin/teams/+page.svelte  # Admin team management
 ├── admin/users/+page.svelte  # Admin user management
 ├── login/+page.svelte        # Login page
 ├── settings/+page.svelte     # User settings

@@ -5,14 +5,18 @@ import {
   count as countFn,
   desc,
   eq,
+  getTableColumns,
   ilike,
   inArray,
+  isNotNull,
+  isNull,
   or,
   sql,
 } from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
   Dashboard,
+  DashboardMemberRole,
   DashboardVisibilityMode,
   NewDashboard,
 } from "$lib/db/schema";
@@ -20,8 +24,11 @@ import {
   dashboardFollowers,
   dashboardMembers,
   dashboards as dashboardsTable,
+  teamMembers,
+  teams,
   users,
 } from "$lib/db/schema";
+import { mapTeamRoleToDashboardRole, maxDashboardRole } from "$lib/roles";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
 import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
@@ -35,6 +42,7 @@ type CreateDashboardInput = {
   description?: string | null;
   visibilityMode?: DashboardVisibilityMode;
   ownerId?: string | null;
+  teamId?: string | null;
 };
 
 export async function createDashboard(
@@ -48,6 +56,7 @@ export async function createDashboard(
     visibilityMode,
     shareToken: visibilityMode === "private" ? generateShareToken() : null,
     ownerId: input.ownerId ?? null,
+    teamId: input.teamId ?? null,
   };
 
   const [dashboard] = await db
@@ -187,6 +196,7 @@ export async function listPublicDashboards(
         visibilityMode: dashboardsTable.visibilityMode,
         shareToken: dashboardsTable.shareToken,
         ownerId: dashboardsTable.ownerId,
+        teamId: dashboardsTable.teamId,
         createdAt: dashboardsTable.createdAt,
         updatedAt: dashboardsTable.updatedAt,
         followerCount: sql<number>`coalesce(${followerCountSubquery.followerCount}, 0)`,
@@ -215,45 +225,70 @@ export async function listPublicDashboards(
   };
 }
 
+export type UserDashboard = Dashboard & { teamName: string | null };
+
+/** Team-owned dashboards are never personally owned, even by their creator. */
+function personallyOwnedDashboard(userId: string) {
+  return and(
+    eq(dashboardsTable.ownerId, userId),
+    isNull(dashboardsTable.teamId),
+  );
+}
+
+// Unique indexes on (dashboardId, userId) and (teamId, userId) keep these joins at most one row per dashboard.
+function directDashboardMemberJoin(userId: string) {
+  return and(
+    eq(dashboardMembers.dashboardId, dashboardsTable.id),
+    eq(dashboardMembers.userId, userId),
+  );
+}
+
+function dashboardTeamMemberJoin(userId: string) {
+  return and(
+    eq(teamMembers.teamId, dashboardsTable.teamId),
+    eq(teamMembers.userId, userId),
+  );
+}
+
+/**
+ * Get all dashboards the user owns personally, is a direct member of, or can access through a team.
+ * Personally owned dashboards come first.
+ */
 export async function getUserDashboards(
   userId: string,
   limit?: number,
   offset = 0,
-): Promise<{ items: Dashboard[]; total: number }> {
-  const owned = await db
-    .select()
+): Promise<{ items: UserDashboard[]; total: number }> {
+  const whereClause = or(
+    personallyOwnedDashboard(userId),
+    isNotNull(dashboardMembers.userId),
+    isNotNull(teamMembers.userId),
+  );
+
+  const itemsQuery = db
+    .select({ ...getTableColumns(dashboardsTable), teamName: teams.name })
     .from(dashboardsTable)
-    .where(eq(dashboardsTable.ownerId, userId))
-    .orderBy(desc(dashboardsTable.updatedAt));
-
-  const shared = await db
-    .select({
-      id: dashboardsTable.id,
-      title: dashboardsTable.title,
-      description: dashboardsTable.description,
-      visibilityMode: dashboardsTable.visibilityMode,
-      shareToken: dashboardsTable.shareToken,
-      ownerId: dashboardsTable.ownerId,
-      createdAt: dashboardsTable.createdAt,
-      updatedAt: dashboardsTable.updatedAt,
-    })
-    .from(dashboardMembers)
-    .innerJoin(
-      dashboardsTable,
-      eq(dashboardMembers.dashboardId, dashboardsTable.id),
+    .leftJoin(dashboardMembers, directDashboardMemberJoin(userId))
+    .leftJoin(teamMembers, dashboardTeamMemberJoin(userId))
+    .leftJoin(teams, eq(teams.id, dashboardsTable.teamId))
+    .where(whereClause)
+    .orderBy(
+      sql`CASE WHEN ${dashboardsTable.ownerId} = ${userId} AND ${dashboardsTable.teamId} IS NULL THEN 0 ELSE 1 END`,
+      desc(dashboardsTable.updatedAt),
     )
-    .where(eq(dashboardMembers.userId, userId))
-    .orderBy(desc(dashboardsTable.updatedAt));
+    .$dynamic();
 
-  // Deduplicate (owner could also be a member)
-  const seen = new Set(owned.map((d) => d.id));
-  const all = [...owned, ...shared.filter((d) => !seen.has(d.id))];
-  const total = all.length;
+  const [items, [{ total }]] = await Promise.all([
+    limit !== undefined ? itemsQuery.limit(limit).offset(offset) : itemsQuery,
+    db
+      .select({ total: countFn() })
+      .from(dashboardsTable)
+      .leftJoin(dashboardMembers, directDashboardMemberJoin(userId))
+      .leftJoin(teamMembers, dashboardTeamMemberJoin(userId))
+      .where(whereClause),
+  ]);
 
-  if (limit !== undefined) {
-    return { items: all.slice(offset, offset + limit), total };
-  }
-  return { items: all, total };
+  return { items, total: Number(total) };
 }
 
 export async function listAllDashboards(
@@ -316,14 +351,14 @@ export async function listAllDashboards(
 }
 
 /**
- * Get only dashboards owned by a user.
+ * Get only dashboards owned personally by a user (excludes team dashboards).
  */
 export async function getOwnedDashboards(
   userId: string,
   limit?: number,
   offset = 0,
 ): Promise<{ items: Dashboard[]; total: number }> {
-  const whereClause = eq(dashboardsTable.ownerId, userId);
+  const whereClause = personallyOwnedDashboard(userId);
 
   const [rows, [{ total }]] = await Promise.all([
     db
@@ -339,10 +374,13 @@ export async function getOwnedDashboards(
   return { items: rows, total: Number(total) };
 }
 
-export type SharedDashboard = Dashboard & { memberRole: string };
+export type SharedDashboard = UserDashboard & {
+  memberRole: DashboardMemberRole;
+};
 
 /**
- * Get dashboards shared with a user (where they are a member but NOT the owner).
+ * Get dashboards the user can access via direct membership or a team, excluding personally owned ones.
+ * memberRole is the effective role (highest of direct and team-derived role).
  */
 export async function getSharedDashboards(
   userId: string,
@@ -350,41 +388,45 @@ export async function getSharedDashboards(
   offset = 0,
 ): Promise<{ items: SharedDashboard[]; total: number }> {
   const baseCondition = and(
-    eq(dashboardMembers.userId, userId),
-    sql`${dashboardsTable.ownerId} IS DISTINCT FROM ${userId}`,
+    or(isNotNull(dashboardMembers.userId), isNotNull(teamMembers.userId)),
+    or(
+      isNotNull(dashboardsTable.teamId),
+      sql`${dashboardsTable.ownerId} IS DISTINCT FROM ${userId}`,
+    ),
   );
 
   const [rows, [{ total }]] = await Promise.all([
     db
       .select({
-        id: dashboardsTable.id,
-        title: dashboardsTable.title,
-        description: dashboardsTable.description,
-        visibilityMode: dashboardsTable.visibilityMode,
-        shareToken: dashboardsTable.shareToken,
-        ownerId: dashboardsTable.ownerId,
-        createdAt: dashboardsTable.createdAt,
-        updatedAt: dashboardsTable.updatedAt,
-        memberRole: dashboardMembers.role,
+        ...getTableColumns(dashboardsTable),
+        teamName: teams.name,
+        directRole: dashboardMembers.role,
+        teamRole: teamMembers.role,
       })
-      .from(dashboardMembers)
-      .innerJoin(
-        dashboardsTable,
-        eq(dashboardMembers.dashboardId, dashboardsTable.id),
-      )
+      .from(dashboardsTable)
+      .leftJoin(dashboardMembers, directDashboardMemberJoin(userId))
+      .leftJoin(teamMembers, dashboardTeamMemberJoin(userId))
+      .leftJoin(teams, eq(teams.id, dashboardsTable.teamId))
       .where(baseCondition)
       .orderBy(desc(dashboardsTable.updatedAt))
       .limit(limit ?? 1000)
       .offset(offset),
     db
       .select({ total: countFn() })
-      .from(dashboardMembers)
-      .innerJoin(
-        dashboardsTable,
-        eq(dashboardMembers.dashboardId, dashboardsTable.id),
-      )
+      .from(dashboardsTable)
+      .leftJoin(dashboardMembers, directDashboardMemberJoin(userId))
+      .leftJoin(teamMembers, dashboardTeamMemberJoin(userId))
       .where(baseCondition),
   ]);
 
-  return { items: rows as SharedDashboard[], total: Number(total) };
+  const items = rows.map(({ directRole, teamRole, ...dashboard }) => ({
+    ...dashboard,
+    memberRole:
+      maxDashboardRole(
+        directRole,
+        teamRole ? mapTeamRoleToDashboardRole(teamRole) : null,
+      ) ?? "viewer",
+  }));
+
+  return { items, total: Number(total) };
 }

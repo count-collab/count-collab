@@ -6,11 +6,20 @@ import {
   createCounterSchema,
   createDashboardSchema,
   createGoalSchema,
+  createTeamSchema,
   dashboardMemberRoleEnum,
+  deleteTeamSchema,
   incrementCounterSchema,
+  joinLinkRoleSchema,
+  joinTeamSchema,
+  teamIdSchema,
+  teamInviteSchema,
+  teamRoleSchema,
+  transferSchema,
   updateCounterSchema,
   updateGlobalSettingsSchema,
   updateGoalSchema,
+  updateTeamSchema,
 } from "./validation";
 
 describe("counter visibility validation", () => {
@@ -150,6 +159,19 @@ describe("dashboard validation", () => {
     it("defaults visibility to public", () => {
       const result = createDashboardSchema.parse({ title: "Test" });
       expect(result.visibility).toBe("public");
+    });
+
+    it("accepts an optional uuid teamId", () => {
+      const teamId = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
+      expect(createDashboardSchema.parse({ title: "T", teamId }).teamId).toBe(
+        teamId,
+      );
+      expect(
+        createDashboardSchema.parse({ title: "T" }).teamId,
+      ).toBeUndefined();
+      expect(() =>
+        createDashboardSchema.parse({ title: "T", teamId: "nope" }),
+      ).toThrow();
     });
   });
 
@@ -333,6 +355,17 @@ describe("counter description validation", () => {
       const result = createCounterSchema.parse({ title: "Test" });
       expect(result.description).toBe("");
     });
+
+    it("accepts an optional uuid teamId", () => {
+      const teamId = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
+      expect(createCounterSchema.parse({ title: "T", teamId }).teamId).toBe(
+        teamId,
+      );
+      expect(createCounterSchema.parse({ title: "T" }).teamId).toBeUndefined();
+      expect(() =>
+        createCounterSchema.parse({ title: "T", teamId: "nope" }),
+      ).toThrow();
+    });
   });
 
   describe("updateCounterSchema", () => {
@@ -392,5 +425,188 @@ describe("updateGlobalSettingsSchema", () => {
     expect(() =>
       updateGlobalSettingsSchema.parse({ counterCreationLimitAuth: 0 }),
     ).toThrow();
+  });
+
+  it("accepts team creation limit and window", () => {
+    const result = updateGlobalSettingsSchema.parse({
+      teamCreationLimitAuth: 5,
+      teamCreationWindowAuth: 120,
+    });
+    expect(result.teamCreationLimitAuth).toBe(5);
+    expect(result.teamCreationWindowAuth).toBe(120);
+  });
+
+  it.each([0, -1, 2.5])(
+    "rejects invalid team creation values (%s)",
+    (value) => {
+      expect(() =>
+        updateGlobalSettingsSchema.parse({ teamCreationLimitAuth: value }),
+      ).toThrow();
+      expect(() =>
+        updateGlobalSettingsSchema.parse({ teamCreationWindowAuth: value }),
+      ).toThrow();
+    },
+  );
+});
+
+describe("team validation", () => {
+  const UUID = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
+
+  describe("teamIdSchema", () => {
+    it("accepts a uuid", () => {
+      expect(teamIdSchema.safeParse(UUID).success).toBe(true);
+    });
+
+    it("rejects a non-uuid", () => {
+      expect(teamIdSchema.safeParse("abc").success).toBe(false);
+    });
+  });
+
+  describe("createTeamSchema", () => {
+    it("trims the name", () => {
+      expect(createTeamSchema.parse({ name: "  Team  " }).name).toBe("Team");
+    });
+
+    it("rejects a blank name", () => {
+      expect(createTeamSchema.safeParse({ name: "   " }).success).toBe(false);
+    });
+
+    it("accepts 50 chars and rejects 51", () => {
+      expect(createTeamSchema.safeParse({ name: "a".repeat(50) }).success).toBe(
+        true,
+      );
+      expect(createTeamSchema.safeParse({ name: "a".repeat(51) }).success).toBe(
+        false,
+      );
+    });
+
+    it("turns an empty description into null", () => {
+      expect(
+        createTeamSchema.parse({ name: "Team", description: "  " }).description,
+      ).toBeNull();
+    });
+
+    it("rejects a description over 500 chars", () => {
+      expect(
+        createTeamSchema.safeParse({
+          name: "Team",
+          description: "a".repeat(501),
+        }).success,
+      ).toBe(false);
+    });
+  });
+
+  describe("updateTeamSchema", () => {
+    it("accepts an empty object", () => {
+      expect(updateTeamSchema.parse({})).toEqual({});
+    });
+
+    it("leaves an omitted description undefined", () => {
+      const result = updateTeamSchema.parse({ name: "New" });
+      expect(result.description).toBeUndefined();
+    });
+
+    it("clears the description with an empty string", () => {
+      expect(
+        updateTeamSchema.parse({ description: "" }).description,
+      ).toBeNull();
+    });
+
+    it("still validates the name", () => {
+      expect(updateTeamSchema.safeParse({ name: "" }).success).toBe(false);
+    });
+  });
+
+  describe("teamInviteSchema", () => {
+    it("accepts owner as a role", () => {
+      expect(
+        teamInviteSchema.parse({ username: "Bob", role: "owner" }),
+      ).toEqual({ username: "bob", role: "owner" });
+    });
+
+    it("rejects unknown roles", () => {
+      expect(
+        teamInviteSchema.safeParse({ username: "bob", role: "god" }).success,
+      ).toBe(false);
+    });
+  });
+
+  describe("teamRoleSchema", () => {
+    it("accepts every team role", () => {
+      for (const role of [
+        "viewer",
+        "incrementer",
+        "editor",
+        "admin",
+        "owner",
+      ]) {
+        expect(teamRoleSchema.safeParse({ role }).success).toBe(true);
+      }
+    });
+  });
+
+  describe("joinLinkRoleSchema", () => {
+    it("accepts up to editor", () => {
+      expect(joinLinkRoleSchema.safeParse({ role: "editor" }).success).toBe(
+        true,
+      );
+    });
+
+    it("rejects admin and owner", () => {
+      expect(joinLinkRoleSchema.safeParse({ role: "admin" }).success).toBe(
+        false,
+      );
+      expect(joinLinkRoleSchema.safeParse({ role: "owner" }).success).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("joinTeamSchema", () => {
+    it("requires a non-empty token", () => {
+      expect(joinTeamSchema.safeParse({ token: "" }).success).toBe(false);
+      expect(joinTeamSchema.safeParse({ token: "abc" }).success).toBe(true);
+    });
+  });
+
+  describe("deleteTeamSchema", () => {
+    it("requires confirmName", () => {
+      expect(deleteTeamSchema.safeParse({}).success).toBe(false);
+      expect(deleteTeamSchema.parse({ confirmName: "Team" })).toEqual({
+        confirmName: "Team",
+      });
+    });
+  });
+
+  describe("transferSchema", () => {
+    it("defaults counterIds to an empty array", () => {
+      expect(transferSchema.parse({ teamId: UUID })).toEqual({
+        teamId: UUID,
+        counterIds: [],
+      });
+    });
+
+    it("accepts a null teamId", () => {
+      expect(transferSchema.safeParse({ teamId: null }).success).toBe(true);
+    });
+
+    it("requires teamId to be present", () => {
+      expect(transferSchema.safeParse({}).success).toBe(false);
+    });
+
+    it("rejects non-uuid counter ids", () => {
+      expect(
+        transferSchema.safeParse({ teamId: UUID, counterIds: ["x"] }).success,
+      ).toBe(false);
+    });
+
+    it("rejects more than 100 counter ids", () => {
+      expect(
+        transferSchema.safeParse({
+          teamId: UUID,
+          counterIds: Array(101).fill(UUID),
+        }).success,
+      ).toBe(false);
+    });
   });
 });

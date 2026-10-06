@@ -42,6 +42,24 @@ import { browser } from "$app/environment";
     data.dashboard.visibilityMode as DashboardVisibilityMode,
   );
 
+  const dashboardCounters = $derived.by(() => {
+    const owned = new Set(data.ownedCounterIdsOnDashboard);
+    const byId = new Map<
+      string,
+      { id: string; title: string | null; teamId: string | null; owned: boolean }
+    >();
+    for (const { item, counter } of data.items) {
+      if (byId.has(item.counterId)) continue;
+      byId.set(item.counterId, {
+        id: item.counterId,
+        title: counter?.title ?? null,
+        teamId: counter?.teamId ?? null,
+        owned: owned.has(item.counterId),
+      });
+    }
+    return [...byId.values()];
+  });
+
   // Optimistic counts per counter
   let optimisticCounts = $state<Record<string, number>>({});
   let errorMessage = $state<string | null>(null);
@@ -685,8 +703,28 @@ import { browser } from "$app/environment";
           {data.followerCount === 1 ? "follower" : "followers"}
         </span>
       {/if}
+      {#if data.team}
+        <span
+          class="text-xs text-slate-400 dark:text-slate-500 inline-flex items-center gap-1"
+        >
+          <ion-icon name="people-outline" style="font-size: 14px;" aria-hidden="true"
+          ></ion-icon>
+          Team:
+          {#if data.teamRole}
+            <a
+              href="/t/{data.team.id}"
+              class="font-medium text-slate-500 dark:text-slate-400 hover:underline"
+              >{data.team.name}</a
+            >
+          {:else}
+            <span class="font-medium text-slate-500 dark:text-slate-400"
+              >{data.team.name}</span
+            >
+          {/if}
+        </span>
+      {/if}
       <span class="text-xs text-slate-400 dark:text-slate-500">
-        Created {#if data.ownerUsername}by <span
+        Created {#if !data.team && data.ownerUsername}by <span
             class="font-medium text-slate-500 dark:text-slate-400"
             >@{data.ownerUsername}</span
           > ·
@@ -1017,6 +1055,8 @@ import { browser } from "$app/environment";
   canManage={data.canManage}
   isMember={!!data.memberRole}
   currentUserId={data.session?.user?.id ?? null}
+  team={data.team}
+  teamLinked={data.teamRole !== null}
   onupdate={() => invalidate(`dashboard:${data.dashboard.id}`)}
 />
 
@@ -1024,6 +1064,10 @@ import { browser } from "$app/environment";
 <DashboardSettingsOverlay
   bind:open={showEditModal}
   dashboard={data.dashboard}
+  canTransfer={data.canTransfer}
+  team={data.team}
+  transferTargets={data.transferTargets}
+  {dashboardCounters}
   onsave={() => invalidate(`dashboard:${data.dashboard.id}`)}
 />
 

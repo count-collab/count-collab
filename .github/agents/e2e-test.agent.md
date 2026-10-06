@@ -18,8 +18,10 @@ You are an end-to-end testing specialist for the Count Collab project. Your job 
 
 ```
 e2e/
+├── auth-helpers.ts                         # Seed user + DB session, login a context via authjs.session-token cookie
 ├── homepage.test.ts                        # Homepage/landing page flow
 ├── private-counter-cooldown.test.ts        # Private counter cooldown behavior
+├── teams.test.ts                           # Teams: access, invites, join link, transfer, deletion
 └── admin-statistics-shareable-url.test.ts  # Shareable admin statistics URL state
 playwright.config.ts
 ```

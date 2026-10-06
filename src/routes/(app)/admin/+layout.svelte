@@ -29,6 +29,12 @@
       exact: false,
     },
     {
+      href: "/admin/teams",
+      label: "Teams",
+      icon: "people-circle-outline",
+      exact: false,
+    },
+    {
       href: "/admin/statistics",
       label: "Statistics",
       icon: "bar-chart-outline",

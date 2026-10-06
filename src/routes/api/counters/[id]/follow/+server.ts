@@ -1,7 +1,5 @@
 import { error, json } from "@sveltejs/kit";
-import { and, eq } from "drizzle-orm";
-import { db } from "$lib/db";
-import { counterMembers } from "$lib/db/schema";
+import { getCounterAccess } from "$lib/server/authorize";
 import { getCounter } from "$lib/server/counters";
 import { followCounter, unfollowCounter } from "$lib/server/followers";
 import { counterIdSchema } from "$lib/utils/validation";
@@ -34,23 +32,9 @@ export const POST: RequestHandler = async ({ params, locals, url }) => {
     }
   }
 
-  // Owners don't need to follow their own counters
-  if (counter.ownerId === session.user.id) {
-    return json({ already: true }, { status: 200 });
-  }
-
-  // Members don't need to follow counters they belong to
-  const [memberRow] = await db
-    .select({ id: counterMembers.id })
-    .from(counterMembers)
-    .where(
-      and(
-        // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
-        eq(counterMembers.counterId, params.id as any),
-        eq(counterMembers.userId, session.user.id),
-      ),
-    );
-  if (memberRow) {
+  // Owners and members (direct or via team) don't need to follow
+  const access = await getCounterAccess(session.user.id, params.id);
+  if (access.isOwner || access.effectiveRole) {
     return json({ already: true }, { status: 200 });
   }
 

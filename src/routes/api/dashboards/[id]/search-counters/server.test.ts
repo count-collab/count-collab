@@ -5,6 +5,7 @@ const mockGetDashboardItems = vi.fn();
 const mockEscapeLikePattern = vi.fn((v: string) => v);
 const mockSelect = vi.fn();
 const mockFrom = vi.fn();
+const mockLeftJoin = vi.fn();
 const mockWhere = vi.fn();
 const mockOrderBy = vi.fn();
 const mockLimit = vi.fn();
@@ -26,11 +27,20 @@ vi.mock("$lib/db/schema", () => ({
     count: "counters.count",
     visibilityMode: "counters.visibilityMode",
     ownerId: "counters.ownerId",
+    teamId: "counters.teamId",
     updatedAt: "counters.updatedAt",
   },
   counterMembers: {
     counterId: "counterMembers.counterId",
     userId: "counterMembers.userId",
+  },
+  teamMembers: {
+    teamId: "teamMembers.teamId",
+    userId: "teamMembers.userId",
+  },
+  teams: {
+    id: "teams.id",
+    name: "teams.name",
   },
 }));
 
@@ -66,6 +76,8 @@ vi.mock("drizzle-orm", () => ({
     ilike: [col, pattern],
   })),
   inArray: vi.fn((col: unknown, arr: unknown) => ({ inArray: [col, arr] })),
+  isNotNull: vi.fn((col: unknown) => ({ isNotNull: col })),
+  isNull: vi.fn((col: unknown) => ({ isNull: col })),
   notInArray: vi.fn((col: unknown, arr: unknown) => ({
     notInArray: [col, arr],
   })),
@@ -101,7 +113,8 @@ function setupDbChain(results: unknown[] = []) {
   mockLimit.mockResolvedValue(results);
   mockOrderBy.mockReturnValue({ limit: mockLimit });
   mockWhere.mockReturnValue({ orderBy: mockOrderBy });
-  mockFrom.mockReturnValue({ where: mockWhere });
+  mockLeftJoin.mockReturnValue({ leftJoin: mockLeftJoin, where: mockWhere });
+  mockFrom.mockReturnValue({ where: mockWhere, leftJoin: mockLeftJoin });
   mockSelect.mockReturnValue({ from: mockFrom });
 
   // For the membership subquery
@@ -195,6 +208,68 @@ describe("GET /api/dashboards/[id]/search-counters", () => {
     expect(body.items[0].id).toBe("counter-1");
     expect(body.items[1].id).toBe("counter-2");
     expect(body.userId).toBe("user-1");
+  });
+
+  it("includes team counters with team info and marks accessible ones as mine", async () => {
+    setupDbChain([
+      {
+        id: "team-counter",
+        title: "Team Counter",
+        description: null,
+        count: 3,
+        visibilityMode: "private",
+        ownerId: "someone-else",
+        teamId: "team-1",
+        teamName: "Alpha",
+        teamMemberUserId: "user-1",
+      },
+      {
+        id: "created-for-team",
+        title: "Created For Other Team",
+        description: null,
+        count: 2,
+        visibilityMode: "public",
+        ownerId: "user-1",
+        teamId: "team-2",
+        teamName: "Beta",
+        teamMemberUserId: null,
+      },
+      {
+        id: "personal",
+        title: "Personal",
+        description: null,
+        count: 1,
+        visibilityMode: "private",
+        ownerId: "user-1",
+        teamId: null,
+        teamName: null,
+        teamMemberUserId: null,
+      },
+    ]);
+
+    const { isNotNull } = await import("drizzle-orm");
+
+    const response = await GET(
+      makeEvent(VALID_DASHBOARD_ID, {
+        locals: makeLocals("user-1"),
+      }) as any,
+    );
+    const body = await response.json();
+
+    expect(isNotNull).toHaveBeenCalledWith("teamMembers.userId");
+    expect(body.items[0]).toEqual({
+      id: "team-counter",
+      title: "Team Counter",
+      description: null,
+      count: 3,
+      visibilityMode: "private",
+      ownerId: "someone-else",
+      teamId: "team-1",
+      teamName: "Alpha",
+      isMine: true,
+    });
+    expect(body.items[1].isMine).toBe(false);
+    expect(body.items[2].isMine).toBe(true);
   });
 
   it("returns empty array when no counters match", async () => {

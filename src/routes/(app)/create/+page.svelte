@@ -5,6 +5,7 @@ import { untrack } from "svelte";
   import { fly } from "svelte/transition";
   import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
+  import { page } from "$app/stores";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import type {
     CounterMode,
@@ -38,6 +39,12 @@ import { untrack } from "svelte";
   >(null);
   let title = $state("");
   let description = $state("");
+  let ownerTeamId = $state(
+    untrack(() => {
+      const requested = $page.url.searchParams.get("teamId") ?? "";
+      return data.teams.some((t) => t.id === requested) ? requested : "";
+    }),
+  );
   let errors = $state<Record<string, string>>({});
   let isSubmitting = $state(false);
   const canGoBack = browser && window.history.length > 1;
@@ -111,6 +118,7 @@ import { untrack } from "svelte";
           description,
           visibility,
           counterMode: creationType === "counter" ? counterMode : undefined,
+          teamId: ownerTeamId || undefined,
         }),
       });
 
@@ -126,7 +134,9 @@ import { untrack } from "svelte";
           return;
         }
 
-        errors = body.errors ?? { general: `Failed to create ${typeLabel}.` };
+        errors = body.errors ?? {
+          general: body.message ?? `Failed to create ${typeLabel}.`,
+        };
         return;
       }
 
@@ -545,6 +555,31 @@ import { untrack } from "svelte";
                   </p>
                 {/if}
               </div>
+
+              {#if data.teams.length > 0}
+                <div class="space-y-1">
+                  <label
+                    for="create-owner"
+                    class="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                    >Owner</label
+                  >
+                  <select
+                    id="create-owner"
+                    bind:value={ownerTeamId}
+                    class="w-full h-10 rounded-md border border-slate-300 px-3 text-sm bg-white text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400"
+                  >
+                    <option value="">Me</option>
+                    {#each data.teams as team (team.id)}
+                      <option value={team.id}>{team.name}</option>
+                    {/each}
+                  </select>
+                  {#if errors.teamId}
+                    <p class="text-sm text-red-600 dark:text-red-400">
+                      {errors.teamId}
+                    </p>
+                  {/if}
+                </div>
+              {/if}
 
               <div class="flex items-center justify-end gap-4">
                 {#if canGoBack}

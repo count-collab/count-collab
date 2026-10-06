@@ -7,6 +7,7 @@
     { label: "Overview", href: "/my", icon: "grid-outline" },
     { label: "Counters", href: "/my/counters", icon: "pulse-outline" },
     { label: "Dashboards", href: "/my/dashboards", icon: "apps-outline" },
+    { label: "Teams", href: "/my/teams", icon: "people-outline" },
   ];
 
   const currentPath = $derived($page.url.pathname);
