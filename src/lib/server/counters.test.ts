@@ -2,7 +2,7 @@ import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Counter } from "$lib/db/schema";
-import { teamMembers, teams } from "$lib/db/schema";
+import { teamMembers, teams, users } from "$lib/db/schema";
 
 const mockInsert = vi.fn();
 const mockInsertValues = vi.fn();
@@ -509,7 +509,7 @@ describe("listAllCounters", () => {
     expect(result.items[0].title).toBe("Test");
   });
 
-  it("returns counters with ownerName falling back to display name when username is null", async () => {
+  it("never falls back to the full name when username is null", async () => {
     const counter = makeCounter({ title: "Fallback" });
     mockOffset.mockResolvedValue([
       { counter, ownerUsername: null, ownerDisplayName: "John Doe" },
@@ -519,7 +519,18 @@ describe("listAllCounters", () => {
     const result = await listAllCounters();
 
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].ownerName).toBe("John Doe");
+    expect(result.items[0].ownerName).toBeNull();
+    expect(JSON.stringify(result)).not.toContain("John Doe");
+  });
+
+  it("does not select users.name", async () => {
+    mockOffset.mockResolvedValue([]);
+    mockCountWhere.mockResolvedValue([{ total: 0 }]);
+
+    await listAllCounters();
+
+    const selection = mockSelect.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.values(selection)).not.toContain(users.name);
   });
 
   it("returns ownerName as null when no owner exists", async () => {

@@ -3,7 +3,6 @@
 
   type UserResult = {
     id: string;
-    name: string | null;
     username: string | null;
     email: string | null;
     image: string | null;
@@ -182,10 +181,7 @@
               <div class="flex items-center justify-between">
                 <div class="min-w-0">
                   <p class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
-                    {user.name ?? "Unnamed"}
-                    {#if user.username}
-                      <span class="text-slate-500 dark:text-slate-400">@{user.username}</span>
-                    {/if}
+                    {user.username ? `@${user.username}` : "Unknown"}
                   </p>
                   {#if user.email}
                     <p class="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>

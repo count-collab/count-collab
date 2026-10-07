@@ -6,6 +6,7 @@
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Modal from "$lib/components/Modal.svelte";
   import Switch from "$lib/components/Switch.svelte";
+  import TeamSettingsOverlay from "$lib/components/TeamSettingsOverlay.svelte";
   import { slugify } from "$lib/counter";
   import type { TeamJoinLinkRole, TeamMemberRole } from "$lib/db/schema";
   import { canAssignTeamRole, teamRoleLabels, teamRoleOrder } from "$lib/roles";
@@ -13,14 +14,12 @@
 
   const { data }: { data: PageData } = $props();
 
-  type TabId = "counters" | "dashboards" | "members" | "settings";
+  type TabId = "counters" | "dashboards" | "members";
   type Tab = { id: TabId; label: string; icon: string; count?: number };
 
   // Mirrors teamJoinLinkRoles; the schema module can't be imported client-side
   const joinLinkRoles: TeamJoinLinkRole[] = ["viewer", "incrementer", "editor"];
 
-  const inputClass =
-    "w-full px-3 py-2 border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500";
   const selectClass =
     "h-9 rounded-md border border-slate-300 px-3 text-sm bg-white text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400";
   const roleBadgeClass = (role: TeamMemberRole) =>
@@ -56,15 +55,13 @@
       icon: "people-outline",
       count: data.members.length,
     },
-    ...(data.canManage
-      ? [{ id: "settings" as const, label: "Settings", icon: "settings-outline" }]
-      : []),
   ]);
 
-  let selectedTab = $state<TabId>("counters");
-  const activeTab = $derived<TabId>(
-    tabs.some((t) => t.id === selectedTab) ? selectedTab : "counters",
-  );
+  let activeTab = $state<TabId>("counters");
+
+  // ── Settings overlay ──
+  let showSettings = $state(false);
+  let settingsButton = $state<HTMLButtonElement | null>(null);
 
   function handleTabKeydown(event: KeyboardEvent, index: number) {
     const targets: Record<string, number> = {
@@ -76,7 +73,7 @@
     if (!(event.key in targets)) return;
     event.preventDefault();
     const next = tabs[(targets[event.key] + tabs.length) % tabs.length];
-    selectedTab = next.id;
+    activeTab = next.id;
     document.getElementById(`team-tab-${next.id}`)?.focus();
   }
 
@@ -253,47 +250,7 @@
     await invalidateAll();
   }
 
-  // ── Settings: details ──
-  // null = untouched, so the fields follow fresh server data until edited
-  let editName = $state<string | null>(null);
-  let editDescription = $state<string | null>(null);
-  let detailsError = $state<string | null>(null);
-  let detailsSuccess = $state<string | null>(null);
-  let isSavingDetails = $state(false);
-
-  async function handleSaveDetails(event: SubmitEvent) {
-    event.preventDefault();
-    if (isSavingDetails) return;
-    const name = (editName ?? data.team.name).trim();
-    if (!name) {
-      detailsError = "Name is required";
-      return;
-    }
-    isSavingDetails = true;
-    detailsError = null;
-    detailsSuccess = null;
-    const result = await send(`/api/teams/${teamId}`, "PATCH", {
-      name,
-      description:
-        (editDescription ?? data.team.description ?? "").trim() || null,
-    });
-    isSavingDetails = false;
-    if (!result.ok) {
-      detailsError = result.error;
-      return;
-    }
-    editName = null;
-    editDescription = null;
-    detailsSuccess = "Team details saved.";
-    await goto(`/t/${teamId}/${slugify(name)}`, {
-      replaceState: true,
-      noScroll: true,
-      keepFocus: true,
-      invalidateAll: true,
-    });
-  }
-
-  // ── Settings: join link ──
+  // ── Join link ──
   let joinLinkError = $state<string | null>(null);
   let isUpdatingJoinLink = $state(false);
   let copySuccess = $state(false);
@@ -361,47 +318,6 @@
     await setJoinLinkEnabled(true);
     closeResetModal();
   }
-
-  // ── Settings: delete ──
-  let showDeleteModal = $state(false);
-  let deleteConfirmName = $state("");
-  let deleteError = $state<string | null>(null);
-  let isDeleting = $state(false);
-  let deleteButton = $state<HTMLButtonElement | null>(null);
-  let deleteInput = $state<HTMLInputElement | null>(null);
-
-  const canConfirmDelete = $derived(deleteConfirmName === data.team.name);
-  const counterTotal = $derived(data.resources.counters.length);
-  const dashboardTotal = $derived(data.resources.dashboards.length);
-
-  function openDeleteModal() {
-    deleteConfirmName = "";
-    deleteError = null;
-    showDeleteModal = true;
-    focusSoon(deleteInput);
-  }
-
-  function closeDeleteModal() {
-    showDeleteModal = false;
-    deleteButton?.focus();
-  }
-
-  async function handleDelete(event: SubmitEvent) {
-    event.preventDefault();
-    if (!canConfirmDelete || isDeleting) return;
-    isDeleting = true;
-    deleteError = null;
-    const result = await send(`/api/teams/${teamId}`, "DELETE", {
-      confirmName: deleteConfirmName,
-    });
-    isDeleting = false;
-    if (!result.ok) {
-      deleteError = result.error;
-      return;
-    }
-    showDeleteModal = false;
-    await goto("/my/teams");
-  }
 </script>
 
 <MetaTags
@@ -429,16 +345,33 @@
         {/if}
       </div>
 
-      {#if myMembership}
-        <button
-          type="button"
-          bind:this={leaveButton}
-          onclick={openLeaveModal}
-          class="shrink-0 ml-4 px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition inline-flex items-center gap-1.5 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-        >
-          <ion-icon name="exit-outline" style="font-size: 16px;"></ion-icon>
-          Leave team
-        </button>
+      {#if data.canManage || myMembership}
+        <div class="flex flex-wrap justify-end gap-2 shrink-0 ml-4">
+          {#if data.canManage}
+            <button
+              type="button"
+              bind:this={settingsButton}
+              onclick={() => (showSettings = true)}
+              class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
+            >
+              <ion-icon name="settings-outline" style="font-size: 16px;"
+              ></ion-icon>
+              Settings
+            </button>
+          {/if}
+          {#if myMembership}
+            <button
+              type="button"
+              bind:this={leaveButton}
+              onclick={openLeaveModal}
+              class="px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition inline-flex items-center gap-1.5 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
+            >
+              <ion-icon name="exit-outline" style="font-size: 16px;"
+              ></ion-icon>
+              Leave team
+            </button>
+          {/if}
+        </div>
       {/if}
     </div>
 
@@ -461,7 +394,7 @@
   <div
     role="tablist"
     aria-label="Team sections"
-    class="flex gap-1 border-b border-slate-200 dark:border-slate-700 mb-8 overflow-x-auto"
+    class="flex gap-1 border-b border-slate-200 dark:border-slate-700 mb-8"
   >
     {#each tabs as tab, index (tab.id)}
       <button
@@ -471,12 +404,12 @@
         aria-selected={activeTab === tab.id}
         aria-controls="team-tabpanel"
         tabindex={activeTab === tab.id ? 0 : -1}
-        onclick={() => (selectedTab = tab.id)}
+        onclick={() => (activeTab = tab.id)}
         onkeydown={(e) => handleTabKeydown(e, index)}
-        class="inline-flex items-center gap-1.5 px-4 py-2 -mb-px text-sm font-medium whitespace-nowrap transition-all {activeTab ===
+        class="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 px-2 sm:px-4 py-2 -mb-px border-b-2 text-sm font-medium whitespace-nowrap transition-colors {activeTab ===
         tab.id
-          ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}"
+          ? 'text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400'
+          : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'}"
       >
         <ion-icon name={tab.icon} style="font-size: 16px;"></ion-icon>
         {tab.label}
@@ -501,7 +434,7 @@
         {#if data.canEditResources}
           <div class="flex justify-end mb-4">
             <a
-              href="/create?teamId={data.team.id}"
+              href="/create?type=counter&teamId={data.team.id}"
               class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-1.5"
             >
               <ion-icon name="add-outline" style="font-size: 16px;"></ion-icon>
@@ -532,6 +465,17 @@
       </section>
     {:else if activeTab === "dashboards"}
       <section>
+        {#if data.canEditResources}
+          <div class="flex justify-end mb-4">
+            <a
+              href="/create?type=dashboard&teamId={data.team.id}"
+              class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-1.5"
+            >
+              <ion-icon name="add-outline" style="font-size: 16px;"></ion-icon>
+              New dashboard
+            </a>
+          </div>
+        {/if}
         {#if data.resources.dashboards.length === 0}
           <div
             class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 p-8 text-center"
@@ -554,66 +498,7 @@
         {/if}
       </section>
     {:else if activeTab === "members"}
-      <div class="max-w-2xl space-y-8">
-        {#if data.canManage}
-          <section class="space-y-4">
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Invite member
-            </h2>
-            <form onsubmit={handleInvite} class="flex gap-2 items-end">
-              <div class="flex-1">
-                <label
-                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
-                  for="team-invite-username">Username</label
-                >
-                <input
-                  id="team-invite-username"
-                  type="text"
-                  bind:value={inviteUsername}
-                  placeholder="username"
-                  autocomplete="off"
-                  class="w-full h-9 rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 text-sm focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:placeholder:text-slate-500 dark:focus:border-blue-400"
-                />
-              </div>
-              <div>
-                <label
-                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
-                  for="team-invite-role">Role</label
-                >
-                <select
-                  id="team-invite-role"
-                  bind:value={inviteRole}
-                  class={selectClass}
-                >
-                  {#each inviteRoleOptions as r (r)}
-                    <option value={r}>{teamRoleLabels[r]}</option>
-                  {/each}
-                </select>
-              </div>
-              <button
-                type="submit"
-                disabled={isInviting || !inviteUsername.trim()}
-                class="h-9 px-4 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:opacity-50"
-              >
-                Invite
-              </button>
-            </form>
-
-            <div aria-live="polite">
-              {#if inviteError}
-                <p role="alert" class="text-sm text-red-600 dark:text-red-400">
-                  {inviteError}
-                </p>
-              {/if}
-              {#if inviteSuccess}
-                <p class="text-sm text-green-600 dark:text-green-400">
-                  {inviteSuccess}
-                </p>
-              {/if}
-            </div>
-          </section>
-        {/if}
-
+      <div class="space-y-8">
         <div aria-live="polite">
           {#if membersError}
             <p role="alert" class="text-sm text-red-600 dark:text-red-400">
@@ -622,348 +507,319 @@
           {/if}
         </div>
 
-        {#if data.canManage && data.invitations.length > 0}
-          <section class="space-y-4">
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Pending invitations
-            </h2>
-            <ul class="divide-y divide-slate-200 dark:divide-slate-700">
-              {#each data.invitations as invitation (invitation.id)}
-                {@const label =
-                  invitation.username ?? invitation.name ?? "Unknown"}
-                <li class="flex items-center justify-between gap-3 py-3">
-                  <div class="flex items-center gap-3 min-w-0">
-                    {#if invitation.image}
-                      <img
-                        src={invitation.image}
-                        alt=""
-                        class="w-8 h-8 rounded-full"
-                      />
-                    {:else}
-                      <div
-                        class="w-8 h-8 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400"
-                      >
-                        {(invitation.username ?? "?")[0]}
-                      </div>
-                    {/if}
-                    <div class="min-w-0">
-                      <p
-                        class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate"
-                      >
-                        {label}
-                      </p>
-                      {#if invitation.inviterUsername}
-                        <p class="text-xs text-slate-400 dark:text-slate-500">
-                          Invited by @{invitation.inviterUsername}
-                        </p>
-                      {/if}
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-2 shrink-0">
-                    {#if canAssignTeamRole(data.role, invitation.role, null)}
-                      <select
-                        value={invitation.role}
-                        aria-label="Role for invitation to {label}"
-                        onchange={(e) =>
-                          handleInvitationRoleChange(
-                            e.currentTarget,
-                            invitation.userId,
-                            invitation.role,
-                          )}
-                        class={selectClass}
-                      >
-                        {#each assignableRoles(invitation.role) as r (r)}
-                          <option value={r}>{teamRoleLabels[r]}</option>
-                        {/each}
-                      </select>
-                      <button
-                        type="button"
-                        onclick={() => handleCancelInvitation(invitation.userId)}
-                        class="p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        aria-label="Cancel invitation for {label}"
-                      >
-                        <ion-icon name="close-outline" style="font-size: 18px;"
-                        ></ion-icon>
-                      </button>
-                    {:else}
-                      <span
-                        class="text-xs px-2 py-0.5 rounded-full {roleBadgeClass(
-                          invitation.role,
-                        )}"
-                      >
-                        {teamRoleLabels[invitation.role]}
-                      </span>
-                    {/if}
-                  </div>
-                </li>
-              {/each}
-            </ul>
-          </section>
-        {/if}
-
-        <section class="space-y-4">
-          <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            Members
-          </h2>
-          <ul class="divide-y divide-slate-200 dark:divide-slate-700">
-            {#each data.members as member (member.userId)}
-              {@const label = member.name ?? member.username ?? "Unknown"}
-              {@const isSelf = member.userId === currentUserId}
-              {@const canModify =
-                data.canManage && canAssignTeamRole(data.role, member.role, null)}
-              <li class="flex items-center justify-between gap-3 py-3">
-                <div class="flex items-center gap-3 min-w-0">
-                  {#if member.image}
-                    <img src={member.image} alt="" class="w-8 h-8 rounded-full" />
-                  {:else}
-                    <div
-                      class="w-8 h-8 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400"
-                    >
-                      {(member.username ?? "?")[0]}
-                    </div>
-                  {/if}
-                  <div class="min-w-0">
-                    <p
-                      class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate"
-                    >
-                      {label}
-                      {#if isSelf}
-                        <span class="text-xs font-normal text-slate-400 dark:text-slate-500"
-                          >(you)</span
-                        >
-                      {/if}
-                    </p>
-                    <p class="text-xs text-slate-400 dark:text-slate-500">
-                      {#if member.username}@{member.username} ·
-                      {/if}Joined {new Date(member.joinedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                  {#if canModify}
-                    <select
-                      value={member.role}
-                      aria-label="Role for {label}"
-                      onchange={(e) =>
-                        handleMemberRoleChange(
-                          e.currentTarget,
-                          member.userId,
-                          member.role,
-                        )}
-                      class={selectClass}
-                    >
-                      {#each assignableRoles(member.role) as r (r)}
-                        <option value={r}>{teamRoleLabels[r]}</option>
-                      {/each}
-                    </select>
-                    {#if !isSelf}
-                      <button
-                        type="button"
-                        onclick={() => handleRemoveMember(member.userId)}
-                        class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                        aria-label="Remove {label}"
-                      >
-                        Remove
-                      </button>
-                    {/if}
-                  {:else}
-                    <span
-                      class="text-xs px-2 py-0.5 rounded-full {roleBadgeClass(
-                        member.role,
-                      )}"
-                    >
-                      {teamRoleLabels[member.role]}
-                    </span>
-                  {/if}
-                </div>
-              </li>
-            {/each}
-          </ul>
-        </section>
-      </div>
-    {:else if activeTab === "settings" && data.canManage}
-      <div class="max-w-2xl space-y-8">
-        <section
-          class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 space-y-4"
-        >
-          <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">
-            Team details
-          </h2>
-          <form onsubmit={handleSaveDetails} class="space-y-4" novalidate>
+        {#if data.canManage}
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
             <div>
-              <label
-                for="team-settings-name"
-                class="block text-sm text-slate-700 dark:text-slate-300 mb-1"
-              >
-                Name
-              </label>
-              <input
-                id="team-settings-name"
-                type="text"
-                required
-                maxlength={50}
-                autocomplete="off"
-                bind:value={
-                  () => editName ?? data.team.name, (v) => (editName = v)
-                }
-                class={inputClass}
-              />
+              {@render joinLinkSection()}
             </div>
-            <div>
-              <label
-                for="team-settings-description"
-                class="block text-sm text-slate-700 dark:text-slate-300 mb-1"
-              >
-                Description <span class="text-slate-400 dark:text-slate-500"
-                  >(optional)</span
-                >
-              </label>
-              <textarea
-                id="team-settings-description"
-                rows={3}
-                maxlength={500}
-                bind:value={
-                  () => editDescription ?? data.team.description ?? "",
-                  (v) => (editDescription = v)
-                }
-                class={inputClass}
-              ></textarea>
-            </div>
-            <div aria-live="polite">
-              {#if detailsError}
-                <p role="alert" class="text-sm text-red-600 dark:text-red-400">
-                  {detailsError}
-                </p>
+            <div class="space-y-8">
+              {@render inviteSection()}
+              {#if data.invitations.length > 0}
+                {@render invitationsSection()}
               {/if}
-              {#if detailsSuccess}
-                <p class="text-sm text-green-600 dark:text-green-400">
-                  {detailsSuccess}
-                </p>
-              {/if}
+              {@render memberList()}
             </div>
-            <div class="flex justify-end">
-              <button
-                type="submit"
-                disabled={isSavingDetails ||
-                  (editName === null && editDescription === null)}
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700"
-              >
-                {isSavingDetails ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <section
-          class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 space-y-4"
-        >
-          <h2 class="text-xl font-semibold text-slate-900 dark:text-slate-100">
-            Join link
-          </h2>
-          <p class="text-sm text-slate-600 dark:text-slate-400">
-            Anyone signed in with this link can join the team.
-          </p>
-          <Switch
-            bind:checked={
-              () => joinEnabled, (v) => setJoinLinkEnabled(v)
-            }
-            label="Enable join link"
-            disabled={isUpdatingJoinLink}
-          />
-
-          {#if joinEnabled}
-            <div class="flex items-center gap-2">
-              <p
-                class="flex-1 text-sm text-slate-500 bg-slate-50 rounded-md px-3 py-2 font-mono select-all truncate dark:text-slate-400 dark:bg-slate-700"
-                data-testid="team-join-url"
-              >
-                {joinUrl}
-              </p>
-              <button
-                type="button"
-                onclick={copyJoinLink}
-                class="shrink-0 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
-              >
-                {#if copySuccess}
-                  <ion-icon
-                    name="checkmark-outline"
-                    style="font-size: 16px;"
-                    class="text-green-600 dark:text-green-400"
-                  ></ion-icon>
-                  Copied
-                {:else}
-                  <ion-icon name="copy-outline" style="font-size: 16px;"
-                  ></ion-icon>
-                  Copy
-                {/if}
-              </button>
-            </div>
-
-            <div class="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <label
-                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
-                  for="team-join-role">Joins as</label
-                >
-                <select
-                  id="team-join-role"
-                  value={data.joinRole ?? "viewer"}
-                  onchange={(e) => handleJoinRoleChange(e.currentTarget)}
-                  class={selectClass}
-                >
-                  {#each joinLinkRoles as r (r)}
-                    <option value={r}>{teamRoleLabels[r]}</option>
-                  {/each}
-                </select>
-              </div>
-              <button
-                type="button"
-                bind:this={resetButton}
-                onclick={openResetModal}
-                disabled={isUpdatingJoinLink}
-                class="px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700 disabled:opacity-50"
-              >
-                <ion-icon name="refresh-outline" style="font-size: 16px;"
-                ></ion-icon>
-                Reset link
-              </button>
-            </div>
-          {/if}
-
-          <div aria-live="polite">
-            {#if joinLinkError}
-              <p role="alert" class="text-sm text-red-600 dark:text-red-400">
-                {joinLinkError}
-              </p>
-            {/if}
           </div>
-        </section>
-
-        {#if data.canDelete}
-          <section
-            class="bg-white dark:bg-slate-800 rounded-lg border-2 border-red-200 dark:border-red-800 p-6 space-y-4"
-          >
-            <h2 class="text-xl font-semibold text-red-700 dark:text-red-400">
-              Danger Zone
-            </h2>
-            <p class="text-sm text-slate-600 dark:text-slate-400">
-              Permanently delete this team together with all its counters and
-              dashboards. This action cannot be undone.
-            </p>
-            <button
-              type="button"
-              bind:this={deleteButton}
-              onclick={openDeleteModal}
-              class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-semibold"
-            >
-              Delete team
-            </button>
-          </section>
+        {:else}
+          {@render memberList()}
         {/if}
       </div>
     {/if}
   </div>
 </div>
+
+{#snippet inviteSection()}
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+      Invite member
+    </h2>
+    <form onsubmit={handleInvite} class="flex gap-2 items-end">
+      <div class="flex-1">
+        <label
+          class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+          for="team-invite-username">Username</label
+        >
+        <input
+          id="team-invite-username"
+          type="text"
+          bind:value={inviteUsername}
+          placeholder="username"
+          autocomplete="off"
+          class="w-full h-9 rounded-md border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 px-3 text-sm focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:placeholder:text-slate-500 dark:focus:border-blue-400"
+        />
+      </div>
+      <div>
+        <label
+          class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+          for="team-invite-role">Role</label
+        >
+        <select id="team-invite-role" bind:value={inviteRole} class={selectClass}>
+          {#each inviteRoleOptions as r (r)}
+            <option value={r}>{teamRoleLabels[r]}</option>
+          {/each}
+        </select>
+      </div>
+      <button
+        type="submit"
+        disabled={isInviting || !inviteUsername.trim()}
+        class="h-9 px-4 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition disabled:opacity-50"
+      >
+        Invite
+      </button>
+    </form>
+
+    <div aria-live="polite">
+      {#if inviteError}
+        <p role="alert" class="text-sm text-red-600 dark:text-red-400">
+          {inviteError}
+        </p>
+      {/if}
+      {#if inviteSuccess}
+        <p class="text-sm text-green-600 dark:text-green-400">
+          {inviteSuccess}
+        </p>
+      {/if}
+    </div>
+  </section>
+{/snippet}
+
+{#snippet invitationsSection()}
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+      Pending invitations
+    </h2>
+    <ul class="divide-y divide-slate-200 dark:divide-slate-700">
+      {#each data.invitations as invitation (invitation.id)}
+        {@const label = invitation.username ?? "Unknown"}
+        <li class="flex items-center justify-between gap-3 py-3">
+          <div class="flex items-center gap-3 min-w-0">
+            {#if invitation.image}
+              <img src={invitation.image} alt="" class="w-8 h-8 rounded-full" />
+            {:else}
+              <div
+                class="w-8 h-8 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+              >
+                {(invitation.username ?? "?")[0]}
+              </div>
+            {/if}
+            <div class="min-w-0">
+              <p
+                class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate"
+              >
+                {label}
+              </p>
+              {#if invitation.inviterUsername}
+                <p class="text-xs text-slate-400 dark:text-slate-500">
+                  Invited by @{invitation.inviterUsername}
+                </p>
+              {/if}
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            {#if canAssignTeamRole(data.role, invitation.role, null)}
+              <select
+                value={invitation.role}
+                aria-label="Role for invitation to {label}"
+                onchange={(e) =>
+                  handleInvitationRoleChange(
+                    e.currentTarget,
+                    invitation.userId,
+                    invitation.role,
+                  )}
+                class={selectClass}
+              >
+                {#each assignableRoles(invitation.role) as r (r)}
+                  <option value={r}>{teamRoleLabels[r]}</option>
+                {/each}
+              </select>
+              <button
+                type="button"
+                onclick={() => handleCancelInvitation(invitation.userId)}
+                class="p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Cancel invitation for {label}"
+              >
+                <ion-icon name="close-outline" style="font-size: 18px;"
+                ></ion-icon>
+              </button>
+            {:else}
+              <span
+                class="text-xs px-2 py-0.5 rounded-full {roleBadgeClass(
+                  invitation.role,
+                )}"
+              >
+                {teamRoleLabels[invitation.role]}
+              </span>
+            {/if}
+          </div>
+        </li>
+      {/each}
+    </ul>
+  </section>
+{/snippet}
+
+{#snippet joinLinkSection()}
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+      Join link
+    </h2>
+    <p class="text-sm text-slate-600 dark:text-slate-400">
+      Anyone signed in with this link can join the team.
+    </p>
+    <Switch
+      bind:checked={() => joinEnabled, (v) => setJoinLinkEnabled(v)}
+      label="Enable join link"
+      disabled={isUpdatingJoinLink}
+    />
+
+    {#if joinEnabled}
+      <div class="flex items-center gap-2">
+        <p
+          class="flex-1 min-w-0 text-sm text-slate-500 bg-slate-50 rounded-md px-3 py-2 font-mono select-all truncate dark:text-slate-400 dark:bg-slate-700"
+          data-testid="team-join-url"
+        >
+          {joinUrl}
+        </p>
+        <button
+          type="button"
+          onclick={copyJoinLink}
+          class="shrink-0 px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700"
+        >
+          {#if copySuccess}
+            <ion-icon
+              name="checkmark-outline"
+              style="font-size: 16px;"
+              class="text-green-600 dark:text-green-400"
+            ></ion-icon>
+            Copied
+          {:else}
+            <ion-icon name="copy-outline" style="font-size: 16px;"></ion-icon>
+            Copy
+          {/if}
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <label
+            class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+            for="team-join-role">Joins as</label
+          >
+          <select
+            id="team-join-role"
+            value={data.joinRole ?? "viewer"}
+            onchange={(e) => handleJoinRoleChange(e.currentTarget)}
+            class={selectClass}
+          >
+            {#each joinLinkRoles as r (r)}
+              <option value={r}>{teamRoleLabels[r]}</option>
+            {/each}
+          </select>
+        </div>
+        <button
+          type="button"
+          bind:this={resetButton}
+          onclick={openResetModal}
+          disabled={isUpdatingJoinLink}
+          class="px-3 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 transition inline-flex items-center gap-1.5 dark:border-slate-600 dark:hover:bg-slate-700 disabled:opacity-50"
+        >
+          <ion-icon name="refresh-outline" style="font-size: 16px;"></ion-icon>
+          Reset link
+        </button>
+      </div>
+    {/if}
+
+    <div aria-live="polite">
+      {#if joinLinkError}
+        <p role="alert" class="text-sm text-red-600 dark:text-red-400">
+          {joinLinkError}
+        </p>
+      {/if}
+    </div>
+  </section>
+{/snippet}
+
+{#snippet memberList()}
+  <section class="space-y-4">
+    <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+      Members
+    </h2>
+    <ul class="divide-y divide-slate-200 dark:divide-slate-700">
+      {#each data.members as member (member.userId)}
+        {@const label = member.username ?? "Unknown"}
+        {@const isSelf = member.userId === currentUserId}
+        {@const canModify =
+          data.canManage && canAssignTeamRole(data.role, member.role, null)}
+        <li class="flex items-center justify-between gap-3 py-3">
+          <div class="flex items-center gap-3 min-w-0">
+            {#if member.image}
+              <img src={member.image} alt="" class="w-8 h-8 rounded-full" />
+            {:else}
+              <div
+                class="w-8 h-8 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+              >
+                {(member.username ?? "?")[0]}
+              </div>
+            {/if}
+            <div class="min-w-0">
+              <p
+                class="text-sm font-medium text-slate-900 dark:text-slate-100 truncate"
+              >
+                {label}
+                {#if isSelf}
+                  <span
+                    class="text-xs font-normal text-slate-400 dark:text-slate-500"
+                    >(you)</span
+                  >
+                {/if}
+              </p>
+              <p class="text-xs text-slate-400 dark:text-slate-500">
+                {#if member.username}@{member.username} ·
+                {/if}Joined {new Date(member.joinedAt).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            {#if canModify}
+              <select
+                value={member.role}
+                aria-label="Role for {label}"
+                onchange={(e) =>
+                  handleMemberRoleChange(
+                    e.currentTarget,
+                    member.userId,
+                    member.role,
+                  )}
+                class={selectClass}
+              >
+                {#each assignableRoles(member.role) as r (r)}
+                  <option value={r}>{teamRoleLabels[r]}</option>
+                {/each}
+              </select>
+              {#if !isSelf}
+                <button
+                  type="button"
+                  onclick={() => handleRemoveMember(member.userId)}
+                  class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                  aria-label="Remove {label}"
+                >
+                  Remove
+                </button>
+              {/if}
+            {:else}
+              <span
+                class="text-xs px-2 py-0.5 rounded-full {roleBadgeClass(
+                  member.role,
+                )}"
+              >
+                {teamRoleLabels[member.role]}
+              </span>
+            {/if}
+          </div>
+        </li>
+      {/each}
+    </ul>
+  </section>
+{/snippet}
 
 <Modal
   bind:open={showLeaveModal}
@@ -1042,63 +898,13 @@
   </div>
 </Modal>
 
-<Modal
-  bind:open={showDeleteModal}
-  title="Delete team?"
-  describedBy="delete-team-description"
-  onclose={() => deleteButton?.focus()}
->
-  <form onsubmit={handleDelete} class="space-y-4">
-    <div id="delete-team-description" class="space-y-2">
-      <p class="text-sm text-slate-700 dark:text-slate-300">
-        All {counterTotal}
-        {counterTotal === 1 ? "counter" : "counters"} and {dashboardTotal}
-        {dashboardTotal === 1 ? "dashboard" : "dashboards"} in this team will be
-        permanently deleted.
-      </p>
-      <p class="text-sm font-semibold text-red-600 dark:text-red-400">
-        This action cannot be undone.
-      </p>
-    </div>
-    <div>
-      <label
-        for="delete-team-confirm"
-        class="block text-sm text-slate-700 dark:text-slate-300 mb-1"
-      >
-        Type <span class="font-semibold">{data.team.name}</span> to confirm
-      </label>
-      <input
-        id="delete-team-confirm"
-        type="text"
-        bind:this={deleteInput}
-        bind:value={deleteConfirmName}
-        placeholder={data.team.name}
-        autocomplete="off"
-        class="w-full px-3 py-2 border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:border-red-500 dark:focus:border-red-400 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
-      />
-    </div>
-    <div aria-live="polite">
-      {#if deleteError}
-        <p role="alert" class="text-sm text-red-600 dark:text-red-400">
-          {deleteError}
-        </p>
-      {/if}
-    </div>
-    <div class="flex items-center justify-end gap-3">
-      <button
-        type="button"
-        onclick={closeDeleteModal}
-        class="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        disabled={!canConfirmDelete || isDeleting}
-        class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-red-700"
-      >
-        {isDeleting ? "Deleting…" : "Delete team"}
-      </button>
-    </div>
-  </form>
-</Modal>
+{#if data.canManage}
+  <TeamSettingsOverlay
+    bind:open={showSettings}
+    team={data.team}
+    canDelete={data.canDelete}
+    counterCount={data.resources.counters.length}
+    dashboardCount={data.resources.dashboards.length}
+    onclose={() => settingsButton?.focus()}
+  />
+{/if}

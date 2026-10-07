@@ -2,6 +2,10 @@ import { error, json } from "@sveltejs/kit";
 import { and, eq, gte, ilike, sql } from "drizzle-orm";
 import { db } from "$lib/db";
 import { counters, platformEvents, users } from "$lib/db/schema";
+import {
+  knownUsernameCondition,
+  USER_NAME_METADATA_KEY,
+} from "$lib/server/event-metadata";
 import { hasPermission } from "$lib/server/permissions";
 import type { RequestHandler } from "./$types";
 
@@ -183,30 +187,24 @@ async function handleUserIdValues(query: string, limit: number, since: Date) {
   if (query) {
     const escaped = escapeIlike(query);
     conditions.push(
-      sql`(${users.name} ILIKE ${`${escaped}%`} OR ${users.username} ILIKE ${`${escaped}%`} OR ${platformEvents.userId} ILIKE ${`${escaped}%`})`,
+      sql`(${users.username} ILIKE ${`${escaped}%`} OR ${platformEvents.userId} ILIKE ${`${escaped}%`})`,
     );
   }
 
   const rows = await db
     .select({
       value: platformEvents.userId,
-      name: users.name,
       username: users.username,
     })
     .from(platformEvents)
     .leftJoin(users, eq(platformEvents.userId, users.id))
     .where(and(...conditions))
-    .groupBy(platformEvents.userId, users.name, users.username)
+    .groupBy(platformEvents.userId, users.username)
     .orderBy(platformEvents.userId)
     .limit(limit);
 
   const values = rows.map((r) => {
-    const label =
-      r.name && r.username
-        ? `${r.name} (@${r.username})`
-        : r.username
-          ? `@${r.username}`
-          : (r.value ?? "");
+    const label = r.username ? `@${r.username}` : (r.value ?? "");
     return { value: r.value ?? "", label };
   });
 
@@ -251,6 +249,9 @@ async function handleMetadataValues(
     gte(platformEvents.createdAt, since),
     sql`${metaExpr} IS NOT NULL`,
   ];
+  if (field === USER_NAME_METADATA_KEY) {
+    conditions.push(knownUsernameCondition(metaExpr));
+  }
 
   if (query) {
     const escaped = escapeIlike(query);

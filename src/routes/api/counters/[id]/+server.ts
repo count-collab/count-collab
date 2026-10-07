@@ -189,7 +189,7 @@ export const POST: RequestHandler = async ({
             counter_title: counter.title,
             goal_amount: g.amount,
             goal_description: g.description,
-            user_name: session?.user?.username ?? session?.user?.name ?? null,
+            user_name: session?.user?.username ?? null,
           },
         });
       }
@@ -226,7 +226,7 @@ export const POST: RequestHandler = async ({
     }
   }
 
-  const username = session?.user?.username ?? session?.user?.name ?? null;
+  const username = session?.user?.username ?? null;
   const cooldownSeconds = cooldownCheck.cooldownSeconds;
   emitCounterUpdate(
     updated.id,

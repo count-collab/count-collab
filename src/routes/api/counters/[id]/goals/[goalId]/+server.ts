@@ -130,7 +130,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
       counter_id: params.id,
       goal_amount: result[0].amount,
       goal_description: result[0].description,
-      user_name: session.user.username ?? session.user.name ?? null,
+      user_name: session.user.username ?? null,
     },
   });
   return new Response(null, { status: 204 });

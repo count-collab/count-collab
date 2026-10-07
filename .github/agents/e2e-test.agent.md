@@ -21,7 +21,7 @@ e2e/
 ├── auth-helpers.ts                         # Seed user + DB session, login a context via authjs.session-token cookie
 ├── homepage.test.ts                        # Homepage/landing page flow
 ├── private-counter-cooldown.test.ts        # Private counter cooldown behavior
-├── teams.test.ts                           # Teams: access, invites, join link, transfer, deletion
+├── teams.test.ts                           # Teams: access, invites, join link, transfer, deletion (waitForHydration before UI clicks)
 └── admin-statistics-shareable-url.test.ts  # Shareable admin statistics URL state
 playwright.config.ts
 ```

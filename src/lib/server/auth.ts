@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { accounts, sessions, users, verificationTokens } from "$lib/db/schema";
 import { logEvent } from "$lib/server/events";
+import { toClientSessionUser } from "$lib/server/session-user";
 
 // Type assertion needed: drizzle-orm 0.29.x columns lack metadata fields
 // (isAutoincrement, isPrimaryKey, etc.) that @auth/drizzle-adapter 1.x expects.
@@ -46,13 +47,7 @@ export const {
         .from(users)
         .where(eq(users.id, user.id));
 
-      if (dbUser) {
-        session.user.id = dbUser.id;
-        session.user.username = dbUser.username;
-        session.user.roleId = dbUser.roleId;
-      }
-
-      return session;
+      return { ...session, user: toClientSessionUser(session.user, dbUser) };
     },
   },
   trustHost: true,
@@ -64,7 +59,6 @@ export const {
         entityId: user.id ?? null,
         entityType: "user",
         metadata: {
-          user_name: user.name ?? null,
           email: user.email ?? null,
         },
       });

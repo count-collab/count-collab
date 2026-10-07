@@ -2,6 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "$lib/db";
 import { counters, platformEvents, users } from "$lib/db/schema";
+import { sanitizeEventMetadata } from "$lib/server/event-metadata";
 import { hasPermission } from "$lib/server/permissions";
 import type { RequestHandler } from "./$types";
 
@@ -106,7 +107,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         entityType: platformEvents.entityType,
         metadata: platformEvents.metadata,
         createdAt: platformEvents.createdAt,
-        userName: users.name,
         userUsername: users.username,
         userImage: users.image,
       })
@@ -179,7 +179,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     totalPages: Math.ceil(total / PAGE_SIZE),
     queryDurationMs,
     events: events.map((e) => {
-      const meta = e.metadata as Record<string, unknown> | null;
+      const meta = sanitizeEventMetadata(
+        e.eventType,
+        e.metadata as Record<string, unknown> | null,
+        e.userUsername,
+      );
       let enrichedMeta = meta;
 
       // Inject counter_title if we have one and it's missing
@@ -216,7 +220,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         createdAt: e.createdAt,
         user: e.userId
           ? {
-              name: e.userName,
               username: e.userUsername,
               image: e.userImage,
             }

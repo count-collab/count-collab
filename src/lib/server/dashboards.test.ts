@@ -112,7 +112,7 @@ describe("listAllDashboards", () => {
     expect(result.items[0].title).toBe("My Board");
   });
 
-  it("falls back to display name when username is null", async () => {
+  it("never falls back to the full name when username is null", async () => {
     const dashboard = makeDashboard({ title: "Fallback" });
     mockOffset.mockResolvedValue([
       { dashboard, ownerUsername: null, ownerDisplayName: "Jane Doe" },
@@ -122,7 +122,8 @@ describe("listAllDashboards", () => {
     const result = await listAllDashboards();
 
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].ownerName).toBe("Jane Doe");
+    expect(result.items[0].ownerName).toBeNull();
+    expect(JSON.stringify(result)).not.toContain("Jane Doe");
   });
 
   it("returns ownerName as null when no owner exists", async () => {

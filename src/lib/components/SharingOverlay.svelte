@@ -6,7 +6,6 @@
     userId: string;
     role: string;
     username: string | null;
-    name: string | null;
     image: string | null;
   };
 
@@ -15,7 +14,6 @@
     userId: string;
     role: string;
     username: string | null;
-    name: string | null;
     image: string | null;
     inviterUsername: string | null;
     createdAt: string | Date;
@@ -444,7 +442,7 @@
                       <p
                         class="text-sm font-medium text-slate-900 dark:text-slate-100"
                       >
-                        {invitation.username ?? invitation.name ?? "Unknown"}
+                        {invitation.username ?? "Unknown"}
                       </p>
                       {#if invitation.inviterUsername}
                         <p class="text-xs text-slate-400 dark:text-slate-500">
@@ -537,7 +535,7 @@
                       <p
                         class="text-sm font-medium text-slate-900 dark:text-slate-100"
                       >
-                        {member.username ?? member.name ?? "Unknown"}
+                        {member.username ?? "Unknown"}
                       </p>
                     </div>
                     <div class="flex items-center gap-2">

@@ -557,7 +557,6 @@ export async function listAllCounters(
       .select({
         counter: countersTable,
         ownerUsername: users.username,
-        ownerDisplayName: users.name,
         actionCount,
       })
       .from(countersTable)
@@ -571,7 +570,7 @@ export async function listAllCounters(
 
   const items = rows.map((row) => ({
     ...row.counter,
-    ownerName: row.ownerUsername ?? row.ownerDisplayName ?? null,
+    ownerName: row.ownerUsername ?? null,
     actionCount: Number(row.actionCount),
   }));
 

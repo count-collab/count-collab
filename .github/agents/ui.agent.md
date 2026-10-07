@@ -32,6 +32,7 @@ src/lib/components/
 ├── RollingNumber.svelte    # Animated number transitions for count display
 ├── SoleOwnedTeamsWarning.svelte # Account-deletion warning for sole-owned teams
 ├── Sparkline.svelte        # Inline sparkline chart for counter trends
+├── TeamSettingsOverlay.svelte # Team name/description + danger zone dialog (mirrors CounterSettingsOverlay)
 ├── ThemeToggle.svelte      # Light/dark theme toggle
 └── TransferOwnershipSection.svelte # Move counter/dashboard to/from a team (settings overlays)
 ```
@@ -43,12 +44,12 @@ src/routes/
 ├── +page.svelte              # Landing page with public counters
 ├── c/[id]/[[slug]]/+page.svelte # Counter detail page (core UX)
 ├── counters/+page.svelte     # Browse/search public counters
-├── create/+page.svelte       # Unified creation wizard (counter + dashboard)
+├── create/+page.svelte       # Creation wizard: type (counter/dashboard/team) → owner (Me/Team, if user has editor+ teams) → visibility → mode → details; team branch: name → invites → team page
 ├── d/[id]/+page.svelte       # Dashboard detail page
 ├── dashboards/+page.svelte   # Browse public dashboards
 ├── my-counters/+page.svelte  # User's counters list
-├── my/teams/+page.svelte     # User's teams + create team modal
-├── t/[id]/[[slug]]/+page.svelte # Team page (Counters / Dashboards / Members / Settings tabs)
+├── my/teams/+page.svelte     # User's teams (create CTA → /create?type=team)
+├── t/[id]/[[slug]]/+page.svelte # Team page (Counters / Dashboards / Members tabs, settings gear → TeamSettingsOverlay)
 ├── t/[id]/join/+page.svelte  # Join team via link
 ├── admin/+page.svelte        # Admin dashboard
 ├── admin/counters/+page.svelte # Admin counter management

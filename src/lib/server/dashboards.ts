@@ -331,7 +331,6 @@ export async function listAllDashboards(
       .select({
         dashboard: dashboardsTable,
         ownerUsername: users.username,
-        ownerDisplayName: users.name,
       })
       .from(dashboardsTable)
       .leftJoin(users, eq(dashboardsTable.ownerId, users.id))
@@ -344,7 +343,7 @@ export async function listAllDashboards(
 
   const items = rows.map((row) => ({
     ...row.dashboard,
-    ownerName: row.ownerUsername ?? row.ownerDisplayName ?? null,
+    ownerName: row.ownerUsername ?? null,
   }));
 
   return { items, total: Number(total) };

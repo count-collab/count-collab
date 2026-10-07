@@ -105,10 +105,13 @@ Clients re-run their loads (`invalidateAll`) on `team:membership-changed`; users
 
 | Route              | Purpose                                                   |
 | ------------------ | --------------------------------------------------------- |
-| `/my/teams`        | Your teams, create team                                   |
-| `/t/[id]/[[slug]]` | Team page (Counters / Dashboards / Members / Settings)    |
+| `/my/teams`        | Your teams (also linked as "Teams" in the top nav)        |
+| `/create?type=team`| Create team wizard: name → optional invites → team page   |
+| `/t/[id]/[[slug]]` | Team page (Counters / Dashboards / Members tabs; settings dialog via header gear) |
 | `/t/[id]/join`     | Join via link                                             |
 | `/admin/teams`     | Platform admin team list                                  |
+
+In the `/create` wizard, users with at least one team where they are editor+ get an **Owner** step (Me / Team) for counters and dashboards. Team-owned items default to `private` visibility.
 
 ## API Endpoints
 

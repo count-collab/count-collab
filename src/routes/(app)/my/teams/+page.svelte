@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { goto } from "$app/navigation";
   import MetaTags from "$lib/components/MetaTags.svelte";
-  import Modal from "$lib/components/Modal.svelte";
   import { slugify } from "$lib/counter";
   import { teamRoleLabels } from "$lib/roles";
   import type { PageData } from "./$types";
@@ -16,83 +14,6 @@
   };
   const defaultRoleBadgeClass =
     "bg-slate-50 text-slate-600 ring-1 ring-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-600/60";
-
-  type CreateErrors = { name?: string; description?: string; general?: string };
-
-  let showCreateModal = $state(false);
-  let name = $state("");
-  let description = $state("");
-  let createErrors = $state<CreateErrors>({});
-  let isCreating = $state(false);
-  let nameInput = $state<HTMLInputElement | null>(null);
-  let createButton = $state<HTMLButtonElement | null>(null);
-
-  function openCreateModal() {
-    name = "";
-    description = "";
-    createErrors = {};
-    showCreateModal = true;
-    setTimeout(() => nameInput?.focus(), 50);
-  }
-
-  function closeCreateModal() {
-    showCreateModal = false;
-    createButton?.focus();
-  }
-
-  async function handleCreate(event: SubmitEvent) {
-    event.preventDefault();
-    if (isCreating) return;
-
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      createErrors = { name: "Name is required" };
-      nameInput?.focus();
-      return;
-    }
-
-    isCreating = true;
-    createErrors = {};
-
-    try {
-      const response = await fetch("/api/teams", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: trimmedName,
-          description: description.trim() || undefined,
-        }),
-      });
-      const body = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          createErrors = {
-            general: `You're creating teams too quickly. Please wait ${body.retryAfterSeconds ?? 60}s and try again.`,
-          };
-          return;
-        }
-        if (body.errors) {
-          createErrors = {
-            name: body.errors.name?.[0],
-            description: body.errors.description?.[0],
-          };
-          return;
-        }
-        createErrors = {
-          general: body.error ?? body.message ?? "Failed to create team.",
-        };
-        return;
-      }
-
-      showCreateModal = false;
-      await goto(`/t/${body.id}/${slugify(body.name)}`);
-    } catch {
-      createErrors = { general: "Network error. Please try again." };
-    } finally {
-      isCreating = false;
-    }
-  }
 </script>
 
 <MetaTags
@@ -113,15 +34,13 @@
         {data.teams.length}
       </span>
     </div>
-    <button
-      type="button"
-      bind:this={createButton}
-      onclick={openCreateModal}
+    <a
+      href="/create?type=team"
       class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-flex items-center gap-1.5"
     >
       <ion-icon name="add-outline" style="font-size: 16px;"></ion-icon>
       Create team
-    </button>
+    </a>
   </div>
 
   {#if data.teams.length === 0}
@@ -136,14 +55,13 @@
       <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
         Share a group of counters and dashboards with the same people.
       </p>
-      <button
-        type="button"
-        onclick={openCreateModal}
+      <a
+        href="/create?type=team"
         class="mt-3 inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"
       >
         <ion-icon name="add-circle-outline" style="font-size: 16px;"></ion-icon>
         Create your first team
-      </button>
+      </a>
     </div>
   {:else}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -197,100 +115,3 @@
     </div>
   {/if}
 </section>
-
-<Modal
-  bind:open={showCreateModal}
-  title="Create team"
-  onclose={() => createButton?.focus()}
->
-  <form onsubmit={handleCreate} class="space-y-4" novalidate>
-    <div aria-live="polite">
-      {#if createErrors.general}
-        <p
-          role="alert"
-          class="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-400"
-        >
-          {createErrors.general}
-        </p>
-      {/if}
-    </div>
-
-    <div>
-      <label
-        for="create-team-name"
-        class="block text-sm text-slate-700 dark:text-slate-300 mb-1"
-      >
-        Name
-      </label>
-      <input
-        id="create-team-name"
-        type="text"
-        bind:this={nameInput}
-        bind:value={name}
-        required
-        maxlength={50}
-        autocomplete="off"
-        aria-invalid={createErrors.name ? "true" : undefined}
-        aria-describedby={createErrors.name ? "create-team-name-error" : undefined}
-        class="w-full px-3 py-2 border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
-      />
-      {#if createErrors.name}
-        <p
-          id="create-team-name-error"
-          role="alert"
-          class="mt-1 text-sm text-red-600 dark:text-red-400"
-        >
-          {createErrors.name}
-        </p>
-      {/if}
-    </div>
-
-    <div>
-      <label
-        for="create-team-description"
-        class="block text-sm text-slate-700 dark:text-slate-300 mb-1"
-      >
-        Description <span class="text-slate-400 dark:text-slate-500"
-          >(optional)</span
-        >
-      </label>
-      <textarea
-        id="create-team-description"
-        bind:value={description}
-        maxlength={500}
-        rows={3}
-        aria-invalid={createErrors.description ? "true" : undefined}
-        aria-describedby={createErrors.description
-          ? "create-team-description-error"
-          : undefined}
-        class="w-full px-3 py-2 border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
-      ></textarea>
-      {#if createErrors.description}
-        <p
-          id="create-team-description-error"
-          role="alert"
-          class="mt-1 text-sm text-red-600 dark:text-red-400"
-        >
-          {createErrors.description}
-        </p>
-      {/if}
-    </div>
-
-    <div class="flex items-center justify-end gap-3">
-      <button
-        type="button"
-        onclick={closeCreateModal}
-        class="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        disabled={isCreating}
-        class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700"
-      >
-        {isCreating ? "Creating…" : "Create team"}
-      </button>
-    </div>
-  </form>
-</Modal>

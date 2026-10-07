@@ -23,14 +23,12 @@ import { emitInvitationCreated } from "$lib/utils/socket";
 
 type InvitationWithUser = CounterInvitation & {
   username: string | null;
-  name: string | null;
   image: string | null;
   inviterUsername: string | null;
 };
 
 type TeamInvitationWithUser = TeamInvitation & {
   username: string | null;
-  name: string | null;
   image: string | null;
   inviterUsername: string | null;
 };
@@ -48,7 +46,6 @@ const teamInvitationWithUserFields = {
   role: teamInvitations.role,
   createdAt: teamInvitations.createdAt,
   username: users.username,
-  name: users.name,
   image: users.image,
   inviterUsername: inviterAlias.username,
 };
@@ -87,7 +84,6 @@ export async function createCounterInvitation(
       role: counterInvitations.role,
       createdAt: counterInvitations.createdAt,
       username: users.username,
-      name: users.name,
       image: users.image,
       inviterUsername: inviterAlias.username,
     })
@@ -170,7 +166,6 @@ export async function updateCounterInvitationRole(
       role: counterInvitations.role,
       createdAt: counterInvitations.createdAt,
       username: users.username,
-      name: users.name,
       image: users.image,
       inviterUsername: inviterAlias.username,
     })
@@ -194,7 +189,6 @@ export async function getCounterInvitations(
       role: counterInvitations.role,
       createdAt: counterInvitations.createdAt,
       username: users.username,
-      name: users.name,
       image: users.image,
       inviterUsername: inviterAlias.username,
     })

@@ -2,6 +2,10 @@ import { error, json } from "@sveltejs/kit";
 import { and, count as countFn, desc, eq, gte, sql } from "drizzle-orm";
 import { db } from "$lib/db";
 import { platformEvents, users } from "$lib/db/schema";
+import {
+  knownUsernameCondition,
+  USER_NAME_METADATA_KEY,
+} from "$lib/server/event-metadata";
 import { hasPermission } from "$lib/server/permissions";
 import type { RequestHandler } from "./$types";
 
@@ -135,14 +139,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         .select({
           value: column,
           count: countFn().as("count"),
-          name: users.name,
           username: users.username,
           image: users.image,
         })
         .from(platformEvents)
         .leftJoin(users, eq(platformEvents.userId, users.id))
         .where(and(...conditions))
-        .groupBy(column, users.name, users.username, users.image)
+        .groupBy(column, users.username, users.image)
         .orderBy(desc(countFn()))
         .limit(limit)
         .offset(offset),
@@ -152,7 +155,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     values = rows.map((r) => ({
       value: r.value,
       count: Number(r.count),
-      label: r.name ?? r.username ?? r.value,
+      label: r.username ?? r.value,
       extra: { username: r.username, image: r.image },
     }));
   } else if (isStandard) {
@@ -188,6 +191,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     // Metadata sub-field aggregation
     const metaExpr = sql`(CASE WHEN jsonb_typeof(${platformEvents.metadata}) = 'object' THEN ${platformEvents.metadata} ELSE (${platformEvents.metadata} #>> '{}')::jsonb END)->>${sql.raw(`'${field.replace(/'/g, "''")}'`)}`;
     const metaConditions = [...conditions, sql`${metaExpr} IS NOT NULL`];
+    if (field === USER_NAME_METADATA_KEY) {
+      metaConditions.push(knownUsernameCondition(metaExpr));
+    }
 
     const [countResult, rows] = await Promise.all([
       db

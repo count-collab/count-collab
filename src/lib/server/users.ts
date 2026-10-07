@@ -30,7 +30,6 @@ function escapeLikePattern(input: string): string {
 
 type UserWithRole = {
   id: string;
-  name: string | null;
   email: string | null;
   image: string | null;
   username: string | null;
@@ -53,7 +52,6 @@ export async function listUsers(
   const whereClause = searchQuery
     ? or(
         ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
         ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
       )
     : undefined;
@@ -75,7 +73,6 @@ export async function listUsers(
     db
       .select({
         id: users.id,
-        name: users.name,
         email: users.email,
         image: users.image,
         username: users.username,
@@ -120,7 +117,7 @@ export async function deleteUser(
 ): Promise<boolean> {
   // Fetch user info before deletion for event logging
   const [existing] = await db
-    .select({ name: users.name, username: users.username, email: users.email })
+    .select({ username: users.username, email: users.email })
     .from(users)
     .where(eq(users.id, userId));
 
@@ -153,7 +150,7 @@ export async function deleteUser(
       entityId: userId,
       entityType: "user",
       metadata: {
-        user_name: existing?.username ?? existing?.name ?? null,
+        user_name: existing?.username ?? null,
         email: existing?.email ?? null,
       },
     });
@@ -167,7 +164,7 @@ export async function deleteUser(
  */
 export async function getUserByUsername(username: string) {
   const [user] = await db
-    .select()
+    .select({ id: users.id, username: users.username })
     .from(users)
     .where(eq(users.username, username));
   return user ?? null;
@@ -272,7 +269,6 @@ export async function getUserDetail(
   const [user] = await db
     .select({
       id: users.id,
-      name: users.name,
       email: users.email,
       image: users.image,
       username: users.username,

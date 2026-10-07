@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockListEditableTeams } = vi.hoisted(() => ({
-  mockListEditableTeams: vi.fn(),
+const { mockListUserTeams } = vi.hoisted(() => ({
+  mockListUserTeams: vi.fn(),
 }));
 
 vi.mock("$lib/server/teams", () => ({
-  listEditableTeams: mockListEditableTeams,
+  listUserTeams: mockListUserTeams,
 }));
 
 import { load } from "./+page.server";
@@ -19,8 +19,22 @@ function callLoad(userId: string | null, search = "") {
   } as unknown as Parameters<typeof load>[0]);
 }
 
+function userTeam(id: string, name: string, role: string) {
+  return {
+    id,
+    name,
+    description: null,
+    createdAt: new Date(),
+    role,
+    memberCount: 3,
+    counterCount: 2,
+    dashboardCount: 1,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mockListUserTeams.mockResolvedValue([]);
 });
 
 describe("/create load", () => {
@@ -29,16 +43,61 @@ describe("/create load", () => {
       preselectedType: "counter",
       teams: [],
     });
-    expect(mockListEditableTeams).not.toHaveBeenCalled();
+    expect(mockListUserTeams).not.toHaveBeenCalled();
   });
 
-  it("returns the user's editable teams", async () => {
-    mockListEditableTeams.mockResolvedValue([{ id: "t-1", name: "Alpha" }]);
+  it.each([
+    ["?type=counter", "counter"],
+    ["?type=dashboard", "dashboard"],
+    ["?type=team", "team"],
+    ["?type=bogus", null],
+    ["", null],
+  ])("logged-in %s -> %s", async (search, expected) => {
+    const result = await callLoad("user-1", search);
+    expect(result?.preselectedType).toBe(expected);
+  });
 
-    expect(await callLoad("user-1", "?type=bogus")).toEqual({
-      preselectedType: null,
-      teams: [{ id: "t-1", name: "Alpha" }],
-    });
-    expect(mockListEditableTeams).toHaveBeenCalledWith("user-1");
+  it("ignores type=team for anonymous users", async () => {
+    const result = await callLoad(null, "?type=team");
+    expect(result?.preselectedType).toBeNull();
+  });
+
+  it("returns only editor+ teams with stats, in listUserTeams order", async () => {
+    mockListUserTeams.mockResolvedValue([
+      userTeam("t-1", "Alpha", "owner"),
+      userTeam("t-2", "Beta", "viewer"),
+      userTeam("t-3", "Gamma", "editor"),
+      userTeam("t-4", "Delta", "admin"),
+    ]);
+
+    const result = await callLoad("user-1");
+
+    expect(mockListUserTeams).toHaveBeenCalledWith("user-1");
+    expect(result?.teams).toEqual([
+      {
+        id: "t-1",
+        name: "Alpha",
+        role: "owner",
+        memberCount: 3,
+        counterCount: 2,
+        dashboardCount: 1,
+      },
+      {
+        id: "t-3",
+        name: "Gamma",
+        role: "editor",
+        memberCount: 3,
+        counterCount: 2,
+        dashboardCount: 1,
+      },
+      {
+        id: "t-4",
+        name: "Delta",
+        role: "admin",
+        memberCount: 3,
+        counterCount: 2,
+        dashboardCount: 1,
+      },
+    ]);
   });
 });

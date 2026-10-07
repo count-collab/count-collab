@@ -128,24 +128,33 @@ describe("Team page", () => {
     expect(container.textContent).toContain("Editor");
   });
 
-  it.each(["viewer", "incrementer", "editor"] as const)(
-    "hides the Settings tab for %s",
+  it.each(["viewer", "incrementer", "editor", "admin", "owner"] as const)(
+    "shows only Counters, Dashboards and Members tabs for %s",
     (role) => {
       renderPage(role);
       expect(tabNames()).toEqual(["Counters", "Dashboards", "Members"]);
     },
   );
 
-  it.each(["admin", "owner"] as const)(
-    "shows the Settings tab for %s",
+  it.each(["viewer", "incrementer", "editor"] as const)(
+    "hides the settings button for %s",
     (role) => {
       renderPage(role);
-      expect(tabNames()).toEqual([
-        "Counters",
-        "Dashboards",
-        "Members",
-        "Settings",
-      ]);
+      expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
+    },
+  );
+
+  it.each(["admin", "owner"] as const)(
+    "opens the settings overlay for %s",
+    async (role) => {
+      renderPage(role);
+      expect(screen.queryByRole("dialog", { name: "Team Settings" })).toBeNull();
+      await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      const overlay = screen.getByRole("dialog", { name: "Team Settings" });
+      expect(
+        (within(overlay).getByLabelText("Team name") as HTMLInputElement)
+          .value,
+      ).toBe("The Crew");
     },
   );
 
@@ -156,7 +165,21 @@ describe("Team page", () => {
 
     renderPage("editor");
     const link = screen.getByRole("link", { name: /New counter/ });
-    expect(link.getAttribute("href")).toBe("/create?teamId=team-1");
+    expect(link.getAttribute("href")).toBe("/create?type=counter&teamId=team-1");
+  });
+
+  it("shows the New dashboard link only when resources are editable", async () => {
+    renderPage("viewer");
+    await fireEvent.click(screen.getByRole("tab", { name: /Dashboards/ }));
+    expect(screen.queryByRole("link", { name: /New dashboard/ })).toBeNull();
+    cleanup();
+
+    renderPage("editor");
+    await fireEvent.click(screen.getByRole("tab", { name: /Dashboards/ }));
+    const link = screen.getByRole("link", { name: /New dashboard/ });
+    expect(link.getAttribute("href")).toBe(
+      "/create?type=dashboard&teamId=team-1",
+    );
   });
 
   it("switches to the dashboards tab", async () => {
@@ -171,6 +194,17 @@ describe("Team page", () => {
     expect(screen.getByText("Home")).toBeTruthy();
   });
 
+  it("keeps a fixed tab bar size when switching tabs", async () => {
+    renderPage("viewer");
+    expect(screen.getByRole("tablist").className).not.toContain("overflow");
+
+    await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab.className).toContain("border-b-2");
+      expect(tab.className).not.toContain("transition-all");
+    }
+  });
+
   it("does not show member management to non-managers", async () => {
     renderPage("editor");
     await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
@@ -178,6 +212,38 @@ describe("Team page", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("button", { name: /Remove/ })).toBeNull();
     expect(screen.queryByLabelText("Username")).toBeNull();
+  });
+
+  it("shows only the member list for non-managers", async () => {
+    renderPage("editor");
+    await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
+    expect(screen.getByRole("heading", { name: "Members" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Invite member" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Join link" })).toBeNull();
+    expect(screen.queryByTestId("team-join-url")).toBeNull();
+  });
+
+  it("shows invite, invitations and join link sections for managers", async () => {
+    renderPage("admin", {
+      invitations: [
+        {
+          id: "inv-1",
+          userId: "user-9",
+          role: "viewer",
+          username: "carol",
+          name: null,
+          image: null,
+          inviterUsername: "me",
+        },
+      ],
+    });
+    await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
+    expect(screen.getByRole("heading", { name: "Invite member" })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Pending invitations" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Join link" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Members" })).toBeTruthy();
   });
 
   it("limits role options for admins to non-owner roles", async () => {
@@ -223,14 +289,16 @@ describe("Team page", () => {
 
   it("hides the danger zone for admins", async () => {
     renderPage("admin");
-    await fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
-    expect(screen.getByText("Join link")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Delete team" })).toBeNull();
+    await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const overlay = screen.getByRole("dialog", { name: "Team Settings" });
+    expect(
+      within(overlay).queryByRole("button", { name: "Delete team" }),
+    ).toBeNull();
   });
 
-  it("shows the full join URL when the join link is enabled", async () => {
+  it("shows the full join URL in the Members tab when the join link is enabled", async () => {
     renderPage("owner");
-    await fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
+    await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
     expect(screen.getByTestId("team-join-url").textContent?.trim()).toBe(
       "http://localhost/t/team-1/join?token=join-token-123",
     );
@@ -243,8 +311,11 @@ describe("Team page", () => {
         Promise.resolve({ success: true, counterIds: [], dashboardIds: [] }),
     });
     renderPage("owner");
-    await fireEvent.click(screen.getByRole("tab", { name: "Settings" }));
-    await fireEvent.click(screen.getByRole("button", { name: "Delete team" }));
+    await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    const overlay = screen.getByRole("dialog", { name: "Team Settings" });
+    await fireEvent.click(
+      within(overlay).getByRole("button", { name: "Delete team" }),
+    );
 
     const dialog = screen.getByRole("dialog", { name: "Delete team?" });
     expect(dialog.textContent?.replace(/\s+/g, " ")).toContain(

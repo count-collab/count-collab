@@ -57,14 +57,8 @@
     return visibilityBadges[mode] ?? visibilityBadges.private;
   }
 
-  function getInitials(name: string | null, username: string | null): string {
-    const source = name || username || "?";
-    return source
-      .split(/\s+/)
-      .map((w) => w[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+  function getInitials(username: string | null): string {
+    return (username?.[0] ?? "?").toUpperCase();
   }
 
   async function handleRoleChange(userId: string, roleId: number) {
@@ -93,7 +87,7 @@
 </script>
 
 <MetaTags
-  title="User: {user.username ?? user.name ?? 'Unknown'} | Count Collab"
+  title="User: {user.username ?? 'Unknown'} | Count Collab"
   description="Admin user detail"
   path="/admin/users/{user.id}"
 />
@@ -117,23 +111,20 @@
         {#if user.image}
           <img
             src={user.image}
-            alt="{user.username ?? user.name ?? 'User'} avatar"
+            alt="{user.username ?? 'User'} avatar"
             class="h-16 w-16 shrink-0 rounded-full object-cover"
           />
         {:else}
           <div
             class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xl font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300"
           >
-            {getInitials(user.name, user.username)}
+            {getInitials(user.username)}
           </div>
         {/if}
         <div>
           <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">
             {user.username ?? "—"}
           </h1>
-          {#if user.name}
-            <p class="text-sm text-slate-500 dark:text-slate-400">{user.name}</p>
-          {/if}
           {#if user.email}
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{user.email}</p>
           {/if}
@@ -297,7 +288,7 @@
     <SoleOwnedTeamsWarning teams={data.soleOwnedTeams} isSelf={false} />
   {/if}
   <p id="delete-user-description" class="text-sm text-slate-600 dark:text-slate-400">
-    Are you sure you want to delete {user.username ?? user.name ?? "this user"}?
+    Are you sure you want to delete {user.username ?? "this user"}?
     This action cannot be undone.
   </p>
   <div class="flex justify-end gap-3">

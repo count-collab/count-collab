@@ -94,10 +94,13 @@ import { DELETE, PATCH, POST } from "./+server";
 
 const VALID_ID = "11111111-1111-1111-1111-111111111111";
 
-function makeLocals(userId: string | null, name: string | null = "TestUser") {
+function makeLocals(
+  userId: string | null,
+  username: string | null = "testuser",
+) {
   return {
     auth: vi.fn(async () =>
-      userId ? { user: { id: userId, name } } : { user: null },
+      userId ? { user: { id: userId, username } } : { user: null },
     ),
   };
 }
@@ -161,7 +164,7 @@ describe("POST /api/counters/[id] (increment)", () => {
 
     expect(body.count).toBe(42);
     expect(body.cooldownSeconds).toBe(5);
-    expect(body.username).toEqual(expect.any(String));
+    expect(body.username).toBe("testuser");
     expect(mockCheckCounterCooldown).toHaveBeenCalledWith(VALID_ID, "user-1", {
       cooldownEnabled: false,
       cooldownSeconds: 0,

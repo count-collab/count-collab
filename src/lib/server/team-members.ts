@@ -17,7 +17,6 @@ import { hasPermission } from "$lib/server/permissions";
 
 export type TeamMemberWithUser = TeamMember & {
   username: string | null;
-  name: string | null;
   image: string | null;
 };
 
@@ -86,7 +85,6 @@ export async function getTeamMembers(
       role: teamMembers.role,
       joinedAt: teamMembers.joinedAt,
       username: users.username,
-      name: users.name,
       image: users.image,
     })
     .from(teamMembers)

@@ -79,7 +79,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         counter_id: params.id,
         goal_amount: amount,
         goal_description: description,
-        user_name: session.user.username ?? session.user.name ?? null,
+        user_name: session.user.username ?? null,
       },
     });
     return json(goal, { status: 201 });

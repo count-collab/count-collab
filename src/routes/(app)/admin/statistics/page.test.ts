@@ -73,7 +73,7 @@ describe("Admin statistics page URL persistence", () => {
               entityType: "counter",
               metadata: { action: "increment" },
               createdAt: "2026-05-10T12:00:00.000Z",
-              user: { name: "User", username: "user1", image: null },
+              user: { username: "user1", image: null },
             },
           ],
         });

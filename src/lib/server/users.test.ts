@@ -47,11 +47,13 @@ mockDelete.mockReturnValue({ where: mockDeleteWhere });
 mockDeleteWhere.mockReturnValue({ returning: mockDeleteReturning });
 
 import { counters, dashboards, teams, users } from "$lib/db/schema";
+import { logEvent } from "$lib/server/events";
 import {
   deleteUser,
   getAdminStats,
   getConnectedProviders,
   getUserDetail,
+  listUsers,
 } from "./users";
 
 describe("getAdminStats", () => {
@@ -117,9 +119,7 @@ describe("deleteUser", () => {
   }
 
   it("deletes personal dashboards and counters, then the user, returns true", async () => {
-    setupPersonalDeletes([
-      { name: "Test User", username: "testuser", email: "test@test.com" },
-    ]);
+    setupPersonalDeletes([{ username: "testuser", email: "test@test.com" }]);
     mockDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
 
     const result = await deleteUser("user-1");
@@ -207,6 +207,22 @@ describe("deleteUser", () => {
     );
   });
 
+  it("does not read or log the full name of the deleted user", async () => {
+    setupPersonalDeletes([{ username: null, email: "test@test.com" }]);
+    mockDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
+
+    await deleteUser("user-1");
+
+    const selection = mockSelect.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.values(selection)).not.toContain(users.name);
+    expect(logEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "user_deleted",
+        metadata: { user_name: null, email: "test@test.com" },
+      }),
+    );
+  });
+
   it("returns false when user not found", async () => {
     setupPersonalDeletes([]);
     mockDeleteReturning.mockResolvedValueOnce([]);
@@ -251,7 +267,6 @@ describe("getConnectedProviders", () => {
 describe("getUserDetail", () => {
   const mockUser = {
     id: "user-1",
-    name: "Test User",
     email: "test@example.com",
     image: null,
     username: "testuser",
@@ -301,6 +316,9 @@ describe("getUserDetail", () => {
 
     expect(result).toBeNull();
     expect(mockSelect).toHaveBeenCalledOnce();
+    const selection = mockSelect.mock.calls[0][0] as Record<string, unknown>;
+    expect(selection).not.toHaveProperty("name");
+    expect(Object.values(selection)).not.toContain(users.name);
   });
 
   it("returns complete detail when user exists", async () => {
@@ -383,5 +401,40 @@ describe("getUserDetail", () => {
     expect(result?.ownedCounters).toEqual([]);
     expect(result?.ownedDashboards).toEqual([]);
     expect(result?.actionCount).toBe(2);
+  });
+});
+
+describe("listUsers", () => {
+  const mockLimit = vi.fn();
+  const mockOffset = vi.fn();
+  const mockCountWhere = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSelect.mockReturnValueOnce({ from: mockFrom });
+    mockFrom.mockReturnValueOnce({ leftJoin: mockLeftJoin });
+    mockLeftJoin.mockReturnValueOnce({ where: mockWhere });
+    mockWhere.mockReturnValueOnce({ orderBy: mockOrderBy });
+    mockOrderBy.mockReturnValueOnce({ limit: mockLimit });
+    mockLimit.mockReturnValueOnce({ offset: mockOffset });
+    mockOffset.mockResolvedValueOnce([]);
+
+    mockSelect.mockReturnValueOnce({ from: mockFrom });
+    mockFrom.mockReturnValueOnce({ where: mockCountWhere });
+    mockCountWhere.mockResolvedValueOnce([{ total: 0 }]);
+  });
+
+  it("does not select or search by the full name", async () => {
+    await listUsers(20, "jane");
+
+    const selection = mockSelect.mock.calls[0][0] as Record<string, unknown>;
+    expect(selection).not.toHaveProperty("name");
+    expect(Object.values(selection)).not.toContain(users.name);
+
+    const whereSql = new PgDialect().sqlToQuery(mockWhere.mock.calls[0][0] as SQL)
+      .sql;
+    expect(whereSql).toContain('"user"."username"');
+    expect(whereSql).toContain('"user"."email"');
+    expect(whereSql).not.toContain('"user"."name"');
   });
 });

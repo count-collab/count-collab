@@ -3,6 +3,7 @@ import {
   type Browser,
   type BrowserContext,
   expect,
+  type Page,
   test,
 } from "@playwright/test";
 import { and, eq } from "drizzle-orm";
@@ -96,6 +97,11 @@ async function requestAs(
   return context.request;
 }
 
+// SvelteKit renders its route announcer only after the client app has mounted
+async function waitForHydration(page: Page): Promise<void> {
+  await page.locator("#svelte-announcer").waitFor({ state: "attached" });
+}
+
 async function getRole(
   teamId: string,
   userId: string,
@@ -173,10 +179,27 @@ test("invite flow: owner invites member as editor, member accepts and shows in M
 
   const page = await ownerContext.newPage();
   await page.goto(`/t/${team.id}`);
-  await page.getByRole("tab", { name: /Members/ }).click();
-  const panel = page.getByRole("tabpanel");
+  await waitForHydration(page);
+  const membersTab = page.getByRole("tab", { name: /Members/ });
+  await membersTab.click();
+  await expect(membersTab).toHaveAttribute("aria-selected", "true");
+  const panel = page.getByRole("tabpanel", { name: /Members/ });
   await expect(panel.getByRole("heading", { name: "Members" })).toBeVisible();
-  await expect(panel.getByText(member.name, { exact: true })).toBeVisible();
+  await expect(panel.getByText(member.username, { exact: true })).toBeVisible();
+
+  // Managers get the invite and join link sections next to the member list
+  await expect(
+    panel.getByRole("heading", { name: "Invite member" }),
+  ).toBeVisible();
+  await expect(panel.getByRole("heading", { name: "Join link" })).toBeVisible();
+  await expect(
+    panel.getByRole("switch", { name: "Enable join link" }),
+  ).toHaveAttribute("aria-checked", "false");
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  const settings = page.getByRole("dialog", { name: "Team Settings" });
+  await expect(settings).toBeVisible();
+  await expect(settings.getByLabel("Team name")).toHaveValue(team.name);
 
   // Accepting twice fails because the invitation is gone
   expect(
@@ -371,18 +394,36 @@ test("UI: create a team from /my/teams and land on the team page", async ({
   await authenticate(context, owner);
   const teamName = `E2E UI Team ${Math.random().toString(16).slice(2, 8)}`;
 
-  await page.goto("/my/teams");
-  await page.getByRole("button", { name: "Create team" }).first().click();
+  await page.goto("/counters");
+  await waitForHydration(page);
+  await page
+    .getByRole("navigation")
+    .getByRole("link", { name: "Teams", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/my\/teams$/);
 
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
+  await page.getByRole("link", { name: "Create team" }).click();
+  await expect(page).toHaveURL(/\/create\?type=team$/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Name your team" }),
+  ).toBeVisible();
 
-  // Empty name shows a validation error
-  await dialog.getByRole("button", { name: "Create team" }).click();
-  await expect(dialog.getByText("Name is required")).toBeVisible();
+  // Empty name is rejected client-side and the wizard stays on this step
+  const nameInput = page.getByLabel("Team name");
+  await page.getByRole("button", { name: "Create team" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Name is required");
+  await expect(nameInput).toHaveAttribute("aria-invalid", "true");
+  await expect(page).toHaveURL(/\/create\?type=team$/);
 
-  await dialog.getByLabel("Name", { exact: true }).fill(teamName);
-  await dialog.getByRole("button", { name: "Create team" }).click();
+  await nameInput.fill(teamName);
+  await page.getByRole("button", { name: "Create team" }).click();
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Invite members" }),
+  ).toBeVisible();
+  // The team already exists, so the wizard offers no way back
+  await expect(page.getByRole("button", { name: /Back/ })).toBeHidden();
+  await page.getByRole("button", { name: "Finish" }).click();
 
   await expect(page).toHaveURL(/\/t\/[0-9a-f-]{36}\/e2e-ui-team-/);
   const teamId = new URL(page.url()).pathname.split("/")[2];

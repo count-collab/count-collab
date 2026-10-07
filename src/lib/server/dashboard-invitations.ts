@@ -12,7 +12,6 @@ import { logger } from "$lib/server/logger";
 
 type InvitationWithUser = DashboardInvitation & {
   username: string | null;
-  name: string | null;
   image: string | null;
   inviterUsername: string | null;
 };
@@ -48,7 +47,6 @@ export async function createDashboardInvitation(
       role: dashboardInvitations.role,
       createdAt: dashboardInvitations.createdAt,
       username: users.username,
-      name: users.name,
       image: users.image,
       inviterUsername: inviterAlias.username,
     })
@@ -131,7 +129,6 @@ export async function updateDashboardInvitationRole(
       role: dashboardInvitations.role,
       createdAt: dashboardInvitations.createdAt,
       username: users.username,
-      name: users.name,
       image: users.image,
       inviterUsername: inviterAlias.username,
     })
@@ -155,7 +152,6 @@ export async function getDashboardInvitations(
       role: dashboardInvitations.role,
       createdAt: dashboardInvitations.createdAt,
       username: users.username,
-      name: users.name,
       image: users.image,
       inviterUsername: inviterAlias.username,
     })
