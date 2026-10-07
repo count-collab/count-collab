@@ -1,6 +1,10 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
+  import FullscreenOverlay from "$lib/components/FullscreenOverlay.svelte";
   import TransferOwnershipSection from "$lib/components/TransferOwnershipSection.svelte";
+  import {
+    DASHBOARD_MAX_GRID_COLUMNS,
+    DASHBOARD_MIN_GRID_COLUMNS,
+  } from "$lib/dashboard-grid";
   import type { DashboardVisibilityMode } from "$lib/db/schema";
 
   let {
@@ -18,6 +22,7 @@
       title: string;
       description: string | null;
       visibilityMode: DashboardVisibilityMode;
+      gridColumns: number;
     };
     canTransfer?: boolean;
     team?: { id: string; name: string } | null;
@@ -34,6 +39,7 @@
   let title = $state("");
   let description = $state("");
   let visibilityMode = $state<DashboardVisibilityMode>("public");
+  let gridColumns = $state(DASHBOARD_MAX_GRID_COLUMNS);
   let isSaving = $state(false);
   let saveError = $state("");
 
@@ -43,18 +49,9 @@
       title = dashboard.title;
       description = dashboard.description ?? "";
       visibilityMode = dashboard.visibilityMode;
+      gridColumns = dashboard.gridColumns;
       isSaving = false;
       saveError = "";
-    }
-  });
-
-  // Body scroll lock
-  $effect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
     }
   });
 
@@ -73,8 +70,9 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
-          description: description || null,
+          description,
           visibility: visibilityMode,
+          gridColumns,
         }),
       });
 
@@ -113,34 +111,14 @@
       desc: "Only invited members or people with the private link can access",
     },
   ];
+
+  const columnOptions = Array.from(
+    { length: DASHBOARD_MAX_GRID_COLUMNS - DASHBOARD_MIN_GRID_COLUMNS + 1 },
+    (_, i) => DASHBOARD_MIN_GRID_COLUMNS + i,
+  );
 </script>
 
-<svelte:window
-  onkeydown={(e) => {
-    if (open && e.key === "Escape") close();
-  }}
-/>
-
-{#if open}
-  <div
-    class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Dashboard Settings"
-    transition:fade={{ duration: 150 }}
-  >
-    <!-- Header bar -->
-    <div
-      class="flex items-center px-4 py-4 border-b border-slate-200 dark:border-slate-700"
-    >
-      <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
-        Dashboard Settings
-      </h2>
-    </div>
-
-    <!-- Scrollable content -->
-    <div class="flex-1 overflow-y-auto pb-24">
-      <div class="max-w-2xl mx-auto px-4 py-6 space-y-8">
+<FullscreenOverlay bind:open title="Dashboard Settings">
         <!-- Section 1: Name & Description -->
         <section class="space-y-4">
           <div class="space-y-4">
@@ -192,6 +170,48 @@
           </div>
         </section>
 
+        <!-- Section 3: Layout -->
+        <section class="space-y-4">
+          <div class="space-y-1">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Layout
+            </h3>
+            <p class="text-sm text-slate-600 dark:text-slate-400">
+              Number of columns on larger screens. Counters that no longer fit
+              are moved to the next free spot.
+            </p>
+          </div>
+          <div class="grid grid-cols-4 gap-3" role="radiogroup" aria-label="Columns">
+            {#each columnOptions as cols (cols)}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={gridColumns === cols}
+                aria-label="{cols} columns"
+                onclick={() => (gridColumns = cols)}
+                class="flex flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all cursor-pointer
+                {gridColumns === cols
+                  ? 'ring-2 ring-blue-600 dark:ring-blue-400 border-blue-600 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'}"
+              >
+                <span class="flex h-6 w-full gap-0.5" aria-hidden="true">
+                  {#each { length: cols }, i (i)}
+                    <span
+                      class="flex-1 rounded-sm {gridColumns === cols
+                        ? 'bg-blue-400 dark:bg-blue-500'
+                        : 'bg-slate-300 dark:bg-slate-600'}"
+                    ></span>
+                  {/each}
+                </span>
+                <span
+                  class="text-base font-semibold text-slate-900 dark:text-slate-100"
+                  >{cols}</span
+                >
+              </button>
+            {/each}
+          </div>
+        </section>
+
         {#if canTransfer}
           <TransferOwnershipSection
             type="dashboard"
@@ -202,39 +222,33 @@
             ontransferred={close}
           />
         {/if}
-      </div>
-    </div>
 
-    <!-- Fixed bottom save bar -->
-    <div
-      class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3"
-    >
-      <div class="max-w-2xl mx-auto space-y-2">
-        {#if saveError}
-          <p class="text-sm text-red-600 dark:text-red-400">{saveError}</p>
-        {/if}
-        <div class="flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onclick={close}
-            class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onclick={handleSave}
-            disabled={isSaving || !title.trim()}
-            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {#if isSaving}
-              Saving…
-            {:else}
-              Save changes
-            {/if}
-          </button>
-        </div>
+  {#snippet footer()}
+    <div class="space-y-2">
+      {#if saveError}
+        <p class="text-sm text-red-600 dark:text-red-400">{saveError}</p>
+      {/if}
+      <div class="flex items-center justify-end gap-3">
+        <button
+          type="button"
+          onclick={close}
+          class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onclick={handleSave}
+          disabled={isSaving || !title.trim()}
+          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {#if isSaving}
+            Saving…
+          {:else}
+            Save changes
+          {/if}
+        </button>
       </div>
     </div>
-  </div>
-{/if}
+  {/snippet}
+</FullscreenOverlay>

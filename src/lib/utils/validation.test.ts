@@ -17,6 +17,7 @@ import {
   teamRoleSchema,
   transferSchema,
   updateCounterSchema,
+  updateDashboardSchema,
   updateGlobalSettingsSchema,
   updateGoalSchema,
   updateTeamSchema,
@@ -184,6 +185,30 @@ describe("dashboard validation", () => {
 
     it("rejects incrementer (not a dashboard role)", () => {
       expect(() => dashboardMemberRoleEnum.parse("incrementer")).toThrow();
+    });
+  });
+
+  describe("updateDashboardSchema gridColumns", () => {
+    it("is optional", () => {
+      expect(
+        updateDashboardSchema.parse({ title: "T" }).gridColumns,
+      ).toBeUndefined();
+    });
+
+    it("accepts 2 through 5", () => {
+      for (const gridColumns of [2, 3, 4, 5]) {
+        expect(updateDashboardSchema.parse({ gridColumns }).gridColumns).toBe(
+          gridColumns,
+        );
+      }
+    });
+
+    it("rejects out-of-range and non-integer values", () => {
+      for (const gridColumns of [1, 6, 0, 3.5, "3"]) {
+        expect(updateDashboardSchema.safeParse({ gridColumns }).success).toBe(
+          false,
+        );
+      }
     });
   });
 

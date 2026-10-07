@@ -47,7 +47,7 @@ bun run db:studio      # Open Drizzle Studio for visual inspection
 - `counter_history` (serial PK, audit log with changedBy FK)
 - `counter_members` (serial PK, unique index on counterId+userId, role: viewer/incrementer/editor/admin)
 - `counter_followers` (serial PK, unique index on counterId+userId)
-- `dashboards` (UUID PK, title, description, visibilityMode, shareToken, ownerId, timestamps)
+- `dashboards` (UUID PK, title, description, visibilityMode, shareToken, ownerId, gridColumns 2–5 default 5, timestamps) — gridColumns added in `0014_dashboard_grid_columns`
 - `dashboard_items` (serial PK, dashboardId+counterId, grid position/size)
 - `dashboard_members` (serial PK, unique index on dashboardId+userId, role: viewer/editor/admin)
 - `dashboard_followers` (serial PK, unique index on dashboardId+userId)

@@ -291,11 +291,11 @@
     Are you sure you want to delete {user.username ?? "this user"}?
     This action cannot be undone.
   </p>
-  <div class="flex justify-end gap-3">
+  <div class="flex items-center justify-end gap-3">
     <button
       type="button"
       onclick={() => (showDeleteConfirm = false)}
-      class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
+      class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
     >
       Cancel
     </button>
@@ -303,7 +303,7 @@
       type="button"
       onclick={() => handleDeleteUser(user.id)}
       disabled={isDeleting}
-      class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+      class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isDeleting ? "Deleting..." : "Delete"}
     </button>

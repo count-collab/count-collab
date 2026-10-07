@@ -51,9 +51,7 @@ describe("InvitationHint", () => {
     expect(screen.getByRole("status").textContent).toContain(
       "You have 1 pending invitation",
     );
-    expect(screen.getByRole("status").textContent).not.toContain(
-      "invitations",
-    );
+    expect(screen.getByRole("status").textContent).not.toContain("invitations");
   });
 
   it("hides itself after a few seconds", async () => {

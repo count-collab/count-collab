@@ -15,7 +15,7 @@ You are a unit testing specialist for the Count Collab project. Your job is to w
 - **Validation**: Zod 4 schemas in `src/lib/utils/validation.ts`
 - **Server logic**: `src/lib/server/` (counters, members, permissions, users, ratelimit, authorize, dashboard-authorize, dashboards, dashboard-items, followers, grid-relayout, cache, crypto, teams, team-members, team-authorize, transfer, invitations)
 - **Stores**: `src/lib/stores/` (counters, dashboards, invitations, teams, ratelimit, theme.svelte.ts)
-- **Utilities**: `src/lib/utils/` (context, socket, socket-dev, validation, redirect, owner-filter); shared roles in `src/lib/roles.ts`
+- **Utilities**: `src/lib/utils/` (context, socket, socket-dev, validation, redirect, owner-filter, scroll-lock); shared roles in `src/lib/roles.ts`; dashboard grid constants in `src/lib/dashboard-grid.ts`
 
 ## File Conventions
 
@@ -25,8 +25,12 @@ src/
 │   ├── counter.ts / counter.test.ts             # Shared counter logic
 │   ├── components/
 │   │   ├── admin/EventLog.svelte / admin/EventLog.test.ts
+│   │   ├── AddCounterOverlay.svelte / AddCounterOverlay.test.ts
+│   │   ├── ChangeOwnerOverlay.svelte / ChangeOwnerOverlay.test.ts
 │   │   ├── CounterCard.svelte / CounterCard.test.ts
+│   │   ├── DashboardSettingsOverlay.svelte / DashboardSettingsOverlay.test.ts
 │   │   ├── Fireworks.svelte / Fireworks.test.ts
+│   │   ├── FullscreenOverlay.svelte / FullscreenOverlay.test.ts (+ FullscreenOverlayTestWrapper.svelte)
 │   │   ├── HistoryEntry.svelte / HistoryEntry.test.ts
 │   │   ├── Modal.svelte / Modal.test.ts
 │   │   └── Sparkline.svelte / Sparkline.test.ts
@@ -44,6 +48,7 @@ src/
 │   │   ├── members.ts / members.test.ts
 │   │   └── users.ts / users.test.ts
 │   └── utils/
+│       ├── scroll-lock.ts / scroll-lock.test.ts
 │       ├── socket-dev.ts / socket-dev.test.ts
 │       └── validation.ts / validation.test.ts
 └── routes/
@@ -52,6 +57,8 @@ src/
   ├── api/admin/statistics/server.test.ts
   ├── api/admin/statistics/events/server.test.ts
   ├── api/admin/statistics/aggregate/server.test.ts
+    ├── api/dashboards/[id]/server.test.ts
+    ├── api/dashboards/[id]/items/server.test.ts
     ├── api/dashboards/[id]/search-counters/server.test.ts
     ├── api/og/[id]/server.test.ts
     ├── api/version/server.test.ts

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { GRID_COLS, type GridItem, relayoutGrid } from "./grid-relayout";
+import {
+  fitItemsToColumns,
+  GRID_COLS,
+  type GridItem,
+  relayoutGrid,
+} from "./grid-relayout";
 
 function makeItem(id: number, x: number, y: number, w = 1, h = 1): GridItem {
   return { id, positionX: x, positionY: y, sizeColumns: w, sizeRows: h };
@@ -461,5 +466,163 @@ describe("relayoutGrid", () => {
         );
       }
     });
+  });
+
+  describe("custom column count (cols=3)", () => {
+    it("only shifts displaced items right within 3 columns", () => {
+      // With 5 cols item 2 would shift to x=2; with 3 cols it must drop a row
+      const items = [makeItem(1, 0, 0, 1, 1), makeItem(2, 1, 0, 2, 1)];
+      const result = relayoutGrid(
+        items,
+        { type: "resize", itemId: 1, sizeColumns: 2, sizeRows: 1 },
+        3,
+      );
+      expect(findItem(result, 1)).toMatchObject({ positionX: 0, positionY: 0 });
+      expect(findItem(result, 2)).toMatchObject({ positionX: 0, positionY: 1 });
+      expectNoOverlaps(result);
+    });
+
+    it("clamps resize width to 3 and shifts left to stay in bounds", () => {
+      const items = [makeItem(1, 2, 0, 1, 1)];
+      const result = relayoutGrid(
+        items,
+        { type: "resize", itemId: 1, sizeColumns: 5, sizeRows: 1 },
+        3,
+      );
+      expect(findItem(result, 1)).toMatchObject({
+        positionX: 0,
+        sizeColumns: 3,
+      });
+    });
+
+    it("keeps all items within 3 columns after a resize cascade", () => {
+      const items = [
+        makeItem(1, 0, 0, 1, 1),
+        makeItem(2, 1, 0, 1, 1),
+        makeItem(3, 2, 0, 1, 1),
+      ];
+      const result = relayoutGrid(
+        items,
+        { type: "resize", itemId: 1, sizeColumns: 2, sizeRows: 1 },
+        3,
+      );
+      for (const item of result) {
+        expect(item.positionX + item.sizeColumns).toBeLessThanOrEqual(3);
+      }
+      expectNoOverlaps(result);
+    });
+  });
+});
+
+function expectNoOverlaps(items: GridItem[]) {
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const a = items[i];
+      const b = items[j];
+      const ox =
+        a.positionX < b.positionX + b.sizeColumns &&
+        a.positionX + a.sizeColumns > b.positionX;
+      const oy =
+        a.positionY < b.positionY + b.sizeRows &&
+        a.positionY + a.sizeRows > b.positionY;
+      expect(ox && oy, `items ${a.id} and ${b.id} overlap`).toBe(false);
+    }
+  }
+}
+
+describe("fitItemsToColumns", () => {
+  it("is a no-op when every item already fits", () => {
+    const items = [
+      makeItem(1, 0, 0, 2, 1),
+      makeItem(2, 2, 0, 1, 2),
+      makeItem(3, 0, 1, 2, 1),
+    ];
+    expect(fitItemsToColumns(items, 3)).toEqual(items);
+  });
+
+  it("does not mutate the input", () => {
+    const items = [makeItem(1, 4, 0, 1, 1)];
+    fitItemsToColumns(items, 2);
+    expect(items[0]).toEqual(makeItem(1, 4, 0, 1, 1));
+  });
+
+  it("returns items in input order", () => {
+    const items = [makeItem(3, 0, 1), makeItem(1, 0, 0), makeItem(2, 1, 0)];
+    expect(fitItemsToColumns(items, 2).map((i) => i.id)).toEqual([3, 1, 2]);
+  });
+
+  it("moves overflow items to free slots when shrinking 5 → 2", () => {
+    const items = [
+      makeItem(1, 0, 0),
+      makeItem(2, 1, 0),
+      makeItem(3, 2, 0),
+      makeItem(4, 3, 0),
+      makeItem(5, 4, 0),
+      makeItem(6, 0, 1),
+    ];
+    const result = fitItemsToColumns(items, 2);
+
+    // Fitting items stay put
+    expect(findItem(result, 1)).toMatchObject({ positionX: 0, positionY: 0 });
+    expect(findItem(result, 2)).toMatchObject({ positionX: 1, positionY: 0 });
+    expect(findItem(result, 6)).toMatchObject({ positionX: 0, positionY: 1 });
+    // Overflow fills free slots in reading order
+    expect(findItem(result, 3)).toMatchObject({ positionX: 1, positionY: 1 });
+    expect(findItem(result, 4)).toMatchObject({ positionX: 0, positionY: 2 });
+    expect(findItem(result, 5)).toMatchObject({ positionX: 1, positionY: 2 });
+    expectNoOverlaps(result);
+  });
+
+  it("clamps items wider than the grid", () => {
+    const items = [makeItem(1, 0, 0, 5, 2), makeItem(2, 0, 2, 4, 1)];
+    const result = fitItemsToColumns(items, 3);
+    expect(findItem(result, 1)).toEqual(makeItem(1, 0, 0, 3, 2));
+    expect(findItem(result, 2)).toEqual(makeItem(2, 0, 2, 3, 1));
+  });
+
+  it("relocates clamped items that still overflow at their position", () => {
+    const items = [makeItem(1, 0, 0, 1, 1), makeItem(2, 2, 0, 3, 1)];
+    const result = fitItemsToColumns(items, 2);
+    expect(findItem(result, 2)).toEqual(makeItem(2, 0, 1, 2, 1));
+    expectNoOverlaps(result);
+  });
+
+  it("produces no overlaps and stays in bounds for a dense layout", () => {
+    const items = [
+      makeItem(1, 0, 0, 2, 2),
+      makeItem(2, 2, 0, 3, 1),
+      makeItem(3, 2, 1, 1, 1),
+      makeItem(4, 3, 1, 2, 2),
+      makeItem(5, 0, 2, 3, 1),
+      makeItem(6, 4, 3, 1, 1),
+    ];
+    for (const cols of [2, 3, 4]) {
+      const result = fitItemsToColumns(items, cols);
+      expectNoOverlaps(result);
+      for (const item of result) {
+        expect(item.positionX).toBeGreaterThanOrEqual(0);
+        expect(item.positionX + item.sizeColumns).toBeLessThanOrEqual(cols);
+      }
+    }
+  });
+
+  it("is deterministic regardless of input order", () => {
+    const items = [
+      makeItem(1, 0, 0, 2, 1),
+      makeItem(2, 3, 0, 2, 1),
+      makeItem(3, 4, 1, 1, 1),
+      makeItem(4, 2, 2, 3, 1),
+    ];
+    const byId = (list: GridItem[]) => [...list].sort((a, b) => a.id - b.id);
+    const forward = byId(fitItemsToColumns(items, 2));
+    const reversed = byId(fitItemsToColumns([...items].reverse(), 2));
+    expect(reversed).toEqual(forward);
+  });
+
+  it("resolves overlapping input by relocating the later item", () => {
+    const items = [makeItem(1, 0, 0, 2, 1), makeItem(2, 1, 0, 1, 1)];
+    const result = fitItemsToColumns(items, 5);
+    expect(findItem(result, 1)).toMatchObject({ positionX: 0, positionY: 0 });
+    expect(findItem(result, 2)).toMatchObject({ positionX: 2, positionY: 0 });
   });
 });

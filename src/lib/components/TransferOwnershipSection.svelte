@@ -106,16 +106,6 @@
   }
 </script>
 
-<!-- Capture Escape so the surrounding settings overlay stays open while the confirm modal closes -->
-<svelte:window
-  onkeydowncapture={(e) => {
-    if (confirmOpen && e.key === "Escape") {
-      e.stopPropagation();
-      closeConfirm();
-    }
-  }}
-/>
-
 <section class="space-y-4">
   <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
     Ownership
@@ -249,11 +239,11 @@
     {/if}
   </div>
 
-  <div class="flex justify-end gap-3">
+  <div class="flex items-center justify-end gap-3">
     <button
       type="button"
       onclick={closeConfirm}
-      class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
+      class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
     >
       Cancel
     </button>
@@ -262,7 +252,7 @@
       bind:this={confirmButtonEl}
       onclick={handleTransfer}
       disabled={isTransferring}
-      class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+      class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isTransferring ? "Transferring…" : "Transfer"}
     </button>

@@ -431,8 +431,9 @@ describe("listUsers", () => {
     expect(selection).not.toHaveProperty("name");
     expect(Object.values(selection)).not.toContain(users.name);
 
-    const whereSql = new PgDialect().sqlToQuery(mockWhere.mock.calls[0][0] as SQL)
-      .sql;
+    const whereSql = new PgDialect().sqlToQuery(
+      mockWhere.mock.calls[0][0] as SQL,
+    ).sql;
     expect(whereSql).toContain('"user"."username"');
     expect(whereSql).toContain('"user"."email"');
     expect(whereSql).not.toContain('"user"."name"');

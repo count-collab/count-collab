@@ -3,7 +3,7 @@
   import posthog from "posthog-js";
 import { browser } from "$app/environment";
   import { goto, invalidate } from "$app/navigation";
-  import AddCounterModal from "$lib/components/AddCounterModal.svelte";
+  import AddCounterOverlay from "$lib/components/AddCounterOverlay.svelte";
   import DashboardSettingsOverlay from "$lib/components/DashboardSettingsOverlay.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Modal from "$lib/components/Modal.svelte";
@@ -89,7 +89,17 @@ import { browser } from "$app/environment";
   let addCounterTargetCell = $state<{ x: number; y: number } | null>(null);
 
   // Grid dimensions
-  const GRID_COLS = 5;
+  const gridCols = $derived(data.dashboard.gridColumns);
+
+  const sizeOptions = $derived(
+    [1, 2].flatMap((rows) =>
+      Array.from({ length: gridCols }, (_, i) => ({
+        cols: i + 1,
+        rows,
+        label: `${i + 1}×${rows}`,
+      })),
+    ),
+  );
 
   const draggedItem = $derived(
     draggedItemId !== null
@@ -101,7 +111,7 @@ import { browser } from "$app/environment";
     if (!draggedItem || !dragDropTarget) return null;
     const w = draggedItem.sizeColumns;
     const h = draggedItem.sizeRows;
-    const clampedX = Math.min(Math.max(0, dragDropTarget.x), GRID_COLS - w);
+    const clampedX = Math.min(Math.max(0, dragDropTarget.x), gridCols - w);
     const clampedY = Math.max(0, dragDropTarget.y);
     return { x: clampedX, y: clampedY, w, h };
   });
@@ -205,7 +215,7 @@ import { browser } from "$app/environment";
     const cells: Array<{ x: number; y: number }> = [];
     const rows = Math.max(gridRows + 1, 2);
     for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < GRID_COLS; x++) {
+      for (let x = 0; x < gridCols; x++) {
         const key = `${x},${y}`;
         if (!occupiedCells.has(key) || draggedCells.has(key)) {
           cells.push({ x, y });
@@ -367,7 +377,7 @@ import { browser } from "$app/environment";
     } else {
       // Fallback: find the earliest free cell, accounting for multi-cell items
       outer: for (let y = 0; y <= gridRows + 1; y++) {
-        for (let x = 0; x < GRID_COLS; x++) {
+        for (let x = 0; x < gridCols; x++) {
           if (!occupiedCells.has(`${x},${y}`)) {
             posX = x;
             posY = y;
@@ -747,7 +757,7 @@ import { browser } from "$app/environment";
       class="grid gap-4 rounded-xl transition-all dashboard-grid {editMode
         ? 'ring-2 ring-blue-200 dark:ring-blue-800 bg-blue-50/30 dark:bg-blue-950/10 p-4 -m-4'
         : ''}"
-      style="--grid-cols: {GRID_COLS}; --grid-rows: {editMode
+      style="--grid-cols: {gridCols}; --grid-rows: {editMode
         ? Math.max(gridRows + 1, 2)
         : gridRows};"
       ondragover={(e) => {
@@ -809,7 +819,7 @@ import { browser } from "$app/environment";
             e.preventDefault();
             const clampedX = Math.min(
               item.positionX,
-              GRID_COLS - draggedItem.sizeColumns,
+              gridCols - draggedItem.sizeColumns,
             );
             handleMove(draggedItemId, clampedX, item.positionY);
             draggedItemId = null;
@@ -905,7 +915,7 @@ import { browser } from "$app/environment";
                     onclick={(e) => e.stopPropagation()}
                     class="h-7 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-xs text-slate-600 dark:text-slate-300 px-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                   >
-                    {#each [{ cols: 1, rows: 1, label: "1×1" }, { cols: 2, rows: 1, label: "2×1" }, { cols: 3, rows: 1, label: "3×1" }, { cols: 4, rows: 1, label: "4×1" }, { cols: 5, rows: 1, label: "5×1" }, { cols: 1, rows: 2, label: "1×2" }, { cols: 2, rows: 2, label: "2×2" }, { cols: 3, rows: 2, label: "3×2" }, { cols: 4, rows: 2, label: "4×2" }, { cols: 5, rows: 2, label: "5×2" }] as opt (opt.label)}
+                    {#each sizeOptions as opt (opt.label)}
                       <option
                         value="{opt.cols}x{opt.rows}"
                         selected={item.sizeColumns === opt.cols &&
@@ -974,7 +984,7 @@ import { browser } from "$app/environment";
               e.preventDefault();
               const clampedX = Math.min(
                 cell.x,
-                GRID_COLS - draggedItem.sizeColumns,
+                gridCols - draggedItem.sizeColumns,
               );
               handleMove(draggedItemId, clampedX, cell.y);
               draggedItemId = null;
@@ -1053,7 +1063,7 @@ import { browser } from "$app/environment";
   members={data.members}
   invitations={data.invitations}
   canManage={data.canManage}
-  isMember={!!data.memberRole}
+  isDirectMember={data.isDirectMember}
   currentUserId={data.session?.user?.id ?? null}
   team={data.team}
   teamLinked={data.teamRole !== null}
@@ -1085,11 +1095,11 @@ import { browser } from "$app/environment";
     This action cannot be undone. The dashboard will be permanently deleted.
     Counters will not be affected.
   </p>
-  <div class="flex justify-end gap-3">
+  <div class="flex items-center justify-end gap-3">
     <button
       type="button"
       onclick={() => (showDeleteConfirm = false)}
-      class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
+      class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
     >
       Cancel
     </button>
@@ -1097,15 +1107,15 @@ import { browser } from "$app/environment";
       type="button"
       onclick={handleDelete}
       disabled={isDeleting}
-      class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+      class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isDeleting ? "Deleting..." : "Delete"}
     </button>
   </div>
 </Modal>
 
-<!-- Add Counter Modal -->
-<AddCounterModal
+<!-- Add Counter Overlay -->
+<AddCounterOverlay
   bind:open={showAddCounterModal}
   dashboardId={data.dashboard.id}
   {existingCounterIds}

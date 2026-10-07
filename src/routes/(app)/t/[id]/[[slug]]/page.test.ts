@@ -148,12 +148,13 @@ describe("Team page", () => {
     "opens the settings overlay for %s",
     async (role) => {
       renderPage(role);
-      expect(screen.queryByRole("dialog", { name: "Team Settings" })).toBeNull();
+      expect(
+        screen.queryByRole("dialog", { name: "Team Settings" }),
+      ).toBeNull();
       await fireEvent.click(screen.getByRole("button", { name: "Settings" }));
       const overlay = screen.getByRole("dialog", { name: "Team Settings" });
       expect(
-        (within(overlay).getByLabelText("Team name") as HTMLInputElement)
-          .value,
+        (within(overlay).getByLabelText("Team name") as HTMLInputElement).value,
       ).toBe("The Crew");
     },
   );
@@ -165,7 +166,9 @@ describe("Team page", () => {
 
     renderPage("editor");
     const link = screen.getByRole("link", { name: /New counter/ });
-    expect(link.getAttribute("href")).toBe("/create?type=counter&teamId=team-1");
+    expect(link.getAttribute("href")).toBe(
+      "/create?type=counter&teamId=team-1",
+    );
   });
 
   it("shows the New dashboard link only when resources are editable", async () => {

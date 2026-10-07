@@ -30,6 +30,7 @@ import {
 } from "$lib/db/schema";
 import { mapTeamRoleToDashboardRole, maxDashboardRole } from "$lib/roles";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
+import { refitDashboardItems } from "$lib/server/dashboard-items";
 import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 
@@ -98,6 +99,7 @@ export async function updateDashboard(
     title?: string;
     description?: string;
     visibilityMode?: DashboardVisibilityMode;
+    gridColumns?: number;
   },
 ): Promise<Dashboard | null> {
   const set: Record<string, unknown> = { updatedAt: new Date() };
@@ -117,6 +119,11 @@ export async function updateDashboard(
     }
   }
 
+  const { gridColumns } = input;
+  if (gridColumns !== undefined) {
+    return updateDashboardWithGridColumns(dashboardId, set, gridColumns);
+  }
+
   const [updated] = await db
     .update(dashboardsTable)
     .set(set)
@@ -129,6 +136,49 @@ export async function updateDashboard(
   }
 
   return updated ?? null;
+}
+
+async function updateDashboardWithGridColumns(
+  dashboardId: string,
+  set: Record<string, unknown>,
+  gridColumns: number,
+): Promise<Dashboard | null> {
+  const result = await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ gridColumns: dashboardsTable.gridColumns })
+      .from(dashboardsTable)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+      .where(eq(dashboardsTable.id, dashboardId as any))
+      .for("update");
+    if (!current) return null;
+
+    const columnsChanged = current.gridColumns !== gridColumns;
+    const [updated] = await tx
+      .update(dashboardsTable)
+      .set(columnsChanged ? { ...set, gridColumns } : set)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+      .where(eq(dashboardsTable.id, dashboardId as any))
+      .returning();
+
+    const refitCount =
+      updated && columnsChanged
+        ? await refitDashboardItems(tx, dashboardId, gridColumns)
+        : 0;
+
+    return updated ? { updated, columnsChanged, refitCount } : null;
+  });
+
+  if (!result) return null;
+
+  logger.info("Dashboard updated", {
+    id: dashboardId,
+    ...(result.columnsChanged && {
+      gridColumns,
+      refitItemCount: result.refitCount,
+    }),
+  });
+
+  return result.updated;
 }
 
 export async function deleteDashboard(
@@ -197,6 +247,7 @@ export async function listPublicDashboards(
         shareToken: dashboardsTable.shareToken,
         ownerId: dashboardsTable.ownerId,
         teamId: dashboardsTable.teamId,
+        gridColumns: dashboardsTable.gridColumns,
         createdAt: dashboardsTable.createdAt,
         updatedAt: dashboardsTable.updatedAt,
         followerCount: sql<number>`coalesce(${followerCountSubquery.followerCount}, 0)`,

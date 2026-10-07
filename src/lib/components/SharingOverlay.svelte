@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
+  import FullscreenOverlay from "$lib/components/FullscreenOverlay.svelte";
 
   type Member = {
     id: number;
@@ -30,7 +30,7 @@
     members: Member[];
     invitations: Invitation[];
     canManage: boolean;
-    isMember: boolean;
+    isDirectMember: boolean;
     currentUserId: string | null;
     team?: { id: string; name: string } | null;
     teamLinked?: boolean;
@@ -48,7 +48,7 @@
     members,
     invitations,
     canManage,
-    isMember,
+    isDirectMember,
     currentUserId,
     team = null,
     teamLinked = false,
@@ -232,16 +232,6 @@
     open = false;
   }
 
-  // Body scroll lock
-  $effect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
-  });
-
   const visibilityBadgeClasses: Record<string, string> = {
     public:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -258,40 +248,12 @@
   };
 </script>
 
-<svelte:window
-  onkeydown={(e) => {
-    if (open && e.key === "Escape") close();
-  }}
-/>
-
-{#if open}
-  <div
-    class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Sharing"
-    transition:fade={{ duration: 150 }}
-  >
-    <!-- Header bar -->
-    <div
-      class="flex items-center justify-between px-4 py-4 border-b border-slate-200 dark:border-slate-700"
-    >
-      <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
-        Sharing
-      </h2>
-      <button
-        type="button"
-        onclick={close}
-        class="p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        aria-label="Close"
-      >
-        <ion-icon name="close-outline" style="font-size: 24px;"></ion-icon>
-      </button>
-    </div>
-
-    <!-- Scrollable content -->
-    <div class="flex-1 overflow-y-auto pb-24">
-      <div class="max-w-2xl mx-auto px-4 py-6 space-y-8">
+<FullscreenOverlay
+  bind:open
+  title="Sharing"
+  onclose={close}
+  footer={canManage ? doneFooter : undefined}
+>
         <!-- Section 1: Shareable Link -->
         <section class="space-y-4">
           <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -580,7 +542,7 @@
         {/if}
 
         <!-- Section 5: Leave -->
-        {#if isMember && !canManage}
+        {#if isDirectMember && !canManage}
           <section class="space-y-4">
             {#if showLeaveConfirm}
               <div
@@ -619,24 +581,16 @@
             {/if}
           </section>
         {/if}
-      </div>
-    </div>
+</FullscreenOverlay>
 
-    <!-- Fixed bottom bar -->
-    {#if canManage}
-      <div
-        class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3"
-      >
-        <div class="max-w-2xl mx-auto flex items-center justify-end">
-          <button
-            type="button"
-            onclick={close}
-            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-          >
-            Done
-          </button>
-        </div>
-      </div>
-    {/if}
+{#snippet doneFooter()}
+  <div class="flex items-center justify-end">
+    <button
+      type="button"
+      onclick={close}
+      class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+    >
+      Done
+    </button>
   </div>
-{/if}
+{/snippet}

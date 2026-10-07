@@ -60,6 +60,7 @@ function makePageData(overrides: Record<string, unknown> = {}) {
     canIncrement: true,
     isOwner: false,
     isMember: false,
+    isDirectMember: false,
     isFollowing: false,
     followerCount: 0,
     ownerUsername: null,

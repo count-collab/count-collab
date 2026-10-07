@@ -20,9 +20,8 @@ vi.mock("$app/navigation", () => ({
 
 vi.stubGlobal("fetch", fetchMock);
 
-const { default: TeamSettingsOverlay } = await import(
-  "./TeamSettingsOverlay.svelte"
-);
+const { default: TeamSettingsOverlay } =
+  await import("./TeamSettingsOverlay.svelte");
 
 const team = {
   id: "team-1",
@@ -63,9 +62,9 @@ describe("TeamSettingsOverlay", () => {
 
   it("prefills name and description", () => {
     renderOverlay();
-    expect(
-      (screen.getByLabelText("Team name") as HTMLInputElement).value,
-    ).toBe("The Crew");
+    expect((screen.getByLabelText("Team name") as HTMLInputElement).value).toBe(
+      "The Crew",
+    );
     expect(
       (screen.getByLabelText("Team description") as HTMLInputElement).value,
     ).toBe("Our shared counters");
@@ -93,7 +92,9 @@ describe("TeamSettingsOverlay", () => {
       expect.objectContaining({ replaceState: true, invalidateAll: true }),
     );
     await vi.waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Team Settings" })).toBeNull(),
+      expect(
+        screen.queryByRole("dialog", { name: "Team Settings" }),
+      ).toBeNull(),
     );
   });
 

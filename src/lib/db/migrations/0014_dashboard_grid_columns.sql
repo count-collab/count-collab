@@ -1,0 +1,1 @@
+ALTER TABLE "dashboards" ADD COLUMN "grid_columns" integer DEFAULT 5 NOT NULL;

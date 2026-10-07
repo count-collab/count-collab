@@ -235,7 +235,9 @@ describe("Create page", () => {
       await waitForStep("Who should own your counter?");
       await fireEvent.click(screen.getByRole("button", { name: /^Team/ }));
       const list = screen.getByRole("group", { name: "Choose a team" });
-      await fireEvent.click(within(list).getByRole("button", { name: /Alpha/ }));
+      await fireEvent.click(
+        within(list).getByRole("button", { name: /Alpha/ }),
+      );
       await waitForStep(/How should your counter be accessible/);
 
       expect(
@@ -272,9 +274,9 @@ describe("Create page", () => {
         url: "/api/teams",
         body: { name: "New Team" },
       });
-      expect(
-        screen.getByRole("button", { name: /Back/ }).className,
-      ).toContain("invisible");
+      expect(screen.getByRole("button", { name: /Back/ }).className).toContain(
+        "invisible",
+      );
 
       const roleOptions = within(screen.getByLabelText("Role"))
         .getAllByRole("option")
@@ -338,15 +340,19 @@ describe("Create page", () => {
       await fireEvent.input(screen.getByLabelText("Team name"), {
         target: { value: "x" },
       });
-      await fireEvent.click(screen.getByRole("button", { name: "Create team" }));
+      await fireEvent.click(
+        screen.getByRole("button", { name: "Create team" }),
+      );
 
       expect((await screen.findByRole("alert")).textContent).toContain(
         "Name is too long",
       );
-      expect(screen.getByLabelText("Team name").getAttribute("aria-invalid")).toBe(
-        "true",
-      );
-      expect(screen.queryByRole("heading", { name: "Invite members" })).toBeNull();
+      expect(
+        screen.getByLabelText("Team name").getAttribute("aria-invalid"),
+      ).toBe("true");
+      expect(
+        screen.queryByRole("heading", { name: "Invite members" }),
+      ).toBeNull();
     });
   });
 });

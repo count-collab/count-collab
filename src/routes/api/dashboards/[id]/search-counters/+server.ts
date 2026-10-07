@@ -7,6 +7,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  ne,
   notInArray,
   or,
 } from "drizzle-orm";
@@ -20,7 +21,10 @@ import {
 import { escapeLikePattern } from "$lib/server/crypto";
 import { canEditDashboard } from "$lib/server/dashboard-authorize";
 import { getDashboardItems } from "$lib/server/dashboard-items";
-import { dashboardIdSchema } from "$lib/utils/validation";
+import {
+  dashboardCounterSearchScopeSchema,
+  dashboardIdSchema,
+} from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
@@ -28,6 +32,14 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
   if (!idValidation.success) {
     throw error(400, "Invalid dashboard ID format");
   }
+
+  const scopeValidation = dashboardCounterSearchScopeSchema.safeParse(
+    url.searchParams.get("scope") ?? undefined,
+  );
+  if (!scopeValidation.success) {
+    throw error(400, "Invalid scope");
+  }
+  const scope = scopeValidation.data;
 
   const session = await locals.auth();
   if (!session?.user?.id) {
@@ -43,7 +55,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
   const q = url.searchParams.get("q")?.trim() || "";
   const limit = Math.min(
     Math.max(Number(url.searchParams.get("limit")) || 10, 1),
-    20,
+    scope === "mine" ? 50 : 20,
   );
 
   // Get counter IDs already on this dashboard
@@ -67,6 +79,27 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
   );
 
   const conditions = [visibilityCondition];
+
+  if (scope === "mine") {
+    conditions.push(
+      or(
+        and(eq(countersTable.ownerId, userId), isNull(countersTable.teamId)),
+        isNotNull(teamMembers.userId),
+      ),
+    );
+  } else if (scope === "others") {
+    // Null-safe negation of the "mine" condition (ownerId is nullable)
+    conditions.push(
+      and(
+        isNull(teamMembers.userId),
+        or(
+          isNull(countersTable.ownerId),
+          ne(countersTable.ownerId, userId),
+          isNotNull(countersTable.teamId),
+        ),
+      ),
+    );
+  }
 
   // Search filter
   if (q) {
@@ -100,7 +133,11 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     )
     .leftJoin(teams, eq(teams.id, countersTable.teamId))
     .where(and(...conditions))
-    .orderBy(desc(countersTable.count), desc(countersTable.updatedAt))
+    .orderBy(
+      ...(scope === "mine"
+        ? [desc(countersTable.updatedAt), desc(countersTable.count)]
+        : [desc(countersTable.count), desc(countersTable.updatedAt)]),
+    )
     .limit(limit);
 
   const items = rows.map(({ teamMemberUserId, ...counter }) => ({

@@ -34,7 +34,7 @@ src/routes/
 │   │   └── [id]/              # Dashboard CRUD
 │   │       ├── follow/        # Dashboard follow/unfollow
 │   │       ├── items/         # Dashboard item management
-│   │       ├── search-counters/ # Counter search for dashboard
+│   │       ├── search-counters/ # Counter search for dashboard (?q, ?scope=all|mine|others, ?limit)
 │   │       └── transfer/      # Move dashboard (+ owned counters) to/from a team
 │   ├── teams/                 # GET own teams / POST create team
 │   │   └── [id]/              # GET/PATCH/DELETE team (DELETE needs confirmName)

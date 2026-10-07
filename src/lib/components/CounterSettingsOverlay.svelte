@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import { fade } from "svelte/transition";
+  import FullscreenOverlay from "$lib/components/FullscreenOverlay.svelte";
   import Slider from "$lib/components/Slider.svelte";
   import Switch from "$lib/components/Switch.svelte";
   import TransferOwnershipSection from "$lib/components/TransferOwnershipSection.svelte";
@@ -89,16 +89,6 @@
       isSaving = false;
       saveError = "";
       goalErrors = new Set();
-    }
-  });
-
-  // Body scroll lock
-  $effect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
     }
   });
 
@@ -322,32 +312,7 @@
   ];
 </script>
 
-<svelte:window
-  onkeydown={(e) => {
-    if (open && e.key === "Escape") close();
-  }}
-/>
-
-{#if open}
-  <div
-    class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Counter Settings"
-    transition:fade={{ duration: 150 }}
-  >
-    <!-- Header bar -->
-    <div
-      class="flex items-center px-4 py-4 border-b border-slate-200 dark:border-slate-700"
-    >
-      <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
-        Counter Settings
-      </h2>
-    </div>
-
-    <!-- Scrollable content -->
-    <div class="flex-1 overflow-y-auto pb-24">
-      <div class="max-w-2xl mx-auto px-4 py-6 space-y-8">
+<FullscreenOverlay bind:open title="Counter Settings">
         <!-- Section 1: Name & Description -->
         <section class="space-y-4">
           <div class="space-y-4">
@@ -613,39 +578,33 @@
             ontransferred={close}
           />
         {/if}
-      </div>
-    </div>
 
-    <!-- Fixed bottom save bar -->
-    <div
-      class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3"
-    >
-      <div class="max-w-2xl mx-auto space-y-2">
-        {#if saveError && goalErrors.size === 0}
-          <p class="text-sm text-red-600 dark:text-red-400">{saveError}</p>
-        {/if}
-        <div class="flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onclick={close}
-            class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onclick={handleSave}
-            disabled={!canEdit || isSaving || !title.trim()}
-            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {#if isSaving}
-              Saving…
-            {:else}
-              Save changes
-            {/if}
-          </button>
-        </div>
+  {#snippet footer()}
+    <div class="space-y-2">
+      {#if saveError && goalErrors.size === 0}
+        <p class="text-sm text-red-600 dark:text-red-400">{saveError}</p>
+      {/if}
+      <div class="flex items-center justify-end gap-3">
+        <button
+          type="button"
+          onclick={close}
+          class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onclick={handleSave}
+          disabled={!canEdit || isSaving || !title.trim()}
+          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {#if isSaving}
+            Saving…
+          {:else}
+            Save changes
+          {/if}
+        </button>
       </div>
     </div>
-  </div>
-{/if}
+  {/snippet}
+</FullscreenOverlay>

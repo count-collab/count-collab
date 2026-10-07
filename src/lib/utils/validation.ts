@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { teamJoinLinkRoles, teamMemberRoles } from "$lib/db/schema";
+import {
+  DASHBOARD_MAX_GRID_COLUMNS,
+  DASHBOARD_MIN_GRID_COLUMNS,
+  teamJoinLinkRoles,
+  teamMemberRoles,
+} from "$lib/db/schema";
 
 export const counterVisibilityEnum = z.enum([
   "public",
@@ -160,11 +165,24 @@ export const updateDashboardSchema = z.object({
     .transform((val) => val?.trim() || "")
     .optional(),
   visibility: dashboardVisibilityEnum.optional(),
+  gridColumns: z
+    .number()
+    .int()
+    .min(DASHBOARD_MIN_GRID_COLUMNS)
+    .max(DASHBOARD_MAX_GRID_COLUMNS)
+    .optional(),
 });
 export type UpdateDashboardInput = z.infer<typeof updateDashboardSchema>;
 
 export const dashboardIdSchema = z.string().uuid("Invalid dashboard ID format");
 export type DashboardId = z.infer<typeof dashboardIdSchema>;
+
+export const dashboardCounterSearchScopeSchema = z
+  .enum(["all", "mine", "others"])
+  .default("all");
+export type DashboardCounterSearchScope = z.infer<
+  typeof dashboardCounterSearchScopeSchema
+>;
 
 export const dashboardMemberRoleEnum = z.enum(["viewer", "editor", "admin"]);
 

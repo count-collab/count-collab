@@ -224,11 +224,11 @@
     {/if}
 
     <!-- Footer -->
-    <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+    <div class="flex items-center justify-end gap-3">
       <button
         type="button"
         onclick={() => (open = false)}
-        class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
+        class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
       >
         Cancel
       </button>
@@ -236,7 +236,7 @@
         type="button"
         onclick={handleSave}
         disabled={!hasSelection || saving}
-        class="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {saving ? "Saving…" : "Save"}
       </button>

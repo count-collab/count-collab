@@ -22,6 +22,10 @@ const mockUpdateReturning = vi.fn();
 const mockDelete = vi.fn();
 const mockDeleteWhere = vi.fn();
 const mockDeleteReturning = vi.fn();
+const mockTransaction = vi.fn();
+const { mockRefitDashboardItems } = vi.hoisted(() => ({
+  mockRefitDashboardItems: vi.fn(),
+}));
 
 vi.mock("$lib/db", () => ({
   db: {
@@ -29,7 +33,12 @@ vi.mock("$lib/db", () => ({
     insert: (...args: unknown[]) => mockInsert(...args),
     update: (...args: unknown[]) => mockUpdate(...args),
     delete: (...args: unknown[]) => mockDelete(...args),
+    transaction: (...args: unknown[]) => mockTransaction(...args),
   },
+}));
+
+vi.mock("$lib/server/dashboard-items", () => ({
+  refitDashboardItems: mockRefitDashboardItems,
 }));
 
 vi.mock("$lib/server/logger", () => ({
@@ -58,6 +67,7 @@ import {
   getSharedDashboards,
   getUserDashboards,
   listAllDashboards,
+  updateDashboard,
 } from "./dashboards";
 
 const dialect = new PgDialect();
@@ -75,6 +85,7 @@ function makeDashboard(overrides: Partial<Dashboard> = {}): Dashboard {
     shareToken: null,
     ownerId: null,
     teamId: null,
+    gridColumns: 5,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -273,5 +284,78 @@ describe("getSharedDashboards", () => {
       { ...direct, teamName: null, memberRole: "editor" },
       { ...team, teamName: "Alpha", memberRole: "viewer" },
     ]);
+  });
+});
+
+describe("updateDashboard gridColumns", () => {
+  const txFor = vi.fn();
+  const txUpdateSet = vi.fn();
+  const txUpdateReturning = vi.fn();
+  const tx = {
+    select: () => ({ from: () => ({ where: () => ({ for: txFor }) }) }),
+    update: () => ({
+      set: (values: unknown) => {
+        txUpdateSet(values);
+        return { where: () => ({ returning: txUpdateReturning }) };
+      },
+    }),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockTransaction.mockImplementation(async (fn: (t: unknown) => unknown) =>
+      fn(tx),
+    );
+  });
+
+  it("updates gridColumns and refits items in one transaction when changed", async () => {
+    const dashboard = makeDashboard({ gridColumns: 3 });
+    txFor.mockResolvedValue([{ gridColumns: 5 }]);
+    txUpdateReturning.mockResolvedValue([dashboard]);
+
+    const result = await updateDashboard(dashboard.id, { gridColumns: 3 });
+
+    expect(result).toEqual(dashboard);
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    expect(txFor).toHaveBeenCalledWith("update");
+    expect(txUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ gridColumns: 3 }),
+    );
+    expect(mockRefitDashboardItems).toHaveBeenCalledWith(tx, dashboard.id, 3);
+  });
+
+  it("skips the refit when gridColumns is unchanged", async () => {
+    const dashboard = makeDashboard({ gridColumns: 4 });
+    txFor.mockResolvedValue([{ gridColumns: 4 }]);
+    txUpdateReturning.mockResolvedValue([dashboard]);
+
+    await updateDashboard(dashboard.id, { title: "New", gridColumns: 4 });
+
+    expect(txUpdateSet).toHaveBeenCalledWith(
+      expect.not.objectContaining({ gridColumns: expect.anything() }),
+    );
+    expect(mockRefitDashboardItems).not.toHaveBeenCalled();
+  });
+
+  it("returns null when the dashboard does not exist", async () => {
+    txFor.mockResolvedValue([]);
+
+    const result = await updateDashboard(crypto.randomUUID(), {
+      gridColumns: 2,
+    });
+
+    expect(result).toBeNull();
+    expect(txUpdateSet).not.toHaveBeenCalled();
+    expect(mockRefitDashboardItems).not.toHaveBeenCalled();
+  });
+
+  it("does not open a transaction when gridColumns is omitted", async () => {
+    const dashboard = makeDashboard();
+    mockUpdateReturning.mockResolvedValue([dashboard]);
+
+    await updateDashboard(dashboard.id, { title: "Renamed" });
+
+    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(mockRefitDashboardItems).not.toHaveBeenCalled();
   });
 });

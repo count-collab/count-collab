@@ -14,6 +14,13 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { DASHBOARD_DEFAULT_GRID_COLUMNS } from "../dashboard-grid";
+
+export {
+  DASHBOARD_DEFAULT_GRID_COLUMNS,
+  DASHBOARD_MAX_GRID_COLUMNS,
+  DASHBOARD_MIN_GRID_COLUMNS,
+} from "../dashboard-grid";
 
 // ── Auth.js tables ──────────────────────────────────────────────
 
@@ -393,6 +400,9 @@ export const dashboards = pgTable(
     ownerId: text("owner_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    gridColumns: integer("grid_columns")
+      .notNull()
+      .default(DASHBOARD_DEFAULT_GRID_COLUMNS),
     // Team deletion removes team resources app-side first; restrict is a safety net
     teamId: uuid("team_id").references(() => teams.id, {
       onDelete: "restrict",

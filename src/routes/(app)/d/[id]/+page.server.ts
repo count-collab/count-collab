@@ -118,6 +118,8 @@ export const load: PageServerLoad = async ({
   const access = userId ? await getDashboardAccess(userId, dashboard.id) : null;
   const isOwner = access?.isOwner ?? false;
   const memberRole = access?.effectiveRole ?? null;
+  // Team-derived access has no dashboard_members row to leave
+  const isDirectMember = !isOwner && !!access?.directRole;
   const teamRole = access?.teamRole ?? null;
   const members = canManage ? await getDashboardMembers(dashboard.id) : [];
   const invitations = canManage
@@ -182,6 +184,7 @@ export const load: PageServerLoad = async ({
     members,
     invitations,
     memberRole,
+    isDirectMember,
     team,
     teamRole,
     canTransfer,

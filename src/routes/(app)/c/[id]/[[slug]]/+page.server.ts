@@ -113,6 +113,8 @@ export const load: PageServerLoad = async ({
   const isOwner = access?.isOwner ?? false;
   // Follow button visibility: any direct or team role counts as membership
   const isMember = !isOwner && !!access?.effectiveRole;
+  // Team-derived access has no counter_members row to leave
+  const isDirectMember = !isOwner && !!access?.directRole;
   const teamRole = access?.teamRole ?? null;
 
   const members = canManage ? await getCounterMembers(counter.id) : [];
@@ -229,6 +231,7 @@ export const load: PageServerLoad = async ({
     canIncrement,
     isOwner,
     isMember,
+    isDirectMember,
     team,
     teamRole,
     canTransfer,

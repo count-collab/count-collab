@@ -56,17 +56,23 @@ vi.mock("$lib/server/crypto", () => ({
   escapeLikePattern: (v: string) => mockEscapeLikePattern(v),
 }));
 
-vi.mock("$lib/utils/validation", () => ({
-  dashboardIdSchema: {
-    safeParse: (val: string) => {
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      return uuidRegex.test(val)
-        ? { success: true, data: val }
-        : { success: false };
+vi.mock("$lib/utils/validation", async () => {
+  const { z } = await import("zod");
+  return {
+    dashboardIdSchema: {
+      safeParse: (val: string) => {
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(val)
+          ? { success: true, data: val }
+          : { success: false };
+      },
     },
-  },
-}));
+    dashboardCounterSearchScopeSchema: z
+      .enum(["all", "mine", "others"])
+      .default("all"),
+  };
+});
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...args: unknown[]) => args),
@@ -78,6 +84,7 @@ vi.mock("drizzle-orm", () => ({
   inArray: vi.fn((col: unknown, arr: unknown) => ({ inArray: [col, arr] })),
   isNotNull: vi.fn((col: unknown) => ({ isNotNull: col })),
   isNull: vi.fn((col: unknown) => ({ isNull: col })),
+  ne: vi.fn((a: unknown, b: unknown) => ({ ne: [a, b] })),
   notInArray: vi.fn((col: unknown, arr: unknown) => ({
     notInArray: [col, arr],
   })),
@@ -413,5 +420,166 @@ describe("GET /api/dashboards/[id]/search-counters", () => {
     );
 
     expect(ilike).not.toHaveBeenCalled();
+  });
+
+  describe("scope parameter", () => {
+    const searchUrl = (query: string) =>
+      new URL(
+        `http://localhost/api/dashboards/${VALID_DASHBOARD_ID}/search-counters?${query}`,
+      );
+
+    const mineCondition = {
+      or: [
+        [{ eq: ["counters.ownerId", "user-1"] }, { isNull: "counters.teamId" }],
+        { isNotNull: "teamMembers.userId" },
+      ],
+    };
+
+    const othersCondition = [
+      { isNull: "teamMembers.userId" },
+      {
+        or: [
+          { isNull: "counters.ownerId" },
+          { ne: ["counters.ownerId", "user-1"] },
+          { isNotNull: "counters.teamId" },
+        ],
+      },
+    ];
+
+    // First where() call is the membership subquery; the last is the main query
+    const whereConditions = () =>
+      mockWhere.mock.calls[mockWhere.mock.calls.length - 1][0] as unknown[];
+
+    it("returns 400 for an invalid scope", async () => {
+      await expect(
+        GET(
+          makeEvent(VALID_DASHBOARD_ID, {
+            locals: makeLocals("user-1"),
+            url: searchUrl("scope=everything"),
+          }) as any,
+        ),
+      ).rejects.toMatchObject({ status: 400 });
+
+      expect(mockSelect).not.toHaveBeenCalled();
+    });
+
+    it("defaults to scope=all without mine/others filters and count-first ordering", async () => {
+      await GET(
+        makeEvent(VALID_DASHBOARD_ID, {
+          locals: makeLocals("user-1"),
+        }) as any,
+      );
+
+      expect(whereConditions()).toHaveLength(1);
+      expect(mockOrderBy).toHaveBeenCalledWith(
+        { desc: "counters.count" },
+        { desc: "counters.updatedAt" },
+      );
+    });
+
+    it("treats scope=all like the default", async () => {
+      await GET(
+        makeEvent(VALID_DASHBOARD_ID, {
+          locals: makeLocals("user-1"),
+          url: searchUrl("scope=all"),
+        }) as any,
+      );
+
+      expect(whereConditions()).toHaveLength(1);
+      expect(mockOrderBy).toHaveBeenCalledWith(
+        { desc: "counters.count" },
+        { desc: "counters.updatedAt" },
+      );
+    });
+
+    it("scope=mine restricts to own/team counters ordered by updatedAt first", async () => {
+      setupDbChain([
+        {
+          id: "personal",
+          title: "Personal",
+          description: null,
+          count: 1,
+          visibilityMode: "private",
+          ownerId: "user-1",
+          teamId: null,
+          teamName: null,
+          teamMemberUserId: null,
+        },
+      ]);
+
+      const response = await GET(
+        makeEvent(VALID_DASHBOARD_ID, {
+          locals: makeLocals("user-1"),
+          url: searchUrl("scope=mine&q=pers"),
+        }) as any,
+      );
+      const body = await response.json();
+
+      const conditions = whereConditions();
+      expect(conditions).toContainEqual(mineCondition);
+      expect(conditions).not.toContainEqual(othersCondition);
+      expect(conditions).toContainEqual({
+        ilike: ["counters.title", "%pers%"],
+      });
+      expect(mockOrderBy).toHaveBeenCalledWith(
+        { desc: "counters.updatedAt" },
+        { desc: "counters.count" },
+      );
+      expect(body).toEqual({
+        items: [
+          {
+            id: "personal",
+            title: "Personal",
+            description: null,
+            count: 1,
+            visibilityMode: "private",
+            ownerId: "user-1",
+            teamId: null,
+            teamName: null,
+            isMine: true,
+          },
+        ],
+        userId: "user-1",
+      });
+    });
+
+    it("scope=others excludes mine and keeps count-first ordering", async () => {
+      const { ne } = await import("drizzle-orm");
+
+      await GET(
+        makeEvent(VALID_DASHBOARD_ID, {
+          locals: makeLocals("user-1"),
+          url: searchUrl("scope=others"),
+        }) as any,
+      );
+
+      const conditions = whereConditions();
+      expect(ne).toHaveBeenCalledWith("counters.ownerId", "user-1");
+      expect(conditions).toContainEqual(othersCondition);
+      expect(conditions).not.toContainEqual(mineCondition);
+      expect(mockOrderBy).toHaveBeenCalledWith(
+        { desc: "counters.count" },
+        { desc: "counters.updatedAt" },
+      );
+    });
+
+    it.each([
+      ["mine", "100", 50],
+      ["mine", "35", 35],
+      ["others", "50", 20],
+      ["all", "50", 20],
+    ])(
+      "scope=%s with limit=%s uses limit %i",
+      async (scope, limit, expected) => {
+        await GET(
+          makeEvent(VALID_DASHBOARD_ID, {
+            locals: makeLocals("user-1"),
+            url: searchUrl(`scope=${scope}&limit=${limit}`),
+          }) as any,
+        );
+
+        expect(mockLimit).toHaveBeenCalledWith(expected);
+      },
+    );
   });
 });

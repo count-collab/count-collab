@@ -90,6 +90,30 @@ describe("Modal", () => {
     expect(onclose).toHaveBeenCalledOnce();
   });
 
+  it("consumes Escape so outer window handlers do not see it", async () => {
+    const outer = vi.fn();
+    window.addEventListener("keydown", outer);
+    render(ModalTestWrapper, {
+      props: { open: true, title: "Test Modal" } as never,
+    });
+
+    await fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(outer).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", outer);
+  });
+
+  it("locks body scroll while open and releases it on close", async () => {
+    render(ModalTestWrapper, {
+      props: { open: true, title: "Test Modal" } as never,
+    });
+    expect(document.body.style.overflow).toBe("hidden");
+
+    await fireEvent.keyDown(window, { key: "Escape" });
+    expect(document.body.style.overflow).toBe("");
+  });
+
   it("supports describedBy prop", () => {
     render(ModalTestWrapper, {
       props: {

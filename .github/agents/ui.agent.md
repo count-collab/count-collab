@@ -18,16 +18,18 @@ You are a UI/component specialist for the Count Collab project. Your job is to b
 
 ```
 src/lib/components/
-├── AddCounterModal.svelte  # Modal for adding counters to dashboards
+├── AddCounterOverlay.svelte # Full-screen overlay for adding counters to dashboards (search + owner filter)
+├── ChangeOwnerOverlay.svelte # Admin full-screen overlay to reassign/remove a counter owner
 ├── CounterBadges.svelte    # Badge indicators for counter properties
 ├── CounterCard.svelte      # Counter display card with title, count, actions
 ├── DashboardCard.svelte    # Dashboard display card
 ├── Fireworks.svelte        # Celebratory animation effect
+├── FullscreenOverlay.svelte # Shared full-screen dialog shell (header, scroll body, footer snippet) — use for task flows/settings
 ├── HistoryEntry.svelte     # Single entry in counter history log
 ├── MetaTags.svelte         # SEO meta tags (title, description, OG)
-├── Modal.svelte            # Reusable modal dialog component
+├── Modal.svelte            # Confirmation dialog only (blurred backdrop, bottom sheet on mobile, z-[60] stacks over overlays)
 ├── MessageToast.svelte     # Plain-text toast (via ToastContainer addMessageToast)
-├── OwnerFilter.svelte      # All / Personal / per-team filter chips for /my lists
+├── OwnerFilter.svelte      # All / Personal / per-team filter chips for /my lists and AddCounterOverlay
 ├── Pagination.svelte       # Page navigation for lists
 ├── RollingNumber.svelte    # Animated number transitions for count display
 ├── SoleOwnedTeamsWarning.svelte # Account-deletion warning for sole-owned teams
