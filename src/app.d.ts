@@ -4,7 +4,6 @@ declare module "@auth/sveltekit" {
   interface Session {
     user: {
       id: string;
-      name?: string | null;
       email?: string | null;
       image?: string | null;
       username?: string | null;

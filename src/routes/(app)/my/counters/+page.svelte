@@ -1,10 +1,25 @@
 <script lang="ts">
   import CounterCard from "$lib/components/CounterCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import OwnerFilter from "$lib/components/OwnerFilter.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
+  import {
+    collectTeams,
+    matchesOwnerFilter,
+    type OwnerFilterValue,
+  } from "$lib/utils/owner-filter";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
+
+  let ownerFilter = $state<OwnerFilterValue>("all");
+  const teams = $derived(collectTeams(data.sharedCounters.items));
+  const ownedItems = $derived(
+    data.ownedCounters.items.filter((c) => matchesOwnerFilter(c, ownerFilter)),
+  );
+  const sharedItems = $derived(
+    data.sharedCounters.items.filter((c) => matchesOwnerFilter(c, ownerFilter)),
+  );
 </script>
 
 <MetaTags
@@ -14,6 +29,10 @@
 />
 
 <div class="space-y-10">
+  {#if teams.length > 0}
+    <OwnerFilter bind:value={ownerFilter} {teams} />
+  {/if}
+
   <!-- Owned counters -->
   <section>
     <div class="flex items-center gap-2 mb-4">
@@ -45,11 +64,17 @@
         </a>
       </div>
     {:else}
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {#each data.ownedCounters.items as counter (counter.id)}
-          <CounterCard {counter} showBadges />
-        {/each}
-      </div>
+      {#if ownedItems.length === 0}
+        <p class="text-sm text-slate-500 dark:text-slate-400">
+          No owned counters match this filter.
+        </p>
+      {:else}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {#each ownedItems as counter (counter.id)}
+            <CounterCard {counter} showBadges />
+          {/each}
+        </div>
+      {/if}
       <div class="mt-6">
         <Pagination page={data.page} totalPages={data.totalPages} baseUrl="/my/counters" />
       </div>
@@ -79,9 +104,13 @@
           No one has shared a counter with you yet
         </p>
       </div>
+    {:else if sharedItems.length === 0}
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        No shared counters match this filter.
+      </p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {#each data.sharedCounters.items as counter (counter.id)}
+        {#each sharedItems as counter (counter.id)}
           <CounterCard {counter} showBadges />
         {/each}
       </div>

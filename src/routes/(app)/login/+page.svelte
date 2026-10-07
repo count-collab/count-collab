@@ -3,6 +3,11 @@
   import posthog from "posthog-js";
   import { page } from "$app/state";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import { safeRedirectPath } from "$lib/utils/redirect";
+
+  let { data } = $props();
+
+  let callbackUrl = $derived(safeRedirectPath(data.redirectTo, "/my"));
 
   const errorMessages: Record<string, string> = {
     OAuthAccountNotLinked:
@@ -69,7 +74,7 @@
         type="button"
         onclick={() => {
           posthog.capture("user_signed_in", { provider: provider.id });
-          signIn(provider.id, { callbackUrl: "/my" });
+          signIn(provider.id, { callbackUrl });
         }}
         class="w-full flex items-center justify-center gap-3 rounded-lg px-5 py-3 font-semibold transition {provider.bg} {provider.text}"
       >

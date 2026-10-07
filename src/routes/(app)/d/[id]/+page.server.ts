@@ -2,8 +2,10 @@ import { error } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { users } from "$lib/db/schema";
+import { isTeamRoleAtLeast } from "$lib/roles";
 import {
   canIncrementCounter,
+  canIncrementPrivateCounter,
   canViewPrivateCounter,
 } from "$lib/server/authorize";
 import { getCounter } from "$lib/server/counters";
@@ -12,20 +14,19 @@ import {
   canEditDashboard,
   canManageDashboardMembers,
   canViewDashboard,
-  isDashboardOwner,
+  getDashboardAccess,
 } from "$lib/server/dashboard-authorize";
 import { getDashboardInvitations } from "$lib/server/dashboard-invitations";
 import { getDashboardItems } from "$lib/server/dashboard-items";
-import {
-  getDashboardMembers,
-  getUserDashboardRole,
-} from "$lib/server/dashboard-members";
+import { getDashboardMembers } from "$lib/server/dashboard-members";
 import { getDashboard } from "$lib/server/dashboards";
 import {
   getDashboardFollowerCount,
   isFollowingDashboard,
 } from "$lib/server/followers";
 import { logger } from "$lib/server/logger";
+import { getActingTeamRole } from "$lib/server/team-authorize";
+import { getTeam, listEditableTeams } from "$lib/server/teams";
 import { dashboardIdSchema } from "$lib/utils/validation";
 import type { PageServerLoad } from "./$types";
 
@@ -93,6 +94,10 @@ export const load: PageServerLoad = async ({
       let canIncrement = false;
       if (counter.visibilityMode === "public") {
         canIncrement = true;
+      } else if (counter.visibilityMode === "private") {
+        canIncrement = userId
+          ? (await canIncrementPrivateCounter(userId, counter.id)) === "allowed"
+          : false;
       } else {
         canIncrement = userId
           ? await canIncrementCounter(userId, counter.id)
@@ -110,14 +115,47 @@ export const load: PageServerLoad = async ({
   const canManage = userId
     ? await canManageDashboardMembers(userId, dashboard.id)
     : false;
-  const isOwner = userId ? await isDashboardOwner(userId, dashboard.id) : false;
+  const access = userId ? await getDashboardAccess(userId, dashboard.id) : null;
+  const isOwner = access?.isOwner ?? false;
+  const memberRole = access?.effectiveRole ?? null;
+  // Team-derived access has no dashboard_members row to leave
+  const isDirectMember = !isOwner && !!access?.directRole;
+  const teamRole = access?.teamRole ?? null;
   const members = canManage ? await getDashboardMembers(dashboard.id) : [];
   const invitations = canManage
     ? await getDashboardInvitations(dashboard.id)
     : [];
-  const memberRole = userId
-    ? await getUserDashboardRole(userId, dashboard.id)
-    : null;
+
+  const owningTeam = dashboard.teamId ? await getTeam(dashboard.teamId) : null;
+  const team = owningTeam ? { id: owningTeam.id, name: owningTeam.name } : null;
+
+  const canTransfer =
+    !!userId &&
+    (isOwner ||
+      (!!dashboard.teamId &&
+        isTeamRoleAtLeast(
+          await getActingTeamRole(userId, dashboard.teamId),
+          "admin",
+        )));
+  const transferTargets =
+    userId && canTransfer
+      ? (await listEditableTeams(userId)).filter(
+          (t) => t.id !== dashboard.teamId,
+        )
+      : [];
+
+  const ownedCounterIdsOnDashboard = userId
+    ? [
+        ...new Set(
+          items
+            .filter(
+              ({ counter }) =>
+                counter?.teamId === null && counter.ownerId === userId,
+            )
+            .map(({ item }) => item.counterId),
+        ),
+      ]
+    : [];
 
   const isFollowing = userId
     ? await isFollowingDashboard(userId, dashboard.id)
@@ -146,6 +184,12 @@ export const load: PageServerLoad = async ({
     members,
     invitations,
     memberRole,
+    isDirectMember,
+    team,
+    teamRole,
+    canTransfer,
+    transferTargets,
+    ownedCounterIdsOnDashboard,
     isFollowing,
     followerCount,
     ownerUsername,

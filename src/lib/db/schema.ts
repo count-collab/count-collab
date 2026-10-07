@@ -14,6 +14,13 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { DASHBOARD_DEFAULT_GRID_COLUMNS } from "../dashboard-grid";
+
+export {
+  DASHBOARD_DEFAULT_GRID_COLUMNS,
+  DASHBOARD_MAX_GRID_COLUMNS,
+  DASHBOARD_MIN_GRID_COLUMNS,
+} from "../dashboard-grid";
 
 // ── Auth.js tables ──────────────────────────────────────────────
 
@@ -107,6 +114,92 @@ export const rolePermissions = pgTable(
   }),
 );
 
+// ── Teams ───────────────────────────────────────────────────────
+
+export const teamMemberRoles = [
+  "viewer",
+  "incrementer",
+  "editor",
+  "admin",
+  "owner",
+] as const;
+
+export type TeamMemberRole = (typeof teamMemberRoles)[number];
+
+export const teamJoinLinkRoles = ["viewer", "incrementer", "editor"] as const;
+
+export type TeamJoinLinkRole = (typeof teamJoinLinkRoles)[number];
+
+export const teams = pgTable("teams", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  joinToken: text("join_token").unique(), // null = join link disabled
+  joinRole: text("join_role", { enum: teamJoinLinkRoles })
+    .default("viewer")
+    .notNull(),
+  createdBy: text("created_by").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const teamMembers = pgTable(
+  "team_members",
+  {
+    id: serial("id").primaryKey(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role", { enum: teamMemberRoles }).notNull().default("viewer"),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (tm) => ({
+    uniqueMember: uniqueIndex("team_members_team_user_idx").on(
+      tm.teamId,
+      tm.userId,
+    ),
+    userIdx: index("team_members_user_id_idx").on(tm.userId),
+  }),
+);
+
+export const teamInvitations = pgTable(
+  "team_invitations",
+  {
+    id: serial("id").primaryKey(),
+    teamId: uuid("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    invitedBy: text("invited_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    role: text("role", { enum: teamMemberRoles }).notNull().default("viewer"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (ti) => ({
+    uniqueInvitation: uniqueIndex("team_invitations_team_user_idx").on(
+      ti.teamId,
+      ti.userId,
+    ),
+    userIdx: index("team_invitations_user_id_idx").on(ti.userId),
+  }),
+);
+
 // ── Counters ────────────────────────────────────────────────────
 
 export const counterVisibilityModes = [
@@ -134,39 +227,49 @@ export const counterMemberRoles = [
 
 export type CounterMemberRole = (typeof counterMemberRoles)[number];
 
-export const counters = pgTable("counters", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  count: integer("count").default(0).notNull(),
-  isPublic: integer("is_public").default(1).notNull(), // Legacy compatibility flag: 1 for publicly viewable, 0 for private
-  visibilityMode: text("visibility_mode", { enum: counterVisibilityModes })
-    .default("public")
-    .notNull(),
-  counterMode: text("counter_mode", { enum: counterModes })
-    .default("increment_only")
-    .notNull(),
-  shareToken: text("share_token").unique(),
-  cooldownEnabled: boolean("cooldown_enabled").default(false).notNull(),
-  cooldownSeconds: integer("cooldown_seconds").default(5).notNull(),
-  goalsEnabled: boolean("goals_enabled").default(false).notNull(),
-  showAllReachedGoals: boolean("show_all_reached_goals")
-    .default(false)
-    .notNull(),
-  scoreboardEnabled: boolean("scoreboard_enabled").default(false).notNull(),
-  ownerId: text("owner_id").references(() => users.id, {
-    onDelete: "set null",
+export const counters = pgTable(
+  "counters",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: text("title").notNull(),
+    description: text("description"),
+    count: integer("count").default(0).notNull(),
+    isPublic: integer("is_public").default(1).notNull(), // Legacy compatibility flag: 1 for publicly viewable, 0 for private
+    visibilityMode: text("visibility_mode", { enum: counterVisibilityModes })
+      .default("public")
+      .notNull(),
+    counterMode: text("counter_mode", { enum: counterModes })
+      .default("increment_only")
+      .notNull(),
+    shareToken: text("share_token").unique(),
+    cooldownEnabled: boolean("cooldown_enabled").default(false).notNull(),
+    cooldownSeconds: integer("cooldown_seconds").default(5).notNull(),
+    goalsEnabled: boolean("goals_enabled").default(false).notNull(),
+    showAllReachedGoals: boolean("show_all_reached_goals")
+      .default(false)
+      .notNull(),
+    scoreboardEnabled: boolean("scoreboard_enabled").default(false).notNull(),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    // Team deletion removes team resources app-side first; restrict is a safety net
+    teamId: uuid("team_id").references(() => teams.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (c) => ({
+    teamIdx: index("counters_team_id_idx").on(c.teamId),
   }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  lastActivityAt: timestamp("last_activity_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+);
 
 export const counterHistory = pgTable(
   "counter_history",
@@ -284,24 +387,37 @@ export const dashboardMemberRoles = ["viewer", "editor", "admin"] as const;
 
 export type DashboardMemberRole = (typeof dashboardMemberRoles)[number];
 
-export const dashboards = pgTable("dashboards", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  title: text("title").notNull(),
-  description: text("description"),
-  visibilityMode: text("visibility_mode", { enum: dashboardVisibilityModes })
-    .default("public")
-    .notNull(),
-  shareToken: text("share_token").unique(),
-  ownerId: text("owner_id").references(() => users.id, {
-    onDelete: "set null",
+export const dashboards = pgTable(
+  "dashboards",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: text("title").notNull(),
+    description: text("description"),
+    visibilityMode: text("visibility_mode", { enum: dashboardVisibilityModes })
+      .default("public")
+      .notNull(),
+    shareToken: text("share_token").unique(),
+    ownerId: text("owner_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    gridColumns: integer("grid_columns")
+      .notNull()
+      .default(DASHBOARD_DEFAULT_GRID_COLUMNS),
+    // Team deletion removes team resources app-side first; restrict is a safety net
+    teamId: uuid("team_id").references(() => teams.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (d) => ({
+    teamIdx: index("dashboards_team_id_idx").on(d.teamId),
   }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+);
 
 export const dashboardItems = pgTable(
   "dashboard_items",
@@ -452,6 +568,12 @@ export const globalSettings = pgTable("global_settings", {
   dashboardCreationWindowUnauth: integer("dashboard_creation_window_unauth")
     .default(60)
     .notNull(),
+  teamCreationLimitAuth: integer("team_creation_limit_auth")
+    .default(3)
+    .notNull(),
+  teamCreationWindowAuth: integer("team_creation_window_auth")
+    .default(60)
+    .notNull(),
   incrementCooldownMsAuth: integer("increment_cooldown_ms_auth")
     .default(5000)
     .notNull(),
@@ -482,6 +604,11 @@ export const platformEventTypes = [
   "follower_added",
   "follower_removed",
   "member_removed",
+  "team_created",
+  "team_deleted",
+  "team_member_added",
+  "team_member_removed",
+  "resource_transferred",
 ] as const;
 
 export type PlatformEventType = (typeof platformEventTypes)[number];
@@ -494,6 +621,7 @@ export const platformEntityTypes = [
   "invitation",
   "follower",
   "member",
+  "team",
 ] as const;
 
 export type PlatformEntityType = (typeof platformEntityTypes)[number];
@@ -532,6 +660,13 @@ export type NewUser = typeof users.$inferInsert;
 
 export type Role = typeof roles.$inferSelect;
 export type Permission = typeof permissions.$inferSelect;
+
+export type Team = typeof teams.$inferSelect;
+export type NewTeam = typeof teams.$inferInsert;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type NewTeamMember = typeof teamMembers.$inferInsert;
+export type TeamInvitation = typeof teamInvitations.$inferSelect;
+export type NewTeamInvitation = typeof teamInvitations.$inferInsert;
 
 export type Counter = typeof counters.$inferSelect;
 export type NewCounter = typeof counters.$inferInsert;

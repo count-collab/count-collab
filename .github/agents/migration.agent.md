@@ -47,10 +47,15 @@ bun run db:studio      # Open Drizzle Studio for visual inspection
 - `counter_history` (serial PK, audit log with changedBy FK)
 - `counter_members` (serial PK, unique index on counterId+userId, role: viewer/incrementer/editor/admin)
 - `counter_followers` (serial PK, unique index on counterId+userId)
-- `dashboards` (UUID PK, title, description, visibilityMode, shareToken, ownerId, timestamps)
+- `dashboards` (UUID PK, title, description, visibilityMode, shareToken, ownerId, gridColumns 2–5 default 5, timestamps) — gridColumns added in `0014_dashboard_grid_columns`
 - `dashboard_items` (serial PK, dashboardId+counterId, grid position/size)
 - `dashboard_members` (serial PK, unique index on dashboardId+userId, role: viewer/editor/admin)
 - `dashboard_followers` (serial PK, unique index on dashboardId+userId)
+- `teams` (UUID PK, name, description, join_token unique, join_role, created_by FK set null, timestamps)
+- `team_members` (serial PK, unique index on teamId+userId, role: viewer/incrementer/editor/admin/owner)
+- `team_invitations` (serial PK, unique index on teamId+userId, invited_by, role)
+- `counters.team_id` / `dashboards.team_id` (nullable FK → teams ON DELETE RESTRICT, indexed) — added in `0013_teams`
+- `global_settings.team_creation_limit_auth` / `team_creation_window_auth`
 
 ## Expand-and-Contract Migrations (MANDATORY)
 

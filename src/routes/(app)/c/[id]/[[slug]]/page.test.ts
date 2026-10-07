@@ -6,6 +6,7 @@ vi.mock("$app/environment", () => ({ browser: false }));
 vi.mock("$app/navigation", () => ({
   goto: vi.fn(),
   invalidate: vi.fn().mockResolvedValue(undefined),
+  invalidateAll: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("$app/stores", async () => {
   const { readable } = await import("svelte/store");
@@ -59,6 +60,7 @@ function makePageData(overrides: Record<string, unknown> = {}) {
     canIncrement: true,
     isOwner: false,
     isMember: false,
+    isDirectMember: false,
     isFollowing: false,
     followerCount: 0,
     ownerUsername: null,
@@ -346,5 +348,99 @@ describe("Counter detail page", () => {
     });
     const text = container.textContent ?? "";
     expect(text).toContain("scheduled for deletion");
+  });
+
+  describe("teams", () => {
+    const team = { id: "team-1", name: "Alpha" };
+
+    it("shows the team as owner with a link when the user has a team role", () => {
+      const { container } = render(Page, {
+        props: {
+          data: makePageData({
+            team,
+            teamRole: "viewer",
+            ownerUsername: "janedoe",
+          }) as never,
+        },
+      });
+
+      expect(container.textContent).toContain("Team:");
+      const link = screen.getByRole("link", { name: "Alpha" });
+      expect(link.getAttribute("href")).toBe("/t/team-1");
+      expect(container.textContent).not.toContain("@janedoe");
+    });
+
+    it("shows the team name as plain text when the user has no team role", () => {
+      const { container } = render(Page, {
+        props: { data: makePageData({ team, teamRole: null }) as never },
+      });
+
+      expect(container.textContent).toContain("Team:");
+      expect(screen.getByText("Alpha")).toBeTruthy();
+      expect(screen.queryByRole("link", { name: "Alpha" })).toBeNull();
+    });
+
+    it("shows the Ownership section in settings when the user can transfer", async () => {
+      render(Page, {
+        props: {
+          data: makePageData({
+            canEdit: true,
+            canTransfer: true,
+            goals: [],
+            transferTargets: [{ id: "team-2", name: "Beta" }],
+          }) as never,
+        },
+      });
+
+      await fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+      expect(screen.getByRole("heading", { name: "Ownership" })).toBeTruthy();
+      expect(screen.getByRole("option", { name: "Beta" })).toBeTruthy();
+      expect(
+        screen.queryByRole("option", { name: "Personal (me)" }),
+      ).toBeNull();
+      expect(screen.getByRole("button", { name: "Transfer" })).toBeTruthy();
+    });
+
+    it("offers moving a team counter back to personal ownership", async () => {
+      render(Page, {
+        props: {
+          data: makePageData({
+            canEdit: true,
+            canTransfer: true,
+            goals: [],
+            team,
+            teamRole: "admin",
+            transferTargets: [],
+          }) as never,
+        },
+      });
+
+      await fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+      expect(
+        screen.getByRole("option", { name: "Personal (me)" }),
+      ).toBeTruthy();
+    });
+
+    it("hides the Ownership section when the user cannot transfer", async () => {
+      render(Page, {
+        props: {
+          data: makePageData({
+            canEdit: true,
+            canTransfer: false,
+            goals: [],
+            transferTargets: [],
+          }) as never,
+        },
+      });
+
+      await fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+
+      expect(
+        screen.getByRole("dialog", { name: "Counter Settings" }),
+      ).toBeTruthy();
+      expect(screen.queryByRole("heading", { name: "Ownership" })).toBeNull();
+    });
   });
 });

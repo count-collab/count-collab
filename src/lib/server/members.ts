@@ -11,7 +11,6 @@ import { logger } from "$lib/server/logger";
 
 type MemberWithUser = CounterMember & {
   username: string | null;
-  name: string | null;
   image: string | null;
 };
 
@@ -121,7 +120,6 @@ export async function getCounterMembers(
       role: counterMembers.role,
       invitedAt: counterMembers.invitedAt,
       username: users.username,
-      name: users.name,
       image: users.image,
     })
     .from(counterMembers)

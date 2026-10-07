@@ -74,11 +74,12 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     return validation.response;
   }
 
-  const { title, description, visibility } = validation.data;
+  const { title, description, visibility, gridColumns } = validation.data;
   const dashboard = await updateDashboard(params.id, {
     title,
     description,
     visibilityMode: visibility,
+    gridColumns,
   });
 
   if (!dashboard) {

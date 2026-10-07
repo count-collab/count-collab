@@ -70,8 +70,10 @@ import {
   checkCounterCooldown,
   checkPrivateCounterCooldown,
   checkRateLimit,
+  checkTeamCreationRateLimit,
   getClientIp,
   getEffectiveCooldownMs,
+  getTeamCreationRateLimitConfig,
   PRIVATE_COUNTER_DEBOUNCE_MS,
   recordCounterCooldown,
   resetCounterCooldownStore,
@@ -160,6 +162,8 @@ function mockGlobalSettings(overrides: Record<string, unknown> = {}) {
     dashboardCreationWindowAuth: 60,
     dashboardCreationLimitUnauth: 2,
     dashboardCreationWindowUnauth: 60,
+    teamCreationLimitAuth: 3,
+    teamCreationWindowAuth: 60,
     incrementCooldownMsAuth: 5000,
     incrementCooldownMsUnauth: 30000,
     updatedAt: new Date(),
@@ -541,6 +545,50 @@ describe("checkPrivateCounterCooldown", () => {
       blocked: false,
       cooldownSeconds: Math.ceil(PRIVATE_COUNTER_DEBOUNCE_MS / 1000),
     });
+  });
+});
+
+describe("team creation rate limit", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetSettingsCache();
+    resetDbChain();
+  });
+
+  it("reads the limit and window from global settings", async () => {
+    mockGlobalSettings({
+      teamCreationLimitAuth: 4,
+      teamCreationWindowAuth: 120,
+    });
+
+    expect(await getTeamCreationRateLimitConfig()).toEqual({
+      windowMs: 120_000,
+      maxRequests: 4,
+    });
+  });
+
+  it("blocks a user after reaching the limit", async () => {
+    mockGlobalSettings({
+      teamCreationLimitAuth: 2,
+      teamCreationWindowAuth: 60,
+    });
+
+    expect(await checkTeamCreationRateLimit("team-limit-user")).toBeNull();
+    expect(await checkTeamCreationRateLimit("team-limit-user")).toBeNull();
+
+    const limited = await checkTeamCreationRateLimit("team-limit-user");
+    expect(limited?.retryAfter).toBeGreaterThan(0);
+  });
+
+  it("tracks users independently", async () => {
+    mockGlobalSettings({
+      teamCreationLimitAuth: 1,
+      teamCreationWindowAuth: 60,
+    });
+
+    expect(await checkTeamCreationRateLimit("team-user-a")).toBeNull();
+    expect(await checkTeamCreationRateLimit("team-user-b")).toBeNull();
+    expect(await checkTeamCreationRateLimit("team-user-a")).not.toBeNull();
   });
 });
 

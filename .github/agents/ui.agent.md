@@ -18,18 +18,25 @@ You are a UI/component specialist for the Count Collab project. Your job is to b
 
 ```
 src/lib/components/
-├── AddCounterModal.svelte  # Modal for adding counters to dashboards
+├── AddCounterOverlay.svelte # Full-screen overlay for adding counters to dashboards (search + owner filter)
+├── ChangeOwnerOverlay.svelte # Admin full-screen overlay to reassign/remove a counter owner
 ├── CounterBadges.svelte    # Badge indicators for counter properties
 ├── CounterCard.svelte      # Counter display card with title, count, actions
 ├── DashboardCard.svelte    # Dashboard display card
 ├── Fireworks.svelte        # Celebratory animation effect
+├── FullscreenOverlay.svelte # Shared full-screen dialog shell (header, scroll body, footer snippet) — use for task flows/settings
 ├── HistoryEntry.svelte     # Single entry in counter history log
 ├── MetaTags.svelte         # SEO meta tags (title, description, OG)
-├── Modal.svelte            # Reusable modal dialog component
+├── Modal.svelte            # Confirmation dialog only (blurred backdrop, bottom sheet on mobile, z-[60] stacks over overlays)
+├── MessageToast.svelte     # Plain-text toast (via ToastContainer addMessageToast)
+├── OwnerFilter.svelte      # All / Personal / per-team filter chips for /my lists and AddCounterOverlay
 ├── Pagination.svelte       # Page navigation for lists
 ├── RollingNumber.svelte    # Animated number transitions for count display
+├── SoleOwnedTeamsWarning.svelte # Account-deletion warning for sole-owned teams
 ├── Sparkline.svelte        # Inline sparkline chart for counter trends
-└── ThemeToggle.svelte      # Light/dark theme toggle
+├── TeamSettingsOverlay.svelte # Team name/description + danger zone dialog (mirrors CounterSettingsOverlay)
+├── ThemeToggle.svelte      # Light/dark theme toggle
+└── TransferOwnershipSection.svelte # Move counter/dashboard to/from a team (settings overlays)
 ```
 
 ## Page Components
@@ -39,12 +46,16 @@ src/routes/
 ├── +page.svelte              # Landing page with public counters
 ├── c/[id]/[[slug]]/+page.svelte # Counter detail page (core UX)
 ├── counters/+page.svelte     # Browse/search public counters
-├── create/+page.svelte       # Unified creation wizard (counter + dashboard)
+├── create/+page.svelte       # Creation wizard: type (counter/dashboard/team) → owner (Me/Team, if user has editor+ teams) → visibility → mode → details; team branch: name → invites → team page
 ├── d/[id]/+page.svelte       # Dashboard detail page
 ├── dashboards/+page.svelte   # Browse public dashboards
 ├── my-counters/+page.svelte  # User's counters list
+├── my/teams/+page.svelte     # User's teams (create CTA → /create?type=team)
+├── t/[id]/[[slug]]/+page.svelte # Team page (Counters / Dashboards / Members tabs, settings gear → TeamSettingsOverlay)
+├── t/[id]/join/+page.svelte  # Join team via link
 ├── admin/+page.svelte        # Admin dashboard
 ├── admin/counters/+page.svelte # Admin counter management
+├── admin/teams/+page.svelte  # Admin team management
 ├── admin/users/+page.svelte  # Admin user management
 ├── login/+page.svelte        # Login page
 ├── settings/+page.svelte     # User settings

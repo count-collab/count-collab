@@ -2,6 +2,8 @@
   import { goto, invalidateAll } from "$app/navigation";
   import AdminTable from "$lib/components/AdminTable.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import Modal from "$lib/components/Modal.svelte";
+  import SoleOwnedTeamsWarning from "$lib/components/SoleOwnedTeamsWarning.svelte";
   import { slugify } from "$lib/counter";
   import type { PageData } from "./$types";
 
@@ -55,14 +57,8 @@
     return visibilityBadges[mode] ?? visibilityBadges.private;
   }
 
-  function getInitials(name: string | null, username: string | null): string {
-    const source = name || username || "?";
-    return source
-      .split(/\s+/)
-      .map((w) => w[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+  function getInitials(username: string | null): string {
+    return (username?.[0] ?? "?").toUpperCase();
   }
 
   async function handleRoleChange(userId: string, roleId: number) {
@@ -74,15 +70,24 @@
     invalidateAll();
   }
 
+  let showDeleteConfirm = $state(false);
+  let isDeleting = $state(false);
+
   async function handleDeleteUser(userId: string) {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-    await fetch(`/admin/users/${userId}`, { method: "DELETE" });
-    goto("/admin/users");
+    if (isDeleting) return;
+    isDeleting = true;
+    try {
+      await fetch(`/admin/users/${userId}`, { method: "DELETE" });
+      showDeleteConfirm = false;
+      goto("/admin/users");
+    } finally {
+      isDeleting = false;
+    }
   }
 </script>
 
 <MetaTags
-  title="User: {user.username ?? user.name ?? 'Unknown'} | Count Collab"
+  title="User: {user.username ?? 'Unknown'} | Count Collab"
   description="Admin user detail"
   path="/admin/users/{user.id}"
 />
@@ -106,23 +111,20 @@
         {#if user.image}
           <img
             src={user.image}
-            alt="{user.username ?? user.name ?? 'User'} avatar"
+            alt="{user.username ?? 'User'} avatar"
             class="h-16 w-16 shrink-0 rounded-full object-cover"
           />
         {:else}
           <div
             class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xl font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300"
           >
-            {getInitials(user.name, user.username)}
+            {getInitials(user.username)}
           </div>
         {/if}
         <div>
           <h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">
             {user.username ?? "—"}
           </h1>
-          {#if user.name}
-            <p class="text-sm text-slate-500 dark:text-slate-400">{user.name}</p>
-          {/if}
           {#if user.email}
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{user.email}</p>
           {/if}
@@ -148,7 +150,7 @@
         </select>
         <button
           type="button"
-          onclick={() => handleDeleteUser(user.id)}
+          onclick={() => (showDeleteConfirm = true)}
           class="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
         >
           Delete
@@ -276,3 +278,34 @@
     {/if}
   </div>
 </div>
+
+<Modal
+  bind:open={showDeleteConfirm}
+  title="Delete User?"
+  describedBy="delete-user-description"
+>
+  {#if data.soleOwnedTeams.length > 0}
+    <SoleOwnedTeamsWarning teams={data.soleOwnedTeams} isSelf={false} />
+  {/if}
+  <p id="delete-user-description" class="text-sm text-slate-600 dark:text-slate-400">
+    Are you sure you want to delete {user.username ?? "this user"}?
+    This action cannot be undone.
+  </p>
+  <div class="flex items-center justify-end gap-3">
+    <button
+      type="button"
+      onclick={() => (showDeleteConfirm = false)}
+      class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      onclick={() => handleDeleteUser(user.id)}
+      disabled={isDeleting}
+      class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {isDeleting ? "Deleting..." : "Delete"}
+    </button>
+  </div>
+</Modal>

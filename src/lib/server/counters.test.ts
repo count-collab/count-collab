@@ -1,5 +1,8 @@
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Counter } from "$lib/db/schema";
+import { teamMembers, teams, users } from "$lib/db/schema";
 
 const mockInsert = vi.fn();
 const mockInsertValues = vi.fn();
@@ -45,6 +48,8 @@ import {
   getCounterSparkline,
   getGlobalActionCount,
   getOwnedCounterCount,
+  getSharedCounters,
+  getUserCounters,
   listAllCounters,
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
@@ -68,11 +73,18 @@ function makeCounter(overrides: Partial<Counter> = {}): Counter {
     showAllReachedGoals: false,
     scoreboardEnabled: false,
     ownerId: null,
+    teamId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastActivityAt: new Date(),
     ...overrides,
   };
+}
+
+const dialect = new PgDialect();
+
+function toSql(clause: unknown): string {
+  return dialect.sqlToQuery(clause as SQL).sql;
 }
 
 describe("createCounter", () => {
@@ -497,7 +509,7 @@ describe("listAllCounters", () => {
     expect(result.items[0].title).toBe("Test");
   });
 
-  it("returns counters with ownerName falling back to display name when username is null", async () => {
+  it("never falls back to the full name when username is null", async () => {
     const counter = makeCounter({ title: "Fallback" });
     mockOffset.mockResolvedValue([
       { counter, ownerUsername: null, ownerDisplayName: "John Doe" },
@@ -507,7 +519,18 @@ describe("listAllCounters", () => {
     const result = await listAllCounters();
 
     expect(result.items).toHaveLength(1);
-    expect(result.items[0].ownerName).toBe("John Doe");
+    expect(result.items[0].ownerName).toBeNull();
+    expect(JSON.stringify(result)).not.toContain("John Doe");
+  });
+
+  it("does not select users.name", async () => {
+    mockOffset.mockResolvedValue([]);
+    mockCountWhere.mockResolvedValue([{ total: 0 }]);
+
+    await listAllCounters();
+
+    const selection = mockSelect.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.values(selection)).not.toContain(users.name);
   });
 
   it("returns ownerName as null when no owner exists", async () => {
@@ -602,5 +625,167 @@ describe("getOwnedCounterCount", () => {
     const result = await getOwnedCounterCount("user-1");
 
     expect(result).toBe(0);
+  });
+
+  it("excludes team counters created by the user", async () => {
+    mockWhere.mockResolvedValue([{ count: "1" }]);
+
+    await getOwnedCounterCount("user-1");
+
+    const where = toSql(mockWhere.mock.calls[0][0]);
+    expect(where).toContain('"counters"."owner_id" = $1');
+    expect(where).toContain('"counters"."team_id" is null');
+  });
+});
+
+describe("getUserCounters", () => {
+  const itemsFrom = vi.fn();
+  const itemsLeftJoin = vi.fn();
+  const itemsWhere = vi.fn();
+  const itemsOrderBy = vi.fn();
+  const itemsLimit = vi.fn();
+  const itemsOffset = vi.fn();
+  const countFrom = vi.fn();
+  const countLeftJoin = vi.fn();
+  const countWhere = vi.fn();
+
+  function setup(rows: unknown[], total: number) {
+    mockSelect
+      .mockReturnValueOnce({ from: itemsFrom })
+      .mockReturnValueOnce({ from: countFrom });
+    itemsFrom.mockReturnValue({ leftJoin: itemsLeftJoin });
+    itemsLeftJoin.mockReturnValue({
+      leftJoin: itemsLeftJoin,
+      where: itemsWhere,
+    });
+    itemsWhere.mockReturnValue({ orderBy: itemsOrderBy });
+    itemsOrderBy.mockReturnValue({
+      $dynamic: () =>
+        Object.assign(Promise.resolve(rows), { limit: itemsLimit }),
+    });
+    itemsLimit.mockReturnValue({ offset: itemsOffset });
+    itemsOffset.mockResolvedValue(rows);
+    countFrom.mockReturnValue({ leftJoin: countLeftJoin });
+    countLeftJoin.mockReturnValue({
+      leftJoin: countLeftJoin,
+      where: countWhere,
+    });
+    countWhere.mockResolvedValue([{ total }]);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("includes counters owned by the user's teams with team info", async () => {
+    const personal = { ...makeCounter({ ownerId: "user-1" }), teamName: null };
+    const teamCounter = {
+      ...makeCounter({ ownerId: "user-2", teamId: "team-1" }),
+      teamName: "Alpha",
+    };
+    setup([personal, teamCounter], 2);
+
+    const result = await getUserCounters("user-1");
+
+    expect(result).toEqual({ items: [personal, teamCounter], total: 2 });
+    expect(itemsLeftJoin).toHaveBeenCalledWith(teamMembers, expect.anything());
+    expect(itemsLeftJoin).toHaveBeenCalledWith(teams, expect.anything());
+
+    const where = toSql(itemsWhere.mock.calls[0][0]);
+    expect(where).toContain('"team_members"."user_id" is not null');
+    expect(where).toContain('"counter_members"."user_id" is not null');
+    expect(where).toContain('"counters"."team_id" is null');
+    expect(toSql(countWhere.mock.calls[0][0])).toBe(where);
+  });
+
+  it("paginates in SQL and returns the full total", async () => {
+    setup([{ ...makeCounter(), teamName: null }], 30);
+
+    const result = await getUserCounters("user-1", 12, 24);
+
+    expect(itemsLimit).toHaveBeenCalledWith(12);
+    expect(itemsOffset).toHaveBeenCalledWith(24);
+    expect(result.items).toHaveLength(1);
+    expect(result.total).toBe(30);
+  });
+
+  it("returns all rows when no limit is given", async () => {
+    setup([], 0);
+
+    const result = await getUserCounters("user-1");
+
+    expect(itemsLimit).not.toHaveBeenCalled();
+    expect(result).toEqual({ items: [], total: 0 });
+  });
+});
+
+describe("getSharedCounters", () => {
+  const itemsFrom = vi.fn();
+  const itemsLeftJoin = vi.fn();
+  const itemsWhere = vi.fn();
+  const itemsOrderBy = vi.fn();
+  const itemsLimit = vi.fn();
+  const itemsOffset = vi.fn();
+  const countFrom = vi.fn();
+  const countLeftJoin = vi.fn();
+  const countWhere = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSelect
+      .mockReturnValueOnce({ from: itemsFrom })
+      .mockReturnValueOnce({ from: countFrom });
+    itemsFrom.mockReturnValue({ leftJoin: itemsLeftJoin });
+    itemsLeftJoin.mockReturnValue({
+      leftJoin: itemsLeftJoin,
+      where: itemsWhere,
+    });
+    itemsWhere.mockReturnValue({ orderBy: itemsOrderBy });
+    itemsOrderBy.mockReturnValue({ limit: itemsLimit });
+    itemsLimit.mockReturnValue({ offset: itemsOffset });
+    countFrom.mockReturnValue({ leftJoin: countLeftJoin });
+    countLeftJoin.mockReturnValue({
+      leftJoin: countLeftJoin,
+      where: countWhere,
+    });
+  });
+
+  it("returns direct and team counters with the effective member role", async () => {
+    const direct = makeCounter({ ownerId: "user-2" });
+    const team = makeCounter({ ownerId: "user-1", teamId: "team-1" });
+    const both = makeCounter({ teamId: "team-1" });
+    itemsOffset.mockResolvedValue([
+      { ...direct, teamName: null, directRole: "editor", teamRole: null },
+      {
+        ...team,
+        teamName: "Alpha",
+        directRole: null,
+        teamRole: "incrementer",
+      },
+      { ...both, teamName: "Alpha", directRole: "viewer", teamRole: "owner" },
+    ]);
+    countWhere.mockResolvedValue([{ total: 3 }]);
+
+    const result = await getSharedCounters("user-1");
+
+    expect(result.total).toBe(3);
+    expect(result.items).toEqual([
+      { ...direct, teamName: null, memberRole: "editor" },
+      { ...team, teamName: "Alpha", memberRole: "incrementer" },
+      { ...both, teamName: "Alpha", memberRole: "admin" },
+    ]);
+  });
+
+  it("excludes only personally owned counters", async () => {
+    itemsOffset.mockResolvedValue([]);
+    countWhere.mockResolvedValue([{ total: 0 }]);
+
+    await getSharedCounters("user-1", 4);
+
+    const where = toSql(itemsWhere.mock.calls[0][0]);
+    expect(where).toContain('"counters"."team_id" is not null');
+    expect(where).toContain('"counters"."owner_id" IS DISTINCT FROM $1');
+    expect(where).toContain('"team_members"."user_id" is not null');
+    expect(itemsLimit).toHaveBeenCalledWith(4);
   });
 });

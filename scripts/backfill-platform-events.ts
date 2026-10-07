@@ -145,7 +145,6 @@ async function backfillUserRegistered() {
   const rows = await db
     .select({
       id: schema.users.id,
-      name: schema.users.name,
       email: schema.users.email,
       createdAt: schema.users.createdAt,
     })
@@ -163,7 +162,7 @@ async function backfillUserRegistered() {
       userId: row.id,
       entityId: row.id,
       entityType: "user" as const,
-      metadata: { user_name: row.name, email: row.email },
+      metadata: { email: row.email },
       createdAt: row.createdAt,
     }));
 

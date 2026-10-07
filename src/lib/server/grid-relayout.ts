@@ -1,4 +1,6 @@
-export const GRID_COLS = 5;
+import { DASHBOARD_DEFAULT_GRID_COLUMNS } from "$lib/db/schema";
+
+export const GRID_COLS = DASHBOARD_DEFAULT_GRID_COLUMNS;
 const MAX_ITERATIONS = 100;
 
 export interface GridItem {
@@ -119,6 +121,7 @@ function resolveOverlaps(
   items: GridItem[],
   movedItem: GridItem,
   originalPosition: { x: number; y: number; w: number; h: number } | null,
+  gridCols: number,
 ): void {
   let iterations = 0;
 
@@ -196,7 +199,7 @@ function resolveOverlaps(
 
       // Try shifting right: place just after the active item's right edge
       const shiftedX = activeItem.positionX + activeItem.sizeColumns;
-      if (shiftedX + itemRef.sizeColumns <= GRID_COLS) {
+      if (shiftedX + itemRef.sizeColumns <= gridCols) {
         // Fits within grid width — shift right in the same row
         itemRef.positionX = shiftedX;
       } else {
@@ -246,7 +249,7 @@ export function relayoutGrid(
     target.positionY = Math.max(0, action.positionY);
 
     // For move: resolve overlaps with swap/fit logic using the vacated position
-    resolveOverlaps(result, target, originalPosition);
+    resolveOverlaps(result, target, originalPosition, gridCols);
     return result;
   }
   // Resize
@@ -286,7 +289,62 @@ export function relayoutGrid(
   }
 
   // For resize: no vacated rectangle — always displace overlapping items
-  resolveOverlaps(result, target, null);
+  resolveOverlaps(result, target, null, gridCols);
+
+  return result;
+}
+
+function compareReadingOrder(a: GridItem, b: GridItem): number {
+  return a.positionY - b.positionY || a.positionX - b.positionX || a.id - b.id;
+}
+
+/**
+ * Pure function — adapts a layout to a grid with `cols` columns.
+ * Returns a full copy of every item (same order as input) with sizeColumns
+ * clamped to `cols`. Items that still fit in place keep their position; the
+ * rest are placed, in reading order, at the first free slot (row by row).
+ */
+export function fitItemsToColumns(items: GridItem[], cols: number): GridItem[] {
+  const result = items.map((item) => ({
+    ...item,
+    sizeColumns: Math.max(1, Math.min(item.sizeColumns, cols)),
+  }));
+  const ordered = [...result].sort(compareReadingOrder);
+  const placed: GridItem[] = [];
+  const overflow: GridItem[] = [];
+
+  const isFree = (candidate: GridItem) =>
+    !placed.some((other) => itemsOverlap(candidate, other));
+
+  for (const item of ordered) {
+    if (
+      item.positionX >= 0 &&
+      item.positionY >= 0 &&
+      item.positionX + item.sizeColumns <= cols &&
+      isFree(item)
+    ) {
+      placed.push(item);
+    } else {
+      overflow.push(item);
+    }
+  }
+
+  for (const item of overflow) {
+    // Terminates: rows below every placed item are always free
+    for (let y = 0; ; y++) {
+      let found = false;
+      for (let x = 0; x <= cols - item.sizeColumns; x++) {
+        if (isFree({ ...item, positionX: x, positionY: y })) {
+          item.positionX = x;
+          item.positionY = y;
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+    placed.push(item);
+  }
 
   return result;
 }

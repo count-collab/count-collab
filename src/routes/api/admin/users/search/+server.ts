@@ -24,7 +24,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   return json({
     users: result.items.map((u) => ({
       id: u.id,
-      name: u.name,
       username: u.username,
       email: u.email,
       image: u.image,

@@ -6,7 +6,7 @@ import {
   canDeleteCounter,
   canEditCounter,
   canIncrementCounter,
-  canViewPrivateCounter,
+  canIncrementPrivateCounter,
 } from "$lib/server/authorize";
 import {
   deleteCounter,
@@ -86,12 +86,14 @@ export const POST: RequestHandler = async ({
       !!token && !!counter.shareToken && token === counter.shareToken;
 
     if (!hasValidToken) {
-      if (userId) {
-        const canView = await canViewPrivateCounter(userId, counter.id);
-        if (!canView) {
-          throw error(404, "Counter not found");
-        }
-      } else {
+      if (!userId) {
+        throw error(404, "Counter not found");
+      }
+      const access = await canIncrementPrivateCounter(userId, counter.id);
+      if (access === "forbidden") {
+        throw error(403, "You don't have permission to increment this counter");
+      }
+      if (access === "not_found") {
         throw error(404, "Counter not found");
       }
     }
@@ -187,7 +189,7 @@ export const POST: RequestHandler = async ({
             counter_title: counter.title,
             goal_amount: g.amount,
             goal_description: g.description,
-            user_name: session?.user?.username ?? session?.user?.name ?? null,
+            user_name: session?.user?.username ?? null,
           },
         });
       }
@@ -224,7 +226,7 @@ export const POST: RequestHandler = async ({
     }
   }
 
-  const username = session?.user?.username ?? session?.user?.name ?? null;
+  const username = session?.user?.username ?? null;
   const cooldownSeconds = cooldownCheck.cooldownSeconds;
   emitCounterUpdate(
     updated.id,

@@ -1,10 +1,13 @@
 <script lang="ts">
   import { signOut } from "@auth/sveltekit/client";
-  import { invalidateAll } from "$app/navigation";
+  import { goto, invalidateAll } from "$app/navigation";
+  import { page } from "$app/state";
+  import InvitationHint from "$lib/components/InvitationHint.svelte";
   import SiteFooter from "$lib/components/SiteFooter.svelte";
   import ThemeToggle from "$lib/components/ThemeToggle.svelte";
   import ToastContainer, {
     addInvitationToast,
+    addMessageToast,
   } from "$lib/components/ToastContainer.svelte";
   import {
     type InvitationPayload,
@@ -12,6 +15,10 @@
     onInvitationDeleted,
     onInvitationUpdated,
   } from "$lib/stores/invitations";
+  import {
+    onTeamMembershipChanged,
+    type TeamMembershipChangedPayload,
+  } from "$lib/stores/teams";
 
   const { children, data } = $props();
   const session = $derived(data.session);
@@ -24,6 +31,29 @@
     if (payload.userId === session?.user?.id) {
       invalidateAll();
     }
+  }
+
+  function handleTeamMembershipChange(payload: TeamMembershipChangedPayload) {
+    if (payload.userId !== session?.user?.id) return;
+
+    const teamPath = `/t/${payload.teamId}`;
+    const { pathname } = page.url;
+    const onTeamPage =
+      pathname === teamPath || pathname.startsWith(`${teamPath}/`);
+    const lostAccess =
+      payload.reason === "removed" || payload.reason === "team_deleted";
+
+    if (onTeamPage && lostAccess) {
+      addMessageToast(
+        payload.reason === "team_deleted"
+          ? "This team was deleted."
+          : "You are no longer a member of this team.",
+      );
+      goto("/my/teams", { invalidateAll: true });
+      return;
+    }
+
+    invalidateAll();
   }
 
   $effect(() => {
@@ -39,11 +69,13 @@
     });
     const unsubUpdated = onInvitationUpdated(handleInvitationChange);
     const unsubDeleted = onInvitationDeleted(handleInvitationChange);
+    const unsubTeam = onTeamMembershipChanged(handleTeamMembershipChange);
 
     return () => {
       unsubCreated();
       unsubUpdated();
       unsubDeleted();
+      unsubTeam();
     };
   });
 </script>
@@ -73,19 +105,22 @@
         <ion-icon name="add-outline" style="font-size: 22px;"></ion-icon>
       </a>
       {#if session?.user}
-        <a
-          href="/invitations"
-          class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          aria-label="Invitations"
-        >
-          <ion-icon name="notifications-outline" style="font-size: 20px;"
-          ></ion-icon>
-          {#if hasPendingInvitations}
-            <span
-              class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
-            ></span>
-          {/if}
-        </a>
+        <div class="relative">
+          <a
+            href="/invitations"
+            class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            aria-label="Invitations"
+          >
+            <ion-icon name="notifications-outline" style="font-size: 20px;"
+            ></ion-icon>
+            {#if hasPendingInvitations}
+              <span
+                class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
+              ></span>
+            {/if}
+          </a>
+          <InvitationHint count={data.pendingInvitationCount} />
+        </div>
       {/if}
       <ThemeToggle />
       <button
@@ -115,21 +150,31 @@
         class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
         >Dashboards</a
       >
+      {#if session?.user}
+        <a
+          href="/my/teams"
+          class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
+          >Teams</a
+        >
+      {/if}
       <div class="flex items-center gap-3 ml-auto">
         {#if session?.user}
-          <a
-            href="/invitations"
-            class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-            aria-label="Invitations"
-          >
-            <ion-icon name="notifications-outline" style="font-size: 20px;"
-            ></ion-icon>
-            {#if hasPendingInvitations}
-              <span
-                class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
-              ></span>
-            {/if}
-          </a>
+          <div class="relative">
+            <a
+              href="/invitations"
+              class="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              aria-label="Invitations"
+            >
+              <ion-icon name="notifications-outline" style="font-size: 20px;"
+              ></ion-icon>
+              {#if hasPendingInvitations}
+                <span
+                  class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600"
+                ></span>
+              {/if}
+            </a>
+            <InvitationHint count={data.pendingInvitationCount} />
+          </div>
         {/if}
         <a
           href="/create"
@@ -157,7 +202,7 @@
               <span
                 class="text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                {session.user.username ?? session.user.name ?? "User"}
+                {session.user.username ?? "User"}
               </span>
               <svg
                 class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 transition-transform group-hover:rotate-180"
@@ -250,6 +295,17 @@
           <ion-icon name="grid-outline" style="font-size: 18px;"></ion-icon>
           <span>Dashboards</span>
         </a>
+        {#if session?.user}
+          <a
+            href="/my/teams"
+            onclick={() => (mobileMenuOpen = false)}
+            class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            <ion-icon name="people-outline" style="font-size: 18px;"
+            ></ion-icon>
+            <span>Teams</span>
+          </a>
+        {/if}
         <a
           href="/create"
           onclick={() => (mobileMenuOpen = false)}
@@ -321,7 +377,7 @@
               <span
                 class="text-sm font-medium text-slate-700 dark:text-slate-300"
               >
-                {session.user.username ?? session.user.name ?? "User"}
+                {session.user.username ?? "User"}
               </span>
             </a>
             <button

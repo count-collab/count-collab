@@ -18,7 +18,6 @@
     count: number;
     label: string;
     extra?: {
-      name?: string | null;
       username?: string | null;
       image?: string | null;
     };
@@ -211,15 +210,8 @@
                     <span
                       class="text-sm font-medium text-slate-900 dark:text-slate-100"
                     >
-                      {row.extra.name || row.extra.username || row.value}
+                      {row.extra.username ? `@${row.extra.username}` : row.value}
                     </span>
-                    {#if row.extra.username}
-                      <span
-                        class="ml-1 text-xs text-slate-400 dark:text-slate-500"
-                      >
-                        @{row.extra.username}
-                      </span>
-                    {/if}
                   </div>
                 </div>
               {:else}

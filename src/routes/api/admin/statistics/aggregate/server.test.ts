@@ -27,7 +27,6 @@ vi.mock("$lib/db/schema", () => ({
   },
   users: {
     id: "id",
-    name: "name",
     username: "username",
     image: "image",
   },
@@ -170,6 +169,26 @@ describe("GET /api/admin/statistics/aggregate", () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it.each([
+    "team_created",
+    "team_deleted",
+    "team_member_added",
+    "team_member_removed",
+    "resource_transferred",
+  ])("accepts filter.eventType=%s", async (eventType) => {
+    mockHasPermission.mockResolvedValue(true);
+    setupStandardQueries(0, []);
+
+    const response = await GET(
+      makeEvent(
+        { field: "eventType", "filter.eventType": eventType },
+        { locals: makeLocals(USER_ID) },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
   it("returns aggregation for standard field (eventType)", async () => {
     mockHasPermission.mockResolvedValue(true);
     setupStandardQueries(3, [
@@ -213,13 +232,12 @@ describe("GET /api/admin/statistics/aggregate", () => {
     });
   });
 
-  it("returns aggregation for userId with user join", async () => {
+  it("returns aggregation for userId with user join, labelled by username only", async () => {
     mockHasPermission.mockResolvedValue(true);
     setupUserIdQueries(1, [
       {
         value: USER_ID,
         count: 42,
-        name: "Test User",
         username: "testuser",
         image: "https://example.com/avatar.png",
       },
@@ -238,13 +256,30 @@ describe("GET /api/admin/statistics/aggregate", () => {
       {
         value: USER_ID,
         count: 42,
-        label: "Test User",
+        label: "testuser",
         extra: {
           username: "testuser",
           image: "https://example.com/avatar.png",
         },
       },
     ]);
+    const selection = mockDbSelect.mock.calls[1][0] as Record<string, unknown>;
+    expect(selection).not.toHaveProperty("name");
+    expect(Object.values(selection)).not.toContain("name");
+  });
+
+  it("falls back to the user id label when the user has no username", async () => {
+    mockHasPermission.mockResolvedValue(true);
+    setupUserIdQueries(1, [
+      { value: USER_ID, count: 1, username: null, image: null },
+    ]);
+
+    const response = await GET(
+      makeEvent({ field: "userId" }, { locals: makeLocals(USER_ID) }),
+    );
+
+    const body = await response.json();
+    expect(body.values[0].label).toBe(USER_ID);
   });
 
   it("returns aggregation for metadata field", async () => {

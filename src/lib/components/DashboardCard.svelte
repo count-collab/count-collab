@@ -10,6 +10,7 @@ import { page } from "$app/stores";
       description: string | null;
       visibilityMode: string;
       ownerId?: string | null;
+      teamName?: string | null;
       followerCount?: number;
     };
     showBadges?: boolean;
@@ -105,7 +106,15 @@ import { page } from "$app/stores";
             dashboard.visibilityMode}
         </span>
         {#if !followed}
-          {#if isOwner}
+          {#if dashboard.teamName}
+            <span
+              class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-50 text-slate-600 ring-1 ring-slate-200/60 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-600/60"
+            >
+              <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+              <span class="sr-only">Team:</span>
+              {dashboard.teamName}
+            </span>
+          {:else if isOwner}
             <span
               class="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 ring-1 ring-blue-200/60 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-700/60"
               >Owner</span

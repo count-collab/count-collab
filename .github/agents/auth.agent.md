@@ -14,6 +14,8 @@ You are an authentication and authorization specialist for the Count Collab proj
 - **Auth config**: `src/lib/server/auth.ts`
 - **Authorization**: `src/lib/server/authorize.ts` — counter permission checks
 - **Dashboard Authorization**: `src/lib/server/dashboard-authorize.ts` — dashboard permission checks
+- **Team Authorization**: `src/lib/server/team-authorize.ts` — team role checks; `src/lib/roles.ts` — role ranks, team→resource mapping, `canAssignTeamRole`
+- **Login redirect**: `src/lib/utils/redirect.ts` — `safeRedirectPath()` for `/login?redirectTo=`
 - **Permissions**: `src/lib/server/permissions.ts` — role-based permission logic
 - **User management**: `src/lib/server/users.ts`
 - **Middleware**: `src/hooks.server.ts` — 4-stage hook chain
@@ -48,6 +50,15 @@ sequence(loggingHandle, authHandle, appHandle, usernameGuard)
 - Per-dashboard access: `viewer`, `editor`, `admin`
 - Checked via authorization functions in `src/lib/server/dashboard-authorize.ts`
 - Dashboard owner (via `dashboards.ownerId`) has implicit full access
+
+### Team Roles (teamMembers table)
+
+- Per-team access: `viewer` < `incrementer` < `editor` < `admin` < `owner` (multiple owners, at least one required)
+- Teams own counters/dashboards via `teamId`. When `teamId` is set, `ownerId` grants NO owner rights
+- Effective resource role = max(direct member role, mapped team role); team owner → admin, team incrementer → dashboard viewer
+- Resolved in one query by `getCounterAccess()` / `getDashboardAccess()`; all `can*` helpers use them
+- Admins manage members up to admin; only owners touch the owner role. Platform `team:edit_any` acts as owner, `team:delete_any` can delete
+- Private counters: viewer roles cannot increment (`canIncrementPrivateCounter()`); share-token holders and followers can
 
 ## Auth Schema
 

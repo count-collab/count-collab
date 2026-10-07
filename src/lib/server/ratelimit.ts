@@ -64,6 +64,8 @@ const DEFAULT_SETTINGS: Omit<GlobalSettings, "id" | "updatedAt"> = {
   dashboardCreationWindowAuth: 60,
   dashboardCreationLimitUnauth: 2,
   dashboardCreationWindowUnauth: 60,
+  teamCreationLimitAuth: 3,
+  teamCreationWindowAuth: 60,
   incrementCooldownMsAuth: 5000,
   incrementCooldownMsUnauth: 30000,
 };
@@ -132,6 +134,28 @@ export async function getRateLimitConfig(isAuthenticated: boolean): Promise<{
       maxRequests: 1,
     },
   };
+}
+
+/**
+ * Get the team creation rate limit from global settings. Teams always require login.
+ */
+export async function getTeamCreationRateLimitConfig(): Promise<RateLimitConfig> {
+  const settings = await getGlobalSettings();
+  return {
+    windowMs: settings.teamCreationWindowAuth * 1000,
+    maxRequests: settings.teamCreationLimitAuth,
+  };
+}
+
+/**
+ * Check the team creation rate limit for a user.
+ * Returns null if allowed, or retry info if limited.
+ */
+export async function checkTeamCreationRateLimit(
+  userId: string,
+): Promise<{ retryAfter: number } | null> {
+  const config = await getTeamCreationRateLimitConfig();
+  return checkRateLimit(`user:${userId}`, "/api/teams", config);
 }
 
 /**

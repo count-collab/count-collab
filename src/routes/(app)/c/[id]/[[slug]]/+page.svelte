@@ -546,8 +546,28 @@ import { untrack } from "svelte";
           {data.followerCount === 1 ? "follower" : "followers"}
         </span>
       {/if}
+      {#if data.team}
+        <span
+          class="text-xs text-slate-400 dark:text-slate-500 inline-flex items-center gap-1"
+        >
+          <ion-icon name="people-outline" style="font-size: 14px;" aria-hidden="true"
+          ></ion-icon>
+          Team:
+          {#if data.teamRole}
+            <a
+              href="/t/{data.team.id}"
+              class="font-medium text-slate-500 dark:text-slate-400 hover:underline"
+              >{data.team.name}</a
+            >
+          {:else}
+            <span class="font-medium text-slate-500 dark:text-slate-400"
+              >{data.team.name}</span
+            >
+          {/if}
+        </span>
+      {/if}
       <span class="text-xs text-slate-400 dark:text-slate-500">
-        Created {#if data.ownerUsername}by <span
+        Created {#if !data.team && data.ownerUsername}by <span
             class="font-medium text-slate-500 dark:text-slate-400"
             >@{data.ownerUsername}</span
           > ·
@@ -743,8 +763,10 @@ import { untrack } from "svelte";
   members={data.members}
   invitations={data.invitations}
   canManage={data.canManage}
-  isMember={data.isMember}
+  isDirectMember={data.isDirectMember}
   currentUserId={data.session?.user?.id ?? null}
+  team={data.team}
+  teamLinked={data.teamRole !== null}
   onupdate={() => invalidate(`counter:${data.counter.id}`)}
 />
 
@@ -759,11 +781,11 @@ import { untrack } from "svelte";
     This action cannot be undone. The counter and its history will be
     permanently deleted.
   </p>
-  <div class="flex justify-end gap-3">
+  <div class="flex items-center justify-end gap-3">
     <button
       type="button"
       onclick={() => (showDeleteConfirm = false)}
-      class="px-4 py-2 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700"
+      class="text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
     >
       Cancel
     </button>
@@ -771,7 +793,7 @@ import { untrack } from "svelte";
       type="button"
       onclick={handleDelete}
       disabled={isDeleting}
-      class="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
+      class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isDeleting ? "Deleting..." : "Delete"}
     </button>
@@ -795,6 +817,9 @@ import { untrack } from "svelte";
     }}
     goals={data.goals}
     canEdit={data.canEdit}
+    canTransfer={data.canTransfer}
+    team={data.team}
+    transferTargets={data.transferTargets}
     onsave={() => invalidate(`counter:${data.counter.id}`)}
   />
 {/if}
