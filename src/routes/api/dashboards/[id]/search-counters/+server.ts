@@ -8,7 +8,6 @@ import {
   isNotNull,
   isNull,
   ne,
-  notInArray,
   or,
 } from "drizzle-orm";
 import { db } from "$lib/db";
@@ -58,9 +57,10 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     scope === "mine" ? 50 : 20,
   );
 
-  // Get counter IDs already on this dashboard
   const existingItems = await getDashboardItems(params.id);
-  const existingCounterIds = existingItems.map((item) => item.counterId);
+  const existingCounterIds = new Set(
+    existingItems.map((item) => item.counterId),
+  );
 
   // Build membership subquery: counters the user is a member of
   const memberCounterIds = db
@@ -106,11 +106,6 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     conditions.push(ilike(countersTable.title, `%${escapeLikePattern(q)}%`));
   }
 
-  // Exclude counters already in the dashboard
-  if (existingCounterIds.length > 0) {
-    conditions.push(notInArray(countersTable.id, existingCounterIds));
-  }
-
   const rows = await db
     .select({
       id: countersTable.id,
@@ -145,6 +140,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
     isMine:
       (counter.teamId === null && counter.ownerId === userId) ||
       teamMemberUserId !== null,
+    onDashboard: existingCounterIds.has(counter.id),
   }));
 
   return json({ items, userId });

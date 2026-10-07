@@ -20,6 +20,7 @@
     teamName: string | null;
     /** Personally owned or owned by one of the user's teams. */
     isMine: boolean;
+    onDashboard: boolean;
   };
 
   type Scope = "mine" | "others";
@@ -65,28 +66,23 @@
   let searching = $state(false);
   let hasSearched = $state(false);
   let error = $state<string | null>(null);
-  let justAddedIds = $state<Set<string>>(new Set());
-  let addedCount = $state(0);
+  let addedIds = $state<Set<string>>(new Set());
   let ownerFilter = $state<OwnerFilterValue>("all");
   let searchInput = $state<HTMLInputElement | null>(null);
   let suggestionsSeq = 0;
   let searchSeq = 0;
 
-  const isListed = (r: SearchResult) =>
-    !existingCounterIds.includes(r.id) || justAddedIds.has(r.id);
+  const isAdded = (r: SearchResult) =>
+    addedIds.has(r.id) || existingCounterIds.includes(r.id) || r.onDashboard;
 
   const teams = $derived(collectTeams([...suggestedMine, ...resultMine]));
-  // Fall back to "all" if the filter control disappears (e.g. last team counter added)
+  // Fall back to "all" if the filter control disappears (no team counters loaded)
   const activeFilter = $derived(teams.length > 0 ? ownerFilter : "all");
-  const mineItems = $derived(
-    (hasSearched ? resultMine : suggestedMine).filter(isListed),
-  );
+  const mineItems = $derived(hasSearched ? resultMine : suggestedMine);
   const filteredMine = $derived(
     mineItems.filter((r) => matchesOwnerFilter(r, activeFilter)),
   );
-  const otherItems = $derived(
-    (hasSearched ? resultOthers : suggestedOthers).filter(isListed),
-  );
+  const otherItems = $derived(hasSearched ? resultOthers : suggestedOthers);
   const isLoading = $derived(
     !hasSearched && (loadingSuggestions || searching),
   );
@@ -101,8 +97,7 @@
       resultOthers = [];
       hasSearched = false;
       error = null;
-      justAddedIds = new Set();
-      addedCount = 0;
+      addedIds = new Set();
       ownerFilter = "all";
       loadSuggestions();
     });
@@ -187,20 +182,10 @@
     }
   }
 
-  function handleAdd(counterId: string) {
-    justAddedIds = new Set([...justAddedIds, counterId]);
-    addedCount += 1;
-    onAdd(counterId);
-    setTimeout(() => {
-      justAddedIds = new Set(
-        [...justAddedIds].filter((id) => id !== counterId),
-      );
-      const keep = (r: SearchResult) => r.id !== counterId;
-      suggestedMine = suggestedMine.filter(keep);
-      suggestedOthers = suggestedOthers.filter(keep);
-      resultMine = resultMine.filter(keep);
-      resultOthers = resultOthers.filter(keep);
-    }, 1500);
+  function handleAdd(result: SearchResult) {
+    if (isAdded(result)) return;
+    addedIds = new Set([...addedIds, result.id]);
+    onAdd(result.id);
   }
 </script>
 
@@ -243,7 +228,7 @@
         {/if}
       </div>
     </div>
-    {#if justAddedIds.has(result.id)}
+    {#if isAdded(result)}
       <span
         class="inline-flex shrink-0 items-center gap-1 px-4 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400"
       >
@@ -254,7 +239,7 @@
     {:else}
       <button
         type="button"
-        onclick={() => handleAdd(result.id)}
+        onclick={() => handleAdd(result)}
         aria-label="Add {result.title}"
         class="inline-flex shrink-0 items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
       >
@@ -327,7 +312,7 @@
         {@render emptyText(
           hasSearched
             ? "None of your counters match this search."
-            : "You have no counters to add.",
+            : "You don't have any counters yet.",
         )}
       {:else if filteredMine.length === 0}
         {@render emptyText("No counters in this filter.")}
@@ -366,8 +351,8 @@
   {#snippet footer()}
     <div class="flex items-center justify-between gap-3">
       <p class="text-sm text-slate-500 dark:text-slate-400" aria-live="polite">
-        {#if addedCount > 0}
-          {addedCount} added
+        {#if addedIds.size > 0}
+          {addedIds.size} added
         {/if}
       </p>
       <button

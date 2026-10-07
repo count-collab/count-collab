@@ -773,8 +773,7 @@
                 {/if}
               </p>
               <p class="text-xs text-slate-400 dark:text-slate-500">
-                {#if member.username}@{member.username} ·
-                {/if}Joined {new Date(member.joinedAt).toLocaleDateString()}
+                Joined {new Date(member.joinedAt).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -799,10 +798,16 @@
                 <button
                   type="button"
                   onclick={() => handleRemoveMember(member.userId)}
-                  class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                  class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-slate-500 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
                   aria-label="Remove {label}"
+                  title="Remove {label}"
                 >
-                  Remove
+                  <ion-icon
+                    name="trash-outline"
+                    class="block"
+                    style="font-size: 18px;"
+                    aria-hidden="true"
+                  ></ion-icon>
                 </button>
               {/if}
             {:else}

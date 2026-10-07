@@ -85,9 +85,6 @@ vi.mock("drizzle-orm", () => ({
   isNotNull: vi.fn((col: unknown) => ({ isNotNull: col })),
   isNull: vi.fn((col: unknown) => ({ isNull: col })),
   ne: vi.fn((a: unknown, b: unknown) => ({ ne: [a, b] })),
-  notInArray: vi.fn((col: unknown, arr: unknown) => ({
-    notInArray: [col, arr],
-  })),
   or: vi.fn((...args: unknown[]) => ({ or: args })),
 }));
 
@@ -274,6 +271,7 @@ describe("GET /api/dashboards/[id]/search-counters", () => {
       teamId: "team-1",
       teamName: "Alpha",
       isMine: true,
+      onDashboard: false,
     });
     expect(body.items[1].isMine).toBe(false);
     expect(body.items[2].isMine).toBe(true);
@@ -310,32 +308,59 @@ describe("GET /api/dashboards/[id]/search-counters", () => {
     expect(mockEscapeLikePattern).toHaveBeenCalledWith("test%query");
   });
 
-  it("excludes counters already in the dashboard", async () => {
+  it("returns counters already on the dashboard flagged with onDashboard", async () => {
     mockGetDashboardItems.mockResolvedValue([
       { counterId: "existing-counter-1" },
       { counterId: "existing-counter-2" },
     ]);
-    setupDbChain([]);
+    setupDbChain([
+      {
+        id: "existing-counter-1",
+        title: "A",
+        teamId: null,
+        ownerId: null,
+        teamMemberUserId: null,
+      },
+      {
+        id: "new-counter",
+        title: "B",
+        teamId: null,
+        ownerId: null,
+        teamMemberUserId: null,
+      },
+      {
+        id: "existing-counter-2",
+        title: "C",
+        teamId: null,
+        ownerId: null,
+        teamMemberUserId: null,
+      },
+    ]);
 
-    const { notInArray } = await import("drizzle-orm");
-
-    await GET(
+    const response = await GET(
       makeEvent(VALID_DASHBOARD_ID, {
         locals: makeLocals("user-1"),
       }) as any,
     );
+    const body = await response.json();
 
-    expect(notInArray).toHaveBeenCalledWith("counters.id", [
-      "existing-counter-1",
-      "existing-counter-2",
+    expect(mockGetDashboardItems).toHaveBeenCalledWith(VALID_DASHBOARD_ID);
+    expect(
+      body.items.map((i: { id: string; onDashboard: boolean }) => [
+        i.id,
+        i.onDashboard,
+      ]),
+    ).toEqual([
+      ["existing-counter-1", true],
+      ["new-counter", false],
+      ["existing-counter-2", true],
     ]);
   });
 
-  it("does not add notInArray condition when dashboard has no items", async () => {
-    mockGetDashboardItems.mockResolvedValue([]);
-    setupDbChain([]);
-
-    const { notInArray } = await import("drizzle-orm");
+  it("does not filter out dashboard counters in the query", async () => {
+    mockGetDashboardItems.mockResolvedValue([
+      { counterId: "existing-counter-1" },
+    ]);
 
     await GET(
       makeEvent(VALID_DASHBOARD_ID, {
@@ -343,7 +368,32 @@ describe("GET /api/dashboards/[id]/search-counters", () => {
       }) as any,
     );
 
-    expect(notInArray).not.toHaveBeenCalled();
+    const conditions = mockWhere.mock.calls[
+      mockWhere.mock.calls.length - 1
+    ][0] as unknown[];
+    expect(conditions).toHaveLength(1);
+  });
+
+  it("marks all counters as not on dashboard when dashboard has no items", async () => {
+    mockGetDashboardItems.mockResolvedValue([]);
+    setupDbChain([
+      {
+        id: "counter-1",
+        title: "A",
+        teamId: null,
+        ownerId: null,
+        teamMemberUserId: null,
+      },
+    ]);
+
+    const response = await GET(
+      makeEvent(VALID_DASHBOARD_ID, {
+        locals: makeLocals("user-1"),
+      }) as any,
+    );
+    const body = await response.json();
+
+    expect(body.items[0].onDashboard).toBe(false);
   });
 
   it("respects limit parameter clamped to max 20", async () => {
@@ -537,6 +587,7 @@ describe("GET /api/dashboards/[id]/search-counters", () => {
             teamId: null,
             teamName: null,
             isMine: true,
+            onDashboard: false,
           },
         ],
         userId: "user-1",

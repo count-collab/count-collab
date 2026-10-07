@@ -24,6 +24,7 @@ type Item = {
   teamId: string | null;
   teamName: string | null;
   isMine: boolean;
+  onDashboard: boolean;
 };
 
 function counter(overrides: Partial<Item> & { id: string; title: string }) {
@@ -35,6 +36,7 @@ function counter(overrides: Partial<Item> & { id: string; title: string }) {
     teamId: null,
     teamName: null,
     isMine: true,
+    onDashboard: false,
     ...overrides,
   };
 }
@@ -173,13 +175,47 @@ describe("AddCounterOverlay", () => {
     expect(screen.queryByRole("group", { name: "Filter by owner" })).toBeNull();
   });
 
-  it("excludes counters already on the dashboard", async () => {
+  it("lists counters from existingCounterIds as Added without an Add button", async () => {
     renderOverlay({ existingCounterIds: ["c-personal", "c-popular"] });
     const mine = await yourCounters();
 
+    expect(within(mine).getByText("Personal One")).toBeTruthy();
     expect(within(mine).getByText("Team One")).toBeTruthy();
-    expect(screen.queryByText("Personal One")).toBeNull();
-    expect(screen.queryByText("Popular One")).toBeNull();
+    expect(screen.getByText("Popular One")).toBeTruthy();
+    expect(screen.getAllByText("Added")).toHaveLength(2);
+    expect(
+      screen.queryByRole("button", { name: "Add Personal One" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Add Popular One" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Add Team One" }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/\d+ added/)).toBeNull();
+  });
+
+  it("lists counters flagged onDashboard by the API as Added", async () => {
+    mockSearch({
+      mine: [{ ...personal, onDashboard: true }, teamOwned],
+      others: [{ ...popular, onDashboard: true }],
+    });
+    renderOverlay();
+    const mine = await yourCounters();
+
+    expect(within(mine).getByText("Personal One")).toBeTruthy();
+    expect(screen.getByText("Popular One")).toBeTruthy();
+    expect(screen.getAllByText("Added")).toHaveLength(2);
+    expect(
+      screen.queryByRole("button", { name: "Add Personal One" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Add Popular One" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Add Team One" }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/\d+ added/)).toBeNull();
   });
 
   it("calls onAdd, marks the row as added and counts additions", async () => {
@@ -198,6 +234,31 @@ describe("AddCounterOverlay", () => {
     ).toBeNull();
     expect(screen.getByText("1 added")).toBeTruthy();
     expect(screen.getByRole("dialog", { name: "Add Counter" })).toBeTruthy();
+  });
+
+  it("keeps added counters listed as Added after the parent updates", async () => {
+    const onAdd = vi.fn();
+    const { rerender } = renderOverlay({ onAdd });
+    const mine = await yourCounters();
+
+    vi.useFakeTimers();
+    try {
+      await fireEvent.click(
+        screen.getByRole("button", { name: "Add Personal One" }),
+      );
+      await rerender({ existingCounterIds: ["c-personal"] });
+      await vi.advanceTimersByTimeAsync(2000);
+
+      expect(within(mine).getByText("Personal One")).toBeTruthy();
+      expect(within(mine).getByText("Added")).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: "Add Personal One" }),
+      ).toBeNull();
+      expect(screen.getByText("1 added")).toBeTruthy();
+      expect(onAdd).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("searches both scopes with the query and shows Other Counters", async () => {
