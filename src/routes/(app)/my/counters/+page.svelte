@@ -14,8 +14,9 @@
 
   let ownerFilter = $state<OwnerFilterValue>("all");
   const teams = $derived(collectTeams(data.sharedCounters.items));
-  const ownedItems = $derived(
-    data.ownedCounters.items.filter((c) => matchesOwnerFilter(c, ownerFilter)),
+  // Owned counters are always personal, so the filter passes all of them or none.
+  const ownedMatchesFilter = $derived(
+    matchesOwnerFilter({ teamId: null }, ownerFilter),
   );
   const sharedItems = $derived(
     data.sharedCounters.items.filter((c) => matchesOwnerFilter(c, ownerFilter)),
@@ -40,7 +41,7 @@
       <span
         class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400"
       >
-        {data.ownedCounters.total}
+        {ownedMatchesFilter ? data.ownedCounters.total : 0}
       </span>
     </div>
     {#if data.ownedCounters.items.length === 0}
@@ -63,18 +64,16 @@
           Get started
         </a>
       </div>
+    {:else if !ownedMatchesFilter}
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        No owned counters match this filter.
+      </p>
     {:else}
-      {#if ownedItems.length === 0}
-        <p class="text-sm text-slate-500 dark:text-slate-400">
-          No owned counters match this filter.
-        </p>
-      {:else}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {#each ownedItems as counter (counter.id)}
-            <CounterCard {counter} showBadges />
-          {/each}
-        </div>
-      {/if}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {#each data.ownedCounters.items as counter (counter.id)}
+          <CounterCard {counter} showBadges />
+        {/each}
+      </div>
       <div class="mt-6">
         <Pagination page={data.page} totalPages={data.totalPages} baseUrl="/my/counters" />
       </div>
@@ -88,7 +87,7 @@
       <span
         class="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300"
       >
-        {data.sharedCounters.total}
+        {ownerFilter === "all" ? data.sharedCounters.total : sharedItems.length}
       </span>
     </div>
     {#if data.sharedCounters.items.length === 0}

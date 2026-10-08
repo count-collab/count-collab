@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { goto, invalidateAll } from "$app/navigation";
+  import {
+    afterNavigate,
+    goto,
+    invalidateAll,
+    replaceState,
+  } from "$app/navigation";
   import { page } from "$app/stores";
   import CounterCard from "$lib/components/CounterCard.svelte";
   import DashboardCard from "$lib/components/DashboardCard.svelte";
@@ -57,7 +62,28 @@
     },
   ]);
 
-  let activeTab = $state<TabId>("counters");
+  const tabIds: TabId[] = ["counters", "dashboards", "members"];
+
+  function tabFromUrl(url: URL): TabId {
+    const tab = url.searchParams.get("tab");
+    return tabIds.find((id) => id === tab) ?? "counters";
+  }
+
+  let activeTab = $state<TabId>(tabFromUrl($page.url));
+
+  // Shallow routing leaves $page.url stale, so re-sync only on real navigations
+  afterNavigate(({ to }) => {
+    if (to) activeTab = tabFromUrl(to.url);
+  });
+
+  function selectTab(id: TabId) {
+    activeTab = id;
+    const url = new URL(window.location.href);
+    if (id === "counters") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", id);
+    // Shallow replaceState: load reads url.search, so goto would refetch
+    replaceState(url, $page.state);
+  }
 
   // ── Settings overlay ──
   let showSettings = $state(false);
@@ -73,7 +99,7 @@
     if (!(event.key in targets)) return;
     event.preventDefault();
     const next = tabs[(targets[event.key] + tabs.length) % tabs.length];
-    activeTab = next.id;
+    selectTab(next.id);
     document.getElementById(`team-tab-${next.id}`)?.focus();
   }
 
@@ -404,7 +430,7 @@
         aria-selected={activeTab === tab.id}
         aria-controls="team-tabpanel"
         tabindex={activeTab === tab.id ? 0 : -1}
-        onclick={() => (activeTab = tab.id)}
+        onclick={() => selectTab(tab.id)}
         onkeydown={(e) => handleTabKeydown(e, index)}
         class="inline-flex flex-1 sm:flex-none items-center justify-center gap-1.5 px-2 sm:px-4 py-2 -mb-px border-b-2 text-sm font-medium whitespace-nowrap transition-colors {activeTab ===
         tab.id

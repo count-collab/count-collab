@@ -189,9 +189,7 @@ describe("AddCounterOverlay", () => {
     expect(
       screen.queryByRole("button", { name: "Add Popular One" }),
     ).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Add Team One" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add Team One" })).toBeTruthy();
     expect(screen.queryByText(/\d+ added/)).toBeNull();
   });
 
@@ -212,9 +210,7 @@ describe("AddCounterOverlay", () => {
     expect(
       screen.queryByRole("button", { name: "Add Popular One" }),
     ).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Add Team One" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add Team One" })).toBeTruthy();
     expect(screen.queryByText(/\d+ added/)).toBeNull();
   });
 

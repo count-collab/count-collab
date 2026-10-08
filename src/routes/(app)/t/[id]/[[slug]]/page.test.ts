@@ -7,16 +7,25 @@ import {
 } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const { pageState } = vi.hoisted(() => ({
+  pageState: { url: new URL("http://localhost/t/team-1/the-crew") },
+}));
+
 vi.mock("$app/environment", () => ({ browser: false }));
 vi.mock("$app/navigation", () => ({
+  afterNavigate: vi.fn(),
   goto: vi.fn().mockResolvedValue(undefined),
   invalidateAll: vi.fn().mockResolvedValue(undefined),
+  replaceState: vi.fn(),
 }));
 vi.mock("$app/stores", async () => {
   const { readable } = await import("svelte/store");
   return {
     page: readable({
-      url: new URL("http://localhost/t/team-1/the-crew"),
+      get url() {
+        return pageState.url;
+      },
+      state: {},
       data: { session: { user: { id: "user-1" } } },
     }),
   };
@@ -28,7 +37,7 @@ vi.mock("$lib/stores/counters", () => ({
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
 
-const { goto } = await import("$app/navigation");
+const { goto, replaceState } = await import("$app/navigation");
 const { default: Page } = await import("./+page.svelte");
 
 type Role = "viewer" | "incrementer" | "editor" | "admin" | "owner";
@@ -110,9 +119,20 @@ function tabNames(): string[] {
     .map((tab) => tab.textContent?.replace(/\d+/g, "").trim() ?? "");
 }
 
+function setUrl(path: string) {
+  pageState.url = new URL(`http://localhost${path}`);
+  window.history.replaceState(null, "", path);
+}
+
+function lastReplacedUrl(): URL {
+  const calls = vi.mocked(replaceState).mock.calls;
+  return new URL(String(calls[calls.length - 1][0]));
+}
+
 describe("Team page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setUrl("/t/team-1/the-crew");
   });
 
   afterEach(() => {
@@ -195,6 +215,57 @@ describe("Team page", () => {
     ).toBe("true");
     expect(screen.getByText("Office")).toBeTruthy();
     expect(screen.getByText("Home")).toBeTruthy();
+  });
+
+  it("selects the Members tab from ?tab=members on initial render", () => {
+    setUrl("/t/team-1/the-crew?tab=members");
+    renderPage("editor");
+    expect(
+      screen
+        .getByRole("tab", { name: /Members/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(screen.getByRole("heading", { name: "Members" })).toBeTruthy();
+  });
+
+  it("falls back to the Counters tab for an unknown ?tab value", () => {
+    setUrl("/t/team-1/the-crew?tab=bogus");
+    renderPage("editor");
+    expect(
+      screen
+        .getByRole("tab", { name: /Counters/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(screen.getByText("Coffee")).toBeTruthy();
+  });
+
+  it("writes the selected tab to the URL without navigating", async () => {
+    renderPage("viewer");
+    await fireEvent.click(screen.getByRole("tab", { name: /Dashboards/ }));
+    const url = lastReplacedUrl();
+    expect(url.pathname).toBe("/t/team-1/the-crew");
+    expect(url.searchParams.get("tab")).toBe("dashboards");
+    expect(goto).not.toHaveBeenCalled();
+  });
+
+  it("removes the tab param for Counters and keeps other params", async () => {
+    setUrl("/t/team-1/the-crew?tab=members&ref=mail");
+    renderPage("viewer");
+    await fireEvent.click(screen.getByRole("tab", { name: /Counters/ }));
+    const url = lastReplacedUrl();
+    expect(url.searchParams.has("tab")).toBe(false);
+    expect(url.searchParams.get("ref")).toBe("mail");
+  });
+
+  it("updates the URL and focus when switching tabs with the keyboard", async () => {
+    renderPage("viewer");
+    await fireEvent.keyDown(screen.getByRole("tab", { name: /Counters/ }), {
+      key: "End",
+    });
+    const membersTab = screen.getByRole("tab", { name: /Members/ });
+    expect(membersTab.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(membersTab);
+    expect(lastReplacedUrl().searchParams.get("tab")).toBe("members");
   });
 
   it("keeps a fixed tab bar size when switching tabs", async () => {

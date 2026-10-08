@@ -41,9 +41,7 @@ test.beforeEach(async () => {
 test.afterEach(async () => {
   await Promise.all(contexts.map((c) => c.close()));
   if (dashboardIds.length > 0) {
-    await db
-      .delete(dashboards)
-      .where(inArray(dashboards.id, dashboardIds));
+    await db.delete(dashboards).where(inArray(dashboards.id, dashboardIds));
   }
   await deleteCounters(counterIds);
   await deleteTeams(teamIds);
@@ -142,9 +140,7 @@ test("Add Counter overlay: owner adds a counter, overlay stays open, Done shows 
 
   const overlay = await openAddCounter(page);
   await expect(overlay.getByPlaceholder("Search counters…")).toBeFocused();
-  await expect(
-    overlay.getByRole("heading", { name: "Popular" }),
-  ).toBeVisible();
+  await expect(overlay.getByRole("heading", { name: "Popular" })).toBeVisible();
 
   const mine = overlay.getByRole("region", { name: "Your Counters" });
   await expect(mine.getByText(counter.title)).toBeVisible();

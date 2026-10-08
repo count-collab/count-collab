@@ -41,7 +41,7 @@
       <span
         class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400"
       >
-        {data.ownedDashboards.total}
+        {ownerFilter === "all" ? data.ownedDashboards.total : ownedItems.length}
       </span>
     </div>
     {#if data.ownedDashboards.items.length === 0}
@@ -84,7 +84,7 @@
       <span
         class="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300"
       >
-        {data.sharedDashboards.total}
+        {ownerFilter === "all" ? data.sharedDashboards.total : sharedItems.length}
       </span>
     </div>
     {#if data.sharedDashboards.items.length === 0}
