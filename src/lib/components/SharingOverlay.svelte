@@ -1,5 +1,10 @@
 <script lang="ts">
   import FullscreenOverlay from "$lib/components/FullscreenOverlay.svelte";
+  import RoleDialog from "$lib/components/RoleDialog.svelte";
+  import {
+    counterRoleDescriptions,
+    dashboardRoleDescriptions,
+  } from "$lib/roles";
 
   type Member = {
     id: number;
@@ -78,6 +83,39 @@
     return found?.label ?? role;
   }
 
+  const roleDescriptions: Record<string, string> = $derived(
+    type === "counter" ? counterRoleDescriptions : dashboardRoleDescriptions,
+  );
+  const roleDialogRoles = $derived(
+    roleOptions.map((r) => ({
+      ...r,
+      description: roleDescriptions[r.value] ?? "",
+    })),
+  );
+
+  let showRoleDialog = $state(false);
+  let roleDialogMember = $state<{
+    kind: "member" | "invitation";
+    userId: string;
+    username: string;
+    role: string;
+  } | null>(null);
+  let roleDialogError = $state<string | null>(null);
+
+  function openRoleDialog(
+    kind: "member" | "invitation",
+    person: Member | Invitation,
+  ) {
+    roleDialogMember = {
+      kind,
+      userId: person.userId,
+      username: person.username ?? "Unknown",
+      role: person.role,
+    };
+    roleDialogError = null;
+    showRoleDialog = true;
+  }
+
   // Copy link state
   let copySuccess = $state(false);
 
@@ -128,7 +166,11 @@
   }
 
   // Invitation management
-  async function handleUpdateInvitationRole(userId: string, role: string) {
+  async function handleUpdateInvitationRole(
+    userId: string,
+    role: string,
+  ): Promise<boolean> {
+    roleDialogError = null;
     try {
       const response = await fetch(
         `/${typePrefix}/${entityId}/invitations/${userId}`,
@@ -138,11 +180,16 @@
           body: JSON.stringify({ role }),
         },
       );
-      if (response.ok) {
-        onupdate();
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        roleDialogError = body.error ?? "Failed to update role.";
+        return false;
       }
+      onupdate();
+      return true;
     } catch {
-      // silently fail
+      roleDialogError = "Network error. Please try again.";
+      return false;
     }
   }
 
@@ -163,7 +210,11 @@
   }
 
   // Member management
-  async function handleUpdateMemberRole(userId: string, role: string) {
+  async function handleUpdateMemberRole(
+    userId: string,
+    role: string,
+  ): Promise<boolean> {
+    roleDialogError = null;
     try {
       const response = await fetch(
         `/${typePrefix}/${entityId}/members/${userId}`,
@@ -173,11 +224,16 @@
           body: JSON.stringify({ role }),
         },
       );
-      if (response.ok) {
-        onupdate();
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        roleDialogError = body.error ?? "Failed to update role.";
+        return false;
       }
+      onupdate();
+      return true;
     } catch {
-      // silently fail
+      roleDialogError = "Network error. Please try again.";
+      return false;
     }
   }
 
@@ -406,35 +462,45 @@
                       >
                         {invitation.username ?? "Unknown"}
                       </p>
-                      {#if invitation.inviterUsername}
-                        <p class="text-xs text-slate-400 dark:text-slate-500">
-                          Invited by @{invitation.inviterUsername}
-                        </p>
-                      {/if}
+                      <p class="text-xs text-slate-400 dark:text-slate-500">
+                        {#if invitation.inviterUsername}
+                          Invited by @{invitation.inviterUsername}<span
+                            aria-hidden="true"
+                            class="mx-1">·</span
+                          >
+                        {/if}{getRoleLabel(invitation.role)}
+                      </p>
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
-                    <select
-                      value={invitation.role}
-                      onchange={(e) =>
-                        handleUpdateInvitationRole(
-                          invitation.userId,
-                          e.currentTarget.value,
-                        )}
-                      class="h-9 rounded-md border border-slate-300 px-3 text-sm bg-white text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400"
+                    <button
+                      type="button"
+                      onclick={() => openRoleDialog("invitation", invitation)}
+                      class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-colors"
+                      aria-label="Edit role for invitation to {invitation.username ??
+                        'user'}"
+                      title="Edit role for invitation to {invitation.username ??
+                        'user'}"
                     >
-                      {#each roleOptions as opt}
-                        <option value={opt.value}>{opt.label}</option>
-                      {/each}
-                    </select>
+                      <ion-icon
+                        name="pencil"
+                        class="block"
+                        style="font-size: 18px;"
+                        aria-hidden="true"
+                      ></ion-icon>
+                    </button>
                     <button
                       type="button"
                       onclick={() => handleRevokeInvitation(invitation.userId)}
-                      class="p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      class="inline-flex items-center justify-center p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                       aria-label="Revoke invitation for {invitation.username ??
                         'user'}"
                     >
-                      <ion-icon name="close-outline" style="font-size: 18px;"
+                      <ion-icon
+                        name="close-outline"
+                        class="block"
+                        style="font-size: 18px;"
+                        aria-hidden="true"
                       ></ion-icon>
                     </button>
                   </div>
@@ -494,33 +560,48 @@
                           {(member.username ?? "?")[0]}
                         </div>
                       {/if}
-                      <p
-                        class="text-sm font-medium text-slate-900 dark:text-slate-100"
-                      >
-                        {member.username ?? "Unknown"}
-                      </p>
+                      <div>
+                        <p
+                          class="text-sm font-medium text-slate-900 dark:text-slate-100"
+                        >
+                          {member.username ?? "Unknown"}
+                        </p>
+                        {#if canManage}
+                          <p class="text-xs text-slate-400 dark:text-slate-500">
+                            {getRoleLabel(member.role)}
+                          </p>
+                        {/if}
+                      </div>
                     </div>
                     <div class="flex items-center gap-2">
                       {#if canManage}
-                        <select
-                          value={member.role}
-                          onchange={(e) =>
-                            handleUpdateMemberRole(
-                              member.userId,
-                              e.currentTarget.value,
-                            )}
-                          class="h-9 rounded-md border border-slate-300 px-3 text-sm bg-white text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400"
+                        <button
+                          type="button"
+                          onclick={() => openRoleDialog("member", member)}
+                          class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-colors"
+                          aria-label="Edit role for {member.username ?? 'user'}"
+                          title="Edit role for {member.username ?? 'user'}"
                         >
-                          {#each roleOptions as opt}
-                            <option value={opt.value}>{opt.label}</option>
-                          {/each}
-                        </select>
+                          <ion-icon
+                            name="pencil"
+                            class="block"
+                            style="font-size: 18px;"
+                            aria-hidden="true"
+                          ></ion-icon>
+                        </button>
                         <button
                           type="button"
                           onclick={() => handleRemoveMember(member.userId)}
-                          class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                          class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-slate-500 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                          aria-label="Remove {member.username ?? 'user'}"
+                          title="Remove {member.username ?? 'user'}"
                         >
-                          Remove
+                          <ion-icon
+                            name="trash-outline"
+                            class="block"
+                            style="font-size: 18px;"
+                            aria-hidden="true"
+                          ></ion-icon>
                         </button>
                       {:else}
                         <span
@@ -582,6 +663,21 @@
           </section>
         {/if}
 </FullscreenOverlay>
+
+{#if roleDialogMember}
+  {@const target = roleDialogMember}
+  <RoleDialog
+    bind:open={showRoleDialog}
+    title="Change role for {target.username}"
+    currentRole={target.role}
+    roles={roleDialogRoles}
+    error={roleDialogError}
+    onselect={(role) =>
+      target.kind === "invitation"
+        ? handleUpdateInvitationRole(target.userId, role)
+        : handleUpdateMemberRole(target.userId, role)}
+  />
+{/if}
 
 {#snippet doneFooter()}
   <div class="flex items-center justify-end">

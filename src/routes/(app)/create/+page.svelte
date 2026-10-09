@@ -343,6 +343,28 @@ import { untrack } from "svelte";
   </svg>
 {/snippet}
 
+{#snippet stepFooter(canContinue: boolean)}
+  <div class="flex items-center justify-end gap-4">
+    {#if canGoBack}
+      <button
+        type="button"
+        onclick={() => history.back()}
+        class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+      >
+        Cancel
+      </button>
+    {/if}
+    <button
+      type="button"
+      onclick={() => advance(0)}
+      disabled={!canContinue}
+      class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-2.5 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      Continue
+    </button>
+  </div>
+{/snippet}
+
 <div class="w-full max-w-2xl mx-auto px-4 flex flex-col justify-center flex-1">
   <!-- Top bar: back button + step dots -->
   <div class="flex items-center pt-2 mb-8">
@@ -484,17 +506,7 @@ import { untrack } from "svelte";
               </button>
             </div>
 
-            {#if canGoBack}
-              <div class="text-center">
-                <button
-                  type="button"
-                  onclick={() => history.back()}
-                  class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                >
-                  Cancel
-                </button>
-              </div>
-            {/if}
+            {@render stepFooter(creationType !== null)}
           </div>
         {:else if currentStep === "owner"}
           <!-- Choose owner (only when the user can create for a team) -->
@@ -604,17 +616,7 @@ import { untrack } from "svelte";
               </div>
             {/if}
 
-            {#if canGoBack}
-              <div class="text-center">
-                <button
-                  type="button"
-                  onclick={() => history.back()}
-                  class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                >
-                  Cancel
-                </button>
-              </div>
-            {/if}
+            {@render stepFooter(ownerKind === "me" || ownerTeamId !== "")}
           </div>
         {:else if currentStep === "visibility"}
           <!-- Choose visibility -->
@@ -733,17 +735,7 @@ import { untrack } from "svelte";
               </button>
             </div>
 
-            {#if canGoBack}
-              <div class="text-center">
-                <button
-                  type="button"
-                  onclick={() => history.back()}
-                  class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                >
-                  Cancel
-                </button>
-              </div>
-            {/if}
+            {@render stepFooter(visibility !== null)}
           </div>
         {:else if currentStep === "mode"}
           <!-- Counter Mode (counter only) -->
@@ -827,17 +819,7 @@ import { untrack } from "svelte";
               </button>
             </div>
 
-            {#if canGoBack}
-              <div class="text-center">
-                <button
-                  type="button"
-                  onclick={() => history.back()}
-                  class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                >
-                  Cancel
-                </button>
-              </div>
-            {/if}
+            {@render stepFooter(true)}
           </div>
         {:else if currentStep === "details"}
           <!-- Name & submit -->

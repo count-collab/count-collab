@@ -3,6 +3,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,7 +38,7 @@ vi.mock("$lib/stores/counters", () => ({
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
 
-const { goto, replaceState } = await import("$app/navigation");
+const { goto, invalidateAll, replaceState } = await import("$app/navigation");
 const { default: Page } = await import("./+page.svelte");
 
 type Role = "viewer" | "incrementer" | "editor" | "admin" | "owner";
@@ -117,6 +118,17 @@ function tabNames(): string[] {
   return screen
     .getAllByRole("tab")
     .map((tab) => tab.textContent?.replace(/\d+/g, "").trim() ?? "");
+}
+
+async function openRoleDialog(username: string) {
+  await fireEvent.click(
+    screen.getByRole("button", { name: `Edit role for ${username}` }),
+  );
+}
+
+async function chooseAndSave(dialog: HTMLElement, role: RegExp) {
+  await fireEvent.click(within(dialog).getByRole("radio", { name: role }));
+  await fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
 }
 
 function setUrl(path: string) {
@@ -324,12 +336,22 @@ describe("Team page", () => {
     renderPage("admin");
     await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
 
-    const memberSelect = screen.getByRole("combobox", { name: "Role for bob" });
-    const memberOptions = within(memberSelect)
-      .getAllByRole("option")
-      .map((o) => o.textContent);
-    expect(memberOptions).not.toContain("Owner");
+    await openRoleDialog("bob");
+    const dialog = screen.getByRole("dialog", { name: "Change role for bob" });
+    const cards = within(dialog)
+      .getAllByRole("radio")
+      .map((r) => r.textContent?.trim() ?? "");
+    expect(cards).toHaveLength(4);
+    expect(cards.some((c) => c.startsWith("Owner"))).toBe(false);
+    expect(
+      within(dialog)
+        .getByRole("radio", { name: /^Viewer/ })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
 
+    await fireEvent.click(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    );
     const inviteOptions = within(screen.getByLabelText("Role"))
       .getAllByRole("option")
       .map((o) => o.textContent);
@@ -345,7 +367,7 @@ describe("Team page", () => {
     });
     await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
     expect(
-      screen.queryByRole("combobox", { name: "Role for olivia" }),
+      screen.queryByRole("button", { name: "Edit role for olivia" }),
     ).toBeNull();
     expect(screen.queryByRole("button", { name: "Remove olivia" })).toBeNull();
   });
@@ -353,12 +375,79 @@ describe("Team page", () => {
   it("lets owners assign the owner role", async () => {
     renderPage("owner");
     await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
-    const options = within(
-      screen.getByRole("combobox", { name: "Role for bob" }),
-    )
-      .getAllByRole("option")
-      .map((o) => o.textContent);
-    expect(options).toContain("Owner");
+    await openRoleDialog("bob");
+    const dialog = screen.getByRole("dialog", { name: "Change role for bob" });
+    expect(within(dialog).getByRole("radio", { name: /^Owner/ })).toBeTruthy();
+  });
+
+  it("saves a new member role and refreshes data", async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+    renderPage("owner");
+    await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
+    await openRoleDialog("bob");
+    const dialog = screen.getByRole("dialog", { name: "Change role for bob" });
+    await chooseAndSave(dialog, /^Editor/);
+
+    await waitFor(() => expect(invalidateAll).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/t/team-1/members/user-2");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body as string)).toEqual({ role: "editor" });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Change role for bob" }),
+      ).toBeNull(),
+    );
+  });
+
+  it("shows the error in the dialog when saving fails", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Nope" }),
+    });
+    renderPage("owner");
+    await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
+    await openRoleDialog("bob");
+    const dialog = screen.getByRole("dialog", { name: "Change role for bob" });
+    await chooseAndSave(dialog, /^Editor/);
+
+    expect(await within(dialog).findByText("Nope")).toBeTruthy();
+    expect(invalidateAll).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: "Change role for bob" }),
+    ).toBeTruthy();
+  });
+
+  it("changes an invitation role through the dialog", async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+    renderPage("admin", {
+      invitations: [
+        {
+          id: "inv-1",
+          userId: "user-9",
+          role: "viewer",
+          username: "carol",
+          name: null,
+          image: null,
+          inviterUsername: "me",
+        },
+      ],
+    });
+    await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
+    await fireEvent.click(
+      screen.getByRole("button", { name: "Edit role for invitation to carol" }),
+    );
+    const dialog = screen.getByRole("dialog", {
+      name: "Change role for carol",
+    });
+    expect(within(dialog).queryByRole("radio", { name: /^Owner/ })).toBeNull();
+    await chooseAndSave(dialog, /^Editor/);
+
+    await waitFor(() => expect(invalidateAll).toHaveBeenCalled());
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/t/team-1/invitations/user-9");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body as string)).toEqual({ role: "editor" });
   });
 
   it("hides the danger zone for admins", async () => {
@@ -444,5 +533,13 @@ describe("Team page", () => {
   it("hides Leave team for non-members acting as owner", () => {
     renderPage("owner", { members: [member("user-2", "bob", "owner")] });
     expect(screen.queryByRole("button", { name: /Leave team/ })).toBeNull();
+  });
+
+  it("shows a leave icon instead of remove on the current user's row", async () => {
+    renderPage("admin");
+    await fireEvent.click(screen.getByRole("tab", { name: /Members/ }));
+    expect(screen.queryByRole("button", { name: "Remove me" })).toBeNull();
+    await fireEvent.click(screen.getByRole("button", { name: "Leave The Crew" }));
+    expect(screen.getByRole("dialog", { name: "Leave team?" })).toBeTruthy();
   });
 });

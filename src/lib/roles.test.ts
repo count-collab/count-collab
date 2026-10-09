@@ -1,15 +1,41 @@
 import { describe, expect, it } from "vitest";
 import {
   canAssignTeamRole,
+  counterRoleDescriptions,
   counterRoleRank,
+  dashboardRoleDescriptions,
   dashboardRoleRank,
   isTeamRoleAtLeast,
   mapTeamRoleToCounterRole,
   mapTeamRoleToDashboardRole,
   maxCounterRole,
   maxDashboardRole,
+  teamRoleDescriptions,
+  teamRoleOrder,
   teamRoleRank,
 } from "./roles";
+
+describe("role descriptions", () => {
+  it("describes every team role", () => {
+    for (const role of teamRoleOrder) {
+      expect(teamRoleDescriptions[role].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("describes every counter and dashboard role", () => {
+    expect(Object.keys(counterRoleDescriptions)).toEqual([
+      "viewer",
+      "incrementer",
+      "editor",
+      "admin",
+    ]);
+    expect(Object.keys(dashboardRoleDescriptions)).toEqual([
+      "viewer",
+      "editor",
+      "admin",
+    ]);
+  });
+});
 
 describe("role ranks", () => {
   it("orders roles from lowest to highest", () => {

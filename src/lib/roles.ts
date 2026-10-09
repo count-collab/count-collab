@@ -34,6 +34,31 @@ export const teamRoleLabels: Record<TeamMemberRole, string> = {
   owner: "Owner",
 };
 
+export const teamRoleDescriptions: Record<TeamMemberRole, string> = {
+  viewer: "Can see the team, its counters and dashboards.",
+  incrementer: "Viewer rights, plus can increment team counters.",
+  editor:
+    "Incrementer rights, plus can edit counters and dashboards and create or move them into the team.",
+  admin:
+    "Editor rights, plus can delete team resources, edit team details, and manage members and the join link.",
+  owner:
+    "Full control, including granting or revoking owner and deleting the team.",
+};
+
+export const counterRoleDescriptions: Record<CounterMemberRole, string> = {
+  viewer: "Can view this counter, even when it is private.",
+  incrementer: "Viewer rights, plus can increment the counter.",
+  editor:
+    "Incrementer rights, plus can edit the counter's settings and skip its cooldown.",
+  admin: "Editor rights, plus can delete the counter and manage members.",
+};
+
+export const dashboardRoleDescriptions: Record<DashboardMemberRole, string> = {
+  viewer: "Can view this dashboard.",
+  editor: "Viewer rights, plus can edit the dashboard.",
+  admin: "Editor rights, plus can delete the dashboard and manage members.",
+};
+
 export function counterRoleRank(role: CounterMemberRole): number {
   return counterRoleOrder.indexOf(role);
 }

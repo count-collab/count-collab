@@ -31,6 +31,7 @@ src/lib/components/
 ├── MessageToast.svelte     # Plain-text toast (via ToastContainer addMessageToast)
 ├── OwnerFilter.svelte      # All / Personal / per-team filter chips for /my lists and AddCounterOverlay
 ├── Pagination.svelte       # Page navigation for lists
+├── RoleDialog.svelte       # Role picker dialog (one full-width card per role + description); used by team members list and SharingOverlay
 ├── RollingNumber.svelte    # Animated number transitions for count display
 ├── SoleOwnedTeamsWarning.svelte # Account-deletion warning for sole-owned teams
 ├── Sparkline.svelte        # Inline sparkline chart for counter trends

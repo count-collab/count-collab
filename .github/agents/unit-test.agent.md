@@ -33,6 +33,8 @@ src/
 │   │   ├── FullscreenOverlay.svelte / FullscreenOverlay.test.ts (+ FullscreenOverlayTestWrapper.svelte)
 │   │   ├── HistoryEntry.svelte / HistoryEntry.test.ts
 │   │   ├── Modal.svelte / Modal.test.ts
+│   │   ├── RoleDialog.svelte / RoleDialog.test.ts
+│   │   ├── SharingOverlay.svelte / SharingOverlay.test.ts
 │   │   └── Sparkline.svelte / Sparkline.test.ts
 │   ├── server/
 │   │   ├── authorize.ts / authorize.test.ts

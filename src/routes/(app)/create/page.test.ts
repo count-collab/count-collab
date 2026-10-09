@@ -160,7 +160,10 @@ describe("Create page", () => {
       expect(card.textContent).toMatch(/3\s+members/);
       expect(card.textContent).toMatch(/2\s+counters/);
       expect(card.textContent).toMatch(/1\s+dashboard\b/);
-      expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+      expect(
+        (screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
     });
 
     it("skips type and owner steps when coming from a team page, then submits teamId", async () => {
@@ -258,6 +261,43 @@ describe("Create page", () => {
           "ring-2",
         );
       }
+    });
+  });
+
+  describe("continue button", () => {
+    const continueButton = () =>
+      screen.getByRole("button", { name: "Continue" }) as HTMLButtonElement;
+
+    it("is disabled on the type step until a type is picked", () => {
+      renderPage();
+      expect(continueButton().disabled).toBe(true);
+    });
+
+    it("advances from the preselected owner and mode without re-clicking", async () => {
+      renderPage({ teams: [alpha] });
+
+      await fireEvent.click(screen.getByRole("button", { name: /^Counter/ }));
+      await waitForStep("Who should own your counter?");
+      expect(continueButton().disabled).toBe(false);
+      await fireEvent.click(continueButton());
+
+      await waitForStep(/How should your counter be accessible/);
+      expect(continueButton().disabled).toBe(true);
+      await fireEvent.click(screen.getByRole("button", { name: /^Public/ }));
+      await waitForStep("How should your counter change?");
+
+      expect(continueButton().disabled).toBe(false);
+      await fireEvent.click(continueButton());
+      await waitForStep("Name your counter");
+    });
+
+    it("enables on the visibility step when a team preselects private", () => {
+      renderPage({
+        teams: [alpha],
+        preselectedType: "counter",
+        search: "?type=counter&teamId=t-1",
+      });
+      expect(continueButton().disabled).toBe(false);
     });
   });
 

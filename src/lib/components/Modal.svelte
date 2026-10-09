@@ -81,7 +81,12 @@
           class="-mr-1.5 p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           aria-label="Close"
         >
-          <ion-icon name="close-outline" style="font-size: 24px;"></ion-icon>
+          <ion-icon
+            name="close-outline"
+            class="block"
+            style="font-size: 24px;"
+            aria-hidden="true"
+          ></ion-icon>
         </button>
       </div>
       <div class="px-6 py-5 space-y-4">

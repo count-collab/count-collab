@@ -10,11 +10,17 @@
   import DashboardCard from "$lib/components/DashboardCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Modal from "$lib/components/Modal.svelte";
+  import RoleDialog from "$lib/components/RoleDialog.svelte";
   import Switch from "$lib/components/Switch.svelte";
   import TeamSettingsOverlay from "$lib/components/TeamSettingsOverlay.svelte";
   import { slugify } from "$lib/counter";
   import type { TeamJoinLinkRole, TeamMemberRole } from "$lib/db/schema";
-  import { canAssignTeamRole, teamRoleLabels, teamRoleOrder } from "$lib/roles";
+  import {
+    canAssignTeamRole,
+    teamRoleDescriptions,
+    teamRoleLabels,
+    teamRoleOrder,
+  } from "$lib/roles";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -190,21 +196,49 @@
   // ── Members ──
   let membersError = $state<string | null>(null);
 
-  async function handleMemberRoleChange(
-    select: HTMLSelectElement,
+  let showRoleDialog = $state(false);
+  let roleDialogMember = $state<{
+    kind: "member" | "invitation";
+    userId: string;
+    label: string;
+    role: TeamMemberRole;
+  } | null>(null);
+  let roleDialogError = $state<string | null>(null);
+  const roleDialogRoles = $derived(
+    roleDialogMember
+      ? assignableRoles(roleDialogMember.role).map((r) => ({
+          value: r,
+          label: teamRoleLabels[r],
+          description: teamRoleDescriptions[r],
+        }))
+      : [],
+  );
+
+  function openRoleDialog(
+    kind: "member" | "invitation",
     userId: string,
-    currentRole: TeamMemberRole,
+    label: string,
+    role: TeamMemberRole,
   ) {
-    membersError = null;
+    roleDialogMember = { kind, userId, label, role };
+    roleDialogError = null;
+    showRoleDialog = true;
+  }
+
+  async function handleMemberRoleChange(
+    userId: string,
+    role: string,
+  ): Promise<boolean> {
+    roleDialogError = null;
     const result = await send(`/t/${teamId}/members/${userId}`, "PATCH", {
-      role: select.value,
+      role,
     });
     if (!result.ok) {
-      select.value = currentRole;
-      membersError = result.error;
-      return;
+      roleDialogError = result.error;
+      return false;
     }
     await invalidateAll();
+    return true;
   }
 
   async function handleRemoveMember(userId: string) {
@@ -248,22 +282,21 @@
 
   // ── Invitations ──
   async function handleInvitationRoleChange(
-    select: HTMLSelectElement,
     userId: string,
-    currentRole: TeamMemberRole,
-  ) {
-    membersError = null;
+    role: string,
+  ): Promise<boolean> {
+    roleDialogError = null;
     const result = await send(
       `/t/${teamId}/invitations/${userId}`,
       "PATCH",
-      { role: select.value },
+      { role },
     );
     if (!result.ok) {
-      select.value = currentRole;
-      membersError = result.error;
-      return;
+      roleDialogError = result.error;
+      return false;
     }
     await invalidateAll();
+    return true;
   }
 
   async function handleCancelInvitation(userId: string) {
@@ -634,37 +667,49 @@
               >
                 {label}
               </p>
-              {#if invitation.inviterUsername}
-                <p class="text-xs text-slate-400 dark:text-slate-500">
-                  Invited by @{invitation.inviterUsername}
-                </p>
-              {/if}
+              <p class="text-xs text-slate-400 dark:text-slate-500">
+                {#if invitation.inviterUsername}
+                  Invited by @{invitation.inviterUsername}<span
+                    aria-hidden="true"
+                    class="mx-1">·</span
+                  >
+                {/if}{teamRoleLabels[invitation.role]}
+              </p>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             {#if canAssignTeamRole(data.role, invitation.role, null)}
-              <select
-                value={invitation.role}
-                aria-label="Role for invitation to {label}"
-                onchange={(e) =>
-                  handleInvitationRoleChange(
-                    e.currentTarget,
+              <button
+                type="button"
+                onclick={() =>
+                  openRoleDialog(
+                    "invitation",
                     invitation.userId,
+                    label,
                     invitation.role,
                   )}
-                class={selectClass}
+                class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Edit role for invitation to {label}"
+                title="Edit role for invitation to {label}"
               >
-                {#each assignableRoles(invitation.role) as r (r)}
-                  <option value={r}>{teamRoleLabels[r]}</option>
-                {/each}
-              </select>
+                <ion-icon
+                  name="pencil"
+                  class="block"
+                  style="font-size: 18px;"
+                  aria-hidden="true"
+                ></ion-icon>
+              </button>
               <button
                 type="button"
                 onclick={() => handleCancelInvitation(invitation.userId)}
-                class="p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                class="inline-flex items-center justify-center p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 aria-label="Cancel invitation for {label}"
               >
-                <ion-icon name="close-outline" style="font-size: 18px;"
+                <ion-icon
+                  name="close-outline"
+                  class="block"
+                  style="font-size: 18px;"
+                  aria-hidden="true"
                 ></ion-icon>
               </button>
             {:else}
@@ -799,43 +844,27 @@
                 {/if}
               </p>
               <p class="text-xs text-slate-400 dark:text-slate-500">
-                Joined {new Date(member.joinedAt).toLocaleDateString()}
+                <span>Joined {new Date(member.joinedAt).toLocaleDateString()}</span><span aria-hidden="true">&nbsp;·&nbsp;</span><span>{teamRoleLabels[member.role]}</span>
               </p>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
             {#if canModify}
-              <select
-                value={member.role}
-                aria-label="Role for {label}"
-                onchange={(e) =>
-                  handleMemberRoleChange(
-                    e.currentTarget,
-                    member.userId,
-                    member.role,
-                  )}
-                class={selectClass}
+              <button
+                type="button"
+                onclick={() =>
+                  openRoleDialog("member", member.userId, label, member.role)}
+                class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Edit role for {label}"
+                title="Edit role for {label}"
               >
-                {#each assignableRoles(member.role) as r (r)}
-                  <option value={r}>{teamRoleLabels[r]}</option>
-                {/each}
-              </select>
-              {#if !isSelf}
-                <button
-                  type="button"
-                  onclick={() => handleRemoveMember(member.userId)}
-                  class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-slate-500 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
-                  aria-label="Remove {label}"
-                  title="Remove {label}"
-                >
-                  <ion-icon
-                    name="trash-outline"
-                    class="block"
-                    style="font-size: 18px;"
-                    aria-hidden="true"
-                  ></ion-icon>
-                </button>
-              {/if}
+                <ion-icon
+                  name="pencil"
+                  class="block"
+                  style="font-size: 18px;"
+                  aria-hidden="true"
+                ></ion-icon>
+              </button>
             {:else}
               <span
                 class="text-xs px-2 py-0.5 rounded-full {roleBadgeClass(
@@ -845,12 +874,58 @@
                 {teamRoleLabels[member.role]}
               </span>
             {/if}
+            {#if isSelf}
+              <button
+                type="button"
+                onclick={openLeaveModal}
+                class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-slate-500 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                aria-label="Leave {data.team.name}"
+                title="Leave {data.team.name}"
+              >
+                <ion-icon
+                  name="exit-outline"
+                  class="block"
+                  style="font-size: 18px;"
+                  aria-hidden="true"
+                ></ion-icon>
+              </button>
+            {:else if canModify}
+              <button
+                type="button"
+                onclick={() => handleRemoveMember(member.userId)}
+                class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-slate-500 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                aria-label="Remove {label}"
+                title="Remove {label}"
+              >
+                <ion-icon
+                  name="trash-outline"
+                  class="block"
+                  style="font-size: 18px;"
+                  aria-hidden="true"
+                ></ion-icon>
+              </button>
+            {/if}
           </div>
         </li>
       {/each}
     </ul>
   </section>
 {/snippet}
+
+{#if roleDialogMember}
+  {@const target = roleDialogMember}
+  <RoleDialog
+    bind:open={showRoleDialog}
+    title="Change role for {target.label}"
+    currentRole={target.role}
+    roles={roleDialogRoles}
+    error={roleDialogError}
+    onselect={(role) =>
+      target.kind === "invitation"
+        ? handleInvitationRoleChange(target.userId, role)
+        : handleMemberRoleChange(target.userId, role)}
+  />
+{/if}
 
 <Modal
   bind:open={showLeaveModal}
