@@ -9,11 +9,12 @@ import {
   teams,
   users,
 } from "$lib/db/schema";
-import { canAssignTeamRole, teamRoleRank } from "$lib/roles";
+import { canAssignTeamRole, isTeamRoleAtLeast, teamRoleRank } from "$lib/roles";
 import { generateShareToken, tokensEqual } from "$lib/server/crypto";
 import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
 import { hasPermission } from "$lib/server/permissions";
+import { enforceMemberCap } from "$lib/server/teams";
 
 export type TeamMemberWithUser = TeamMember & {
   username: string | null;
@@ -176,6 +177,24 @@ async function lockActingRole(
 }
 
 /**
+ * Pending invitations carry the inviter's authority, which is gone once they
+ * drop below admin or leave the team.
+ */
+async function deleteInvitationsBy(
+  tx: Tx,
+  teamId: string,
+  inviterId: string,
+): Promise<void> {
+  await tx.delete(teamInvitations).where(
+    and(
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+      eq(teamInvitations.teamId, teamId as any),
+      eq(teamInvitations.invitedBy, inviterId),
+    ),
+  );
+}
+
+/**
  * Change a member's role. Refuses to demote the last owner.
  * With an actor, the role change is re-authorized against the locked rows.
  */
@@ -215,6 +234,10 @@ export async function updateTeamMemberRole(
       .set({ role })
       .where(memberWhere(teamId, userId))
       .returning();
+
+    if (!isTeamRoleAtLeast(role, "admin")) {
+      await deleteInvitationsBy(tx, teamId, userId);
+    }
 
     logger.info("Team member role updated", { teamId, userId, role });
 
@@ -258,6 +281,7 @@ export async function removeTeamMember(
       }
 
       await tx.delete(teamMembers).where(memberWhere(teamId, userId));
+      await deleteInvitationsBy(tx, teamId, userId);
 
       return { ok: true };
     },
@@ -333,7 +357,7 @@ export async function joinTeamByToken(
       .from(teams)
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
       .where(eq(teams.id, teamId as any))
-      .for("share");
+      .for("update");
 
     // One response for missing team, disabled link and wrong token, like the join page
     if (!team?.joinToken || !tokensEqual(team.joinToken, token)) {
@@ -355,6 +379,8 @@ export async function joinTeamByToken(
         .where(memberWhere(teamId, userId));
       return { ok: true, member: existing, alreadyMember: true };
     }
+
+    await enforceMemberCap(tx, teamId);
 
     await tx.delete(teamInvitations).where(
       and(

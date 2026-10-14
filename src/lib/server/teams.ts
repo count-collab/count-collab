@@ -10,9 +10,9 @@ import {
 } from "drizzle-orm";
 import { db } from "$lib/db";
 import type {
-  Counter,
-  Dashboard,
   NewTeam,
+  PublicCounter,
+  PublicDashboard,
   Team,
   TeamMemberRole,
 } from "$lib/db/schema";
@@ -22,11 +22,27 @@ import {
   teamMemberRoles,
   teamMembers,
   teams as teamsTable,
+  users,
 } from "$lib/db/schema";
 import { isTeamRoleAtLeast } from "$lib/roles";
 import { escapeLikePattern } from "$lib/server/crypto";
 import { logEvent, logEventInTx } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
+import {
+  publicCounterColumns,
+  publicDashboardColumns,
+} from "$lib/server/public-columns";
+import { TeamLimitError } from "$lib/server/team-limits";
+
+export const MAX_TEAMS_PER_USER = 20;
+export const MAX_MEMBERS_PER_TEAM = 100;
+export const MAX_PENDING_INVITATIONS_PER_TEAM = 50;
+export const MAX_PENDING_INVITATIONS_PER_USER = 20;
+export const MAX_INVITATIONS_PER_INVITER_PER_DAY = 50;
+export const INVITATION_COOLDOWN_SECONDS = 60;
+export const INVITATION_EXPIRY_MS = 14 * 24 * 60 * 60 * 1000;
+
+export type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type TeamCounts = {
   memberCount: number;
@@ -82,6 +98,25 @@ export async function createTeam(input: CreateTeamInput): Promise<Team> {
   };
 
   const team = await db.transaction(async (tx) => {
+    // Serializes concurrent creates by the same user so the cap can't be raced
+    await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, input.userId))
+      .for("update");
+
+    const [{ total }] = await tx
+      .select({ total: countFn() })
+      .from(teamsTable)
+      .where(eq(teamsTable.createdBy, input.userId));
+    if (Number(total) >= MAX_TEAMS_PER_USER) {
+      throw new TeamLimitError(
+        "team_limit",
+        409,
+        `You can create at most ${MAX_TEAMS_PER_USER} teams`,
+      );
+    }
+
     const [created] = await tx.insert(teamsTable).values(newTeam).returning();
     await tx.insert(teamMembers).values({
       teamId: created.id,
@@ -138,6 +173,28 @@ export async function updateTeam(
 }
 
 /**
+ * Throws when the team holds more members than allowed. Call after inserting a member,
+ * with the team row locked, so the throw rolls the insert back.
+ */
+export async function enforceMemberCap(
+  tx: DbTx,
+  teamId: string,
+): Promise<void> {
+  const [{ total }] = await tx
+    .select({ total: countFn() })
+    .from(teamMembers)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    .where(eq(teamMembers.teamId, teamId as any));
+  if (Number(total) > MAX_MEMBERS_PER_TEAM) {
+    throw new TeamLimitError(
+      "member_limit",
+      409,
+      "This team has reached its member limit",
+    );
+  }
+}
+
+/**
  * Delete a team together with all its counters and dashboards.
  * Returns the deleted resource ids so callers can emit socket events.
  */
@@ -145,7 +202,27 @@ export async function deleteTeam(
   teamId: string,
   actorUserId: string | null,
 ): Promise<DeleteTeamResult> {
-  const result = await db.transaction(async (tx): Promise<DeleteTeamResult> => {
+  const result = await db.transaction((tx) =>
+    deleteTeamInTx(tx, teamId, actorUserId),
+  );
+
+  if (result.deleted) {
+    logger.info("Team deleted", {
+      id: teamId,
+      counters: result.counterIds.length,
+      dashboards: result.dashboardIds.length,
+    });
+  }
+
+  return result;
+}
+
+/** deleteTeam inside a caller-owned transaction (e.g. account deletion). */
+export async function deleteTeamInTx(
+  tx: DbTx,
+  teamId: string,
+  actorUserId: string | null,
+): Promise<DeleteTeamResult> {
     // Blocks concurrent member adds, joins, transfers and creates into this team
     const [team] = await tx
       .select({ name: teamsTable.name })
@@ -238,17 +315,6 @@ export async function deleteTeam(
       dashboardIds: deletedDashboards.map((d) => d.id),
       memberIds: members.map((m) => m.userId),
     };
-  });
-
-  if (result.deleted) {
-    logger.info("Team deleted", {
-      id: teamId,
-      counters: result.counterIds.length,
-      dashboards: result.dashboardIds.length,
-    });
-  }
-
-  return result;
 }
 
 export async function listUserTeams(userId: string): Promise<UserTeam[]> {
@@ -297,16 +363,16 @@ export async function listEditableTeams(
 
 export async function getTeamResources(
   teamId: string,
-): Promise<{ counters: Counter[]; dashboards: Dashboard[] }> {
+): Promise<{ counters: PublicCounter[]; dashboards: PublicDashboard[] }> {
   const [counters, dashboards] = await Promise.all([
     db
-      .select()
+      .select(publicCounterColumns)
       .from(countersTable)
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
       .where(eq(countersTable.teamId, teamId as any))
       .orderBy(desc(countersTable.updatedAt)),
     db
-      .select()
+      .select(publicDashboardColumns)
       .from(dashboardsTable)
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
       .where(eq(dashboardsTable.teamId, teamId as any))
@@ -358,8 +424,9 @@ export async function listAllTeams(
  */
 export async function getSoleOwnedTeams(
   userId: string,
+  executor: Pick<typeof db, "select"> = db,
 ): Promise<TeamWithCounts[]> {
-  const rows = await db
+  const rows = await executor
     .select({
       team: teamsTable,
       memberCount: memberCountSql,

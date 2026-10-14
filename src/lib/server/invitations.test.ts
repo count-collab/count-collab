@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { mockLogEventInTx, mockHasPermission, mockEnforceMemberCap } =
+  vi.hoisted(() => ({
+    mockLogEventInTx: vi.fn(),
+    mockHasPermission: vi.fn(),
+    mockEnforceMemberCap: vi.fn(),
+  }));
+
 const {
   mockSelect,
   mockFrom,
@@ -146,6 +153,16 @@ vi.mock("$lib/server/logger", () => ({
 
 vi.mock("$lib/server/events", () => ({
   logEvent: mockLogEvent,
+  logEventInTx: mockLogEventInTx,
+}));
+
+vi.mock("$lib/server/permissions", () => ({
+  hasPermission: mockHasPermission,
+}));
+
+vi.mock("$lib/server/teams", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("$lib/server/teams")>()),
+  enforceMemberCap: mockEnforceMemberCap,
 }));
 
 vi.mock("$lib/utils/socket", () => ({
@@ -231,6 +248,14 @@ import {
   updateCounterInvitationRole,
   updateTeamInvitationRole,
 } from "./invitations";
+import { TeamLimitError } from "./team-limits";
+import {
+  INVITATION_COOLDOWN_SECONDS,
+  INVITATION_EXPIRY_MS,
+  MAX_INVITATIONS_PER_INVITER_PER_DAY,
+  MAX_PENDING_INVITATIONS_PER_TEAM,
+  MAX_PENDING_INVITATIONS_PER_USER,
+} from "./teams";
 
 const mockInvitation = {
   id: "inv-1",
@@ -578,13 +603,15 @@ describe("getUserPendingInvitationCount", () => {
   });
 });
 
+const ago = (ms: number) => new Date(Date.now() - ms);
+
 const mockTeamInvitation = {
   id: 10,
   teamId: "team-1",
   userId: "user-1",
   invitedBy: "owner-1",
   role: "editor" as const,
-  createdAt: new Date("2024-01-01"),
+  createdAt: ago(60 * 60 * 1000),
 };
 
 const mockTeamInvitationWithUser = {
@@ -599,23 +626,65 @@ describe("createTeamInvitation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupChains();
+    setupTxChains();
+    mockTxWhere.mockReset();
+    mockTxInsertReturning.mockReset();
+    mockWhere.mockReset();
+    mockTransaction.mockImplementation(async (fn: (tx: any) => unknown) =>
+      fn(tx),
+    );
   });
 
-  it("creates the invitation, logs it and emits a socket event", async () => {
-    mockInsertReturning.mockResolvedValueOnce([mockTeamInvitation]);
+  /**
+   * Queues the transaction's reads in order; stages left undefined are not
+   * queued because the function is expected to have thrown before them.
+   */
+  function queueChecks(o: {
+    team?: boolean;
+    existing?: { createdAt: Date; role?: string } | null;
+    forTeam?: number;
+    forUser?: number;
+    sentToday?: number;
+  }) {
+    mockTxWhere.mockReturnValueOnce(
+      rows(o.team === false ? [] : [{ id: "team-1" }]),
+    );
+    if (o.team === false) return;
+    mockTxWhere.mockReturnValueOnce(rows([{ id: "owner-1" }]));
+    mockTxWhere.mockReturnValueOnce(
+      rows(o.existing ? [{ ...mockTeamInvitation, ...o.existing }] : []),
+    );
+    if (o.forTeam !== undefined) {
+      mockTxWhere.mockReturnValueOnce(rows([{ total: o.forTeam }]));
+    }
+    if (o.forUser !== undefined) {
+      mockTxWhere.mockReturnValueOnce(rows([{ total: o.forUser }]));
+    }
+    if (o.sentToday !== undefined) {
+      mockTxWhere.mockReturnValueOnce(rows([{ total: o.sentToday }]));
+    }
+  }
+
+  function queueCreated() {
+    mockTxInsertReturning.mockResolvedValueOnce([mockTeamInvitation]);
     mockWhere.mockResolvedValueOnce([
       { ...mockTeamInvitationWithUser, teamName: "Alpha" },
     ]);
+  }
 
-    const result = await createTeamInvitation(
-      "team-1",
-      "user-1",
-      "editor",
-      "owner-1",
-    );
+  const invite = (role: "editor" | "admin" = "editor") =>
+    createTeamInvitation("team-1", "user-1", role, "owner-1");
+
+  const freshCaps = { forTeam: 0, forUser: 0, sentToday: 0 };
+
+  it("creates the invitation, logs it and emits a socket event", async () => {
+    queueChecks({ existing: null, ...freshCaps });
+    queueCreated();
+
+    const result = await invite();
 
     expect(result).toEqual(mockTeamInvitationWithUser);
-    expect(mockInsertValues).toHaveBeenCalledWith({
+    expect(mockTxInsertValues).toHaveBeenCalledWith({
       teamId: "team-1",
       userId: "user-1",
       role: "editor",
@@ -628,26 +697,197 @@ describe("createTeamInvitation", () => {
       role: "editor",
       inviterUsername: "bob",
     });
-    expect(mockLogEvent).toHaveBeenCalledWith(
+    expect(mockLogEventInTx).toHaveBeenCalledWith(
+      tx,
       expect.objectContaining({
         eventType: "invitation_sent",
+        userId: "owner-1",
         metadata: expect.objectContaining({ target_type: "team" }),
       }),
     );
   });
 
-  it("returns null without emitting when insert returns empty", async () => {
-    mockInsertReturning.mockResolvedValueOnce([]);
+  it("refreshes createdAt on re-invite so expiry and cooldown restart", async () => {
+    queueChecks({ existing: null, ...freshCaps });
+    queueCreated();
 
-    const result = await createTeamInvitation(
-      "team-1",
-      "user-1",
-      "editor",
-      "owner-1",
+    await invite();
+
+    expect(mockTxInsertOnConflictDoUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        set: {
+          role: "editor",
+          invitedBy: "owner-1",
+          createdAt: expect.any(Date),
+        },
+      }),
     );
+  });
 
-    expect(result).toBeNull();
+  it("locks the team row before reading anything else", async () => {
+    const teamFor = vi.fn().mockResolvedValue([{ id: "team-1" }]);
+    mockTxWhere.mockReturnValueOnce({ for: teamFor });
+    mockTxWhere.mockReturnValueOnce(rows([{ id: "owner-1" }]));
+    mockTxWhere.mockReturnValueOnce(rows([]));
+    mockTxWhere.mockReturnValueOnce(rows([{ total: 0 }]));
+    mockTxWhere.mockReturnValueOnce(rows([{ total: 0 }]));
+    mockTxWhere.mockReturnValueOnce(rows([{ total: 0 }]));
+    queueCreated();
+
+    await invite();
+
+    expect(teamFor).toHaveBeenCalledWith("update");
+    expect(teamFor.mock.invocationCallOrder[0]).toBeLessThan(
+      mockTxWhere.mock.invocationCallOrder[1],
+    );
+  });
+
+  it("returns null without writing when the team is gone", async () => {
+    queueChecks({ team: false });
+
+    await expect(invite()).resolves.toBeNull();
+
+    expect(mockTxInsert).not.toHaveBeenCalled();
     expect(mockEmitInvitationCreated).not.toHaveBeenCalled();
+  });
+
+  it("returns null without emitting when insert returns empty", async () => {
+    queueChecks({ existing: null, ...freshCaps });
+    mockTxInsertReturning.mockResolvedValueOnce([]);
+
+    await expect(invite()).resolves.toBeNull();
+
+    expect(mockEmitInvitationCreated).not.toHaveBeenCalled();
+    expect(mockLogEventInTx).not.toHaveBeenCalled();
+  });
+
+  it("allows the last invitation below every cap", async () => {
+    queueChecks({
+      existing: null,
+      forTeam: MAX_PENDING_INVITATIONS_PER_TEAM - 1,
+      forUser: MAX_PENDING_INVITATIONS_PER_USER - 1,
+      sentToday: MAX_INVITATIONS_PER_INVITER_PER_DAY - 1,
+    });
+    queueCreated();
+
+    await expect(invite()).resolves.toEqual(mockTeamInvitationWithUser);
+  });
+
+  describe("re-invite cooldown", () => {
+    it("rejects with 429 and retryAfter while the invitation is younger than the cooldown", async () => {
+      queueChecks({ existing: { createdAt: ago(10_000) } });
+
+      const error = await invite().catch((e) => e);
+
+      expect(error).toBeInstanceOf(TeamLimitError);
+      expect(error).toMatchObject({
+        code: "invitation_cooldown",
+        status: 429,
+      });
+      expect(error.retryAfter).toBeGreaterThanOrEqual(
+        INVITATION_COOLDOWN_SECONDS - 11,
+      );
+      expect(error.retryAfter).toBeLessThanOrEqual(
+        INVITATION_COOLDOWN_SECONDS - 9,
+      );
+      expect(mockTxInsert).not.toHaveBeenCalled();
+      expect(mockEmitInvitationCreated).not.toHaveBeenCalled();
+    });
+
+    it("still applies when the re-invite changes the role", async () => {
+      queueChecks({ existing: { createdAt: ago(1_000), role: "viewer" } });
+
+      await expect(invite("admin")).rejects.toMatchObject({
+        code: "invitation_cooldown",
+      });
+      expect(mockTxInsert).not.toHaveBeenCalled();
+    });
+
+    it("allows a re-invite after the cooldown and skips the pending-count caps", async () => {
+      queueChecks({
+        existing: { createdAt: ago((INVITATION_COOLDOWN_SECONDS + 1) * 1000) },
+        sentToday: 0,
+      });
+      queueCreated();
+
+      await expect(invite("admin")).resolves.toEqual(
+        mockTeamInvitationWithUser,
+      );
+      // team, inviter, existing, daily
+      expect(mockTxWhere).toHaveBeenCalledTimes(4);
+    });
+
+    it("treats an expired invitation as new and checks the pending caps", async () => {
+      queueChecks({
+        existing: { createdAt: ago(INVITATION_EXPIRY_MS + 1_000) },
+        ...freshCaps,
+      });
+      queueCreated();
+
+      await invite();
+
+      expect(mockTxWhere).toHaveBeenCalledTimes(6);
+    });
+  });
+
+  describe("caps", () => {
+    it("rejects with 409 at the pending-invitations-per-team cap", async () => {
+      queueChecks({ existing: null, forTeam: MAX_PENDING_INVITATIONS_PER_TEAM });
+
+      const error = await invite().catch((e) => e);
+
+      expect(error).toBeInstanceOf(TeamLimitError);
+      expect(error).toMatchObject({ code: "pending_team_limit", status: 409 });
+      expect(mockTxInsert).not.toHaveBeenCalled();
+    });
+
+    it("rejects with 409 at the pending-invitations-per-recipient cap", async () => {
+      queueChecks({
+        existing: null,
+        forTeam: 0,
+        forUser: MAX_PENDING_INVITATIONS_PER_USER,
+      });
+
+      const error = await invite().catch((e) => e);
+
+      expect(error).toBeInstanceOf(TeamLimitError);
+      expect(error).toMatchObject({
+        code: "pending_recipient_limit",
+        status: 409,
+      });
+      expect(mockTxInsert).not.toHaveBeenCalled();
+    });
+
+    it("rejects with 429 and retryAfter at the per-inviter daily cap", async () => {
+      queueChecks({
+        existing: null,
+        forTeam: 0,
+        forUser: 0,
+        sentToday: MAX_INVITATIONS_PER_INVITER_PER_DAY,
+      });
+
+      const error = await invite().catch((e) => e);
+
+      expect(error).toBeInstanceOf(TeamLimitError);
+      expect(error).toMatchObject({
+        code: "daily_invitation_limit",
+        status: 429,
+      });
+      expect(error.retryAfter).toBeGreaterThan(0);
+      expect(mockTxInsert).not.toHaveBeenCalled();
+      expect(mockEmitInvitationCreated).not.toHaveBeenCalled();
+    });
+
+    it("applies the daily cap to re-invites of a pending invitation too", async () => {
+      queueChecks({
+        existing: { createdAt: ago((INVITATION_COOLDOWN_SECONDS + 1) * 1000) },
+        sentToday: MAX_INVITATIONS_PER_INVITER_PER_DAY,
+      });
+
+      await expect(invite()).rejects.toMatchObject({
+        code: "daily_invitation_limit",
+      });
+    });
   });
 });
 
@@ -722,10 +962,33 @@ describe("acceptTeamInvitation", () => {
     vi.clearAllMocks();
     setupChains();
     setupTxChains();
+    mockTxWhere.mockReset();
+    mockTxInsertReturning.mockReset();
+    mockTxUpdateReturning.mockReset();
+    mockTxDeleteWhere.mockReset();
+    mockHasPermission.mockReset();
+    mockEnforceMemberCap.mockReset();
     mockTransaction.mockImplementation(async (fn: (tx: any) => unknown) =>
       fn(tx),
     );
   });
+
+  /** Queues team, invitation and inviter lookups, then any further reads. */
+  function queueAccept(
+    later: unknown[][],
+    o: {
+      invitation?: Record<string, unknown>;
+      inviter?: { role: string } | null;
+    } = {},
+  ) {
+    mockTxWhere
+      .mockReturnValueOnce(rows([{ id: "team-1" }]))
+      .mockReturnValueOnce(rows([{ ...mockTeamInvitation, ...o.invitation }]))
+      .mockReturnValueOnce(
+        rows(o.inviter === null ? [] : [o.inviter ?? { role: "owner" }]),
+      );
+    for (const r of later) mockTxWhere.mockReturnValueOnce(rows(r));
+  }
 
   it("inserts a membership, deletes the invitation and logs both events", async () => {
     const member = {
@@ -734,16 +997,14 @@ describe("acceptTeamInvitation", () => {
       userId: "user-1",
       role: "editor",
     };
-    mockTxWhere
-      .mockReturnValueOnce(rows([{ id: "team-1" }]))
-      .mockReturnValueOnce(rows([mockTeamInvitation]))
-      .mockReturnValueOnce(rows([]));
+    queueAccept([[]]);
     mockTxInsertReturning.mockResolvedValueOnce([member]);
     mockTxDeleteWhere.mockResolvedValueOnce(undefined);
 
     const result = await acceptTeamInvitation("team-1", "user-1");
 
     expect(result).toEqual(member);
+    expect(mockEnforceMemberCap).toHaveBeenCalledWith(tx, "team-1");
     expect(mockTxInsertValues).toHaveBeenCalledWith({
       teamId: "team-1",
       userId: "user-1",
@@ -765,10 +1026,7 @@ describe("acceptTeamInvitation", () => {
       userId: "user-1",
       role: "owner",
     };
-    mockTxWhere
-      .mockReturnValueOnce(rows([{ id: "team-1" }]))
-      .mockReturnValueOnce(rows([mockTeamInvitation]))
-      .mockReturnValueOnce(rows([existing]));
+    queueAccept([[existing]]);
     mockTxDeleteWhere.mockResolvedValueOnce(undefined);
 
     const result = await acceptTeamInvitation("team-1", "user-1");
@@ -790,10 +1048,7 @@ describe("acceptTeamInvitation", () => {
       role: "viewer",
     };
     const upgraded = { ...existing, role: "editor" };
-    mockTxWhere
-      .mockReturnValueOnce(rows([{ id: "team-1" }]))
-      .mockReturnValueOnce(rows([mockTeamInvitation]))
-      .mockReturnValueOnce(rows([existing]));
+    queueAccept([[existing]]);
     mockTxUpdateReturning.mockResolvedValueOnce([upgraded]);
     mockTxDeleteWhere.mockResolvedValueOnce(undefined);
 
@@ -821,7 +1076,7 @@ describe("acceptTeamInvitation", () => {
     expect(mockLogEvent).not.toHaveBeenCalled();
   });
 
-  it("share-locks the team and update-locks the invitation", async () => {
+  it("update-locks the team and the invitation, share-locks the inviter", async () => {
     const teamFor = vi.fn().mockResolvedValue([{ id: "team-1" }]);
     const invitationFor = vi.fn().mockResolvedValue([]);
     mockTxWhere
@@ -830,8 +1085,22 @@ describe("acceptTeamInvitation", () => {
 
     await acceptTeamInvitation("team-1", "user-1");
 
-    expect(teamFor).toHaveBeenCalledWith("share");
+    expect(teamFor).toHaveBeenCalledWith("update");
     expect(invitationFor).toHaveBeenCalledWith("update");
+
+    const inviterFor = vi.fn().mockResolvedValue([{ role: "owner" }]);
+    const memberFor = vi.fn().mockResolvedValue([]);
+    mockTxWhere
+      .mockReturnValueOnce(rows([{ id: "team-1" }]))
+      .mockReturnValueOnce(rows([mockTeamInvitation]))
+      .mockReturnValueOnce({ for: inviterFor })
+      .mockReturnValueOnce({ for: memberFor });
+    mockTxInsertReturning.mockResolvedValueOnce([{ id: 1, role: "editor" }]);
+
+    await acceptTeamInvitation("team-1", "user-1");
+
+    expect(inviterFor).toHaveBeenCalledWith("share");
+    expect(memberFor).toHaveBeenCalledWith("update");
   });
 
   it("upgrades a membership created concurrently instead of throwing on the unique conflict", async () => {
@@ -842,11 +1111,7 @@ describe("acceptTeamInvitation", () => {
       role: "viewer",
     };
     const upgraded = { ...concurrent, role: "editor" };
-    mockTxWhere
-      .mockReturnValueOnce(rows([{ id: "team-1" }]))
-      .mockReturnValueOnce(rows([mockTeamInvitation]))
-      .mockReturnValueOnce(rows([]))
-      .mockReturnValueOnce(rows([concurrent]));
+    queueAccept([[], [concurrent]]);
     // ON CONFLICT DO NOTHING returns no row
     mockTxInsertReturning.mockResolvedValueOnce([]);
     mockTxUpdateReturning.mockResolvedValueOnce([upgraded]);
@@ -870,11 +1135,7 @@ describe("acceptTeamInvitation", () => {
       userId: "user-1",
       role: "admin",
     };
-    mockTxWhere
-      .mockReturnValueOnce(rows([{ id: "team-1" }]))
-      .mockReturnValueOnce(rows([mockTeamInvitation]))
-      .mockReturnValueOnce(rows([]))
-      .mockReturnValueOnce(rows([concurrent]));
+    queueAccept([[], [concurrent]]);
     mockTxInsertReturning.mockResolvedValueOnce([]);
     mockTxDeleteWhere.mockResolvedValueOnce(undefined);
 
@@ -886,15 +1147,140 @@ describe("acceptTeamInvitation", () => {
   });
 
   it("returns null when the conflicting membership disappeared again", async () => {
-    mockTxWhere
-      .mockReturnValueOnce(rows([{ id: "team-1" }]))
-      .mockReturnValueOnce(rows([mockTeamInvitation]))
-      .mockReturnValueOnce(rows([]))
-      .mockReturnValueOnce(rows([]));
+    queueAccept([[], []]);
     mockTxInsertReturning.mockResolvedValueOnce([]);
 
     await expect(acceptTeamInvitation("team-1", "user-1")).resolves.toBeNull();
     expect(mockTxDelete).not.toHaveBeenCalled();
     expect(mockLogEvent).not.toHaveBeenCalled();
+  });
+
+  describe("inviter re-authorization", () => {
+    const expectDiscarded = async () => {
+      await expect(
+        acceptTeamInvitation("team-1", "user-1"),
+      ).resolves.toBeNull();
+      expect(mockTxDelete).toHaveBeenCalledOnce();
+      expect(mockTxInsert).not.toHaveBeenCalled();
+      expect(mockTxUpdate).not.toHaveBeenCalled();
+      expect(mockEnforceMemberCap).not.toHaveBeenCalled();
+      expect(mockLogEvent).not.toHaveBeenCalled();
+    };
+
+    it("deletes the invitation and returns null when the inviter left the team", async () => {
+      mockHasPermission.mockResolvedValue(false);
+      queueAccept([], { inviter: null });
+
+      await expectDiscarded();
+      expect(mockHasPermission).toHaveBeenCalledWith("owner-1", "team:edit_any");
+    });
+
+    it("deletes the invitation when the inviter was demoted below admin", async () => {
+      queueAccept([], { inviter: { role: "editor" } });
+
+      await expectDiscarded();
+    });
+
+    it("deletes the invitation when the inviter's account is gone (invitedBy null)", async () => {
+      mockTxWhere
+        .mockReturnValueOnce(rows([{ id: "team-1" }]))
+        .mockReturnValueOnce(
+          rows([{ ...mockTeamInvitation, invitedBy: null }]),
+        );
+
+      await expectDiscarded();
+      expect(mockHasPermission).not.toHaveBeenCalled();
+    });
+
+    it("deletes an owner invitation when the inviter is only an admin", async () => {
+      queueAccept([], {
+        invitation: { role: "owner" },
+        inviter: { role: "admin" },
+      });
+
+      await expectDiscarded();
+    });
+
+    it("accepts when the inviter is still an admin assigning a non-owner role", async () => {
+      queueAccept([[]], {
+        invitation: { role: "admin" },
+        inviter: { role: "admin" },
+      });
+      mockTxInsertReturning.mockResolvedValueOnce([{ id: 1, role: "admin" }]);
+
+      await expect(
+        acceptTeamInvitation("team-1", "user-1"),
+      ).resolves.toMatchObject({ role: "admin" });
+    });
+
+    it("accepts when the inviter is a platform admin without membership", async () => {
+      mockHasPermission.mockResolvedValue(true);
+      queueAccept([[]], { invitation: { role: "owner" }, inviter: null });
+      mockTxInsertReturning.mockResolvedValueOnce([{ id: 1, role: "owner" }]);
+
+      await expect(
+        acceptTeamInvitation("team-1", "user-1"),
+      ).resolves.toMatchObject({ role: "owner" });
+    });
+  });
+
+  describe("expiry", () => {
+    it("deletes an invitation older than 14 days without checking the inviter", async () => {
+      mockTxWhere
+        .mockReturnValueOnce(rows([{ id: "team-1" }]))
+        .mockReturnValueOnce(
+          rows([
+            {
+              ...mockTeamInvitation,
+              createdAt: ago(INVITATION_EXPIRY_MS + 1_000),
+            },
+          ]),
+        );
+
+      await expect(
+        acceptTeamInvitation("team-1", "user-1"),
+      ).resolves.toBeNull();
+
+      expect(mockTxDelete).toHaveBeenCalledOnce();
+      expect(mockTxWhere).toHaveBeenCalledTimes(2);
+      expect(mockTxInsert).not.toHaveBeenCalled();
+      expect(mockLogEvent).not.toHaveBeenCalled();
+    });
+
+    it("accepts an invitation just inside the expiry window", async () => {
+      queueAccept([[]], {
+        invitation: { createdAt: ago(INVITATION_EXPIRY_MS - 60_000) },
+      });
+      mockTxInsertReturning.mockResolvedValueOnce([{ id: 1, role: "editor" }]);
+
+      await expect(
+        acceptTeamInvitation("team-1", "user-1"),
+      ).resolves.toMatchObject({ role: "editor" });
+    });
+  });
+
+  describe("member cap", () => {
+    it("propagates TeamLimitError so the transaction rolls back, without deleting the invitation or logging", async () => {
+      mockEnforceMemberCap.mockRejectedValueOnce(
+        new TeamLimitError("member_limit", 409, "full"),
+      );
+      queueAccept([[]]);
+      mockTxInsertReturning.mockResolvedValueOnce([{ id: 1, role: "editor" }]);
+
+      await expect(
+        acceptTeamInvitation("team-1", "user-1"),
+      ).rejects.toMatchObject({ code: "member_limit", status: 409 });
+
+      expect(mockTxDelete).not.toHaveBeenCalled();
+      expect(mockLogEvent).not.toHaveBeenCalled();
+    });
+
+    it("does not count against the cap for an existing member", async () => {
+      queueAccept([[{ id: 1, teamId: "team-1", userId: "user-1", role: "admin" }]]);
+
+      await acceptTeamInvitation("team-1", "user-1");
+
+      expect(mockEnforceMemberCap).not.toHaveBeenCalled();
+    });
   });
 });

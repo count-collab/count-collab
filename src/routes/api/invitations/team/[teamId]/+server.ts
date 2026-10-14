@@ -4,6 +4,7 @@ import {
   deleteTeamInvitation,
 } from "$lib/server/invitations";
 import { logger } from "$lib/server/logger";
+import { TeamLimitError, teamLimitResponse } from "$lib/server/team-limits";
 import {
   emitInvitationDeleted,
   emitTeamMembershipChanged,
@@ -22,7 +23,15 @@ export const POST: RequestHandler = async ({ params, locals }) => {
     throw error(401, "Sign in to accept invitations");
   }
 
-  const member = await acceptTeamInvitation(params.teamId, session.user.id);
+  let member: Awaited<ReturnType<typeof acceptTeamInvitation>>;
+  try {
+    member = await acceptTeamInvitation(params.teamId, session.user.id);
+  } catch (err) {
+    if (err instanceof TeamLimitError) {
+      return teamLimitResponse(err);
+    }
+    throw err;
+  }
   if (!member) {
     throw error(404, "Invitation not found");
   }

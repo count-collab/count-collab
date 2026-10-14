@@ -275,7 +275,7 @@
       inviteError = result.error;
       return;
     }
-    inviteSuccess = `Invited ${username} as ${teamRoleLabels[inviteRole]}`;
+    inviteSuccess = "If this user exists, they will receive an invitation";
     inviteUsername = "";
     await invalidateAll();
   }

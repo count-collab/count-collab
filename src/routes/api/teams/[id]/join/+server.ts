@@ -1,5 +1,6 @@
 import { error, json } from "@sveltejs/kit";
 import { parseAndValidateBody } from "$lib/server/request";
+import { TeamLimitError, teamLimitResponse } from "$lib/server/team-limits";
 import { joinTeamByToken } from "$lib/server/team-members";
 import { emitTeamMembershipChanged } from "$lib/utils/socket";
 import { joinTeamSchema, teamIdSchema } from "$lib/utils/validation";
@@ -25,11 +26,19 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     return validation.response;
   }
 
-  const result = await joinTeamByToken(
-    params.id,
-    session.user.id,
-    validation.data.token,
-  );
+  let result: Awaited<ReturnType<typeof joinTeamByToken>>;
+  try {
+    result = await joinTeamByToken(
+      params.id,
+      session.user.id,
+      validation.data.token,
+    );
+  } catch (err) {
+    if (err instanceof TeamLimitError) {
+      return teamLimitResponse(err);
+    }
+    throw err;
+  }
   if (!result.ok) {
     return json({ error: result.message }, { status: result.status });
   }

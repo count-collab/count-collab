@@ -1,4 +1,4 @@
-import { and, count as countFn, eq } from "drizzle-orm";
+import { and, count as countFn, eq, gt, gte, sql } from "drizzle-orm";
 import { db } from "$lib/db";
 import {
   type CounterInvitation,
@@ -8,6 +8,7 @@ import {
   counters,
   dashboardInvitations,
   dashboards,
+  platformEvents,
   type TeamInvitation,
   type TeamMember,
   type TeamMemberRole,
@@ -16,10 +17,26 @@ import {
   teams,
   users,
 } from "$lib/db/schema";
-import { teamRoleRank } from "$lib/roles";
-import { logEvent } from "$lib/server/events";
+import { canAssignTeamRole, teamRoleRank } from "$lib/roles";
+import { logEvent, logEventInTx } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
+import { hasPermission } from "$lib/server/permissions";
+import { TeamLimitError } from "$lib/server/team-limits";
+import {
+  enforceMemberCap,
+  INVITATION_COOLDOWN_SECONDS,
+  INVITATION_EXPIRY_MS,
+  MAX_INVITATIONS_PER_INVITER_PER_DAY,
+  MAX_PENDING_INVITATIONS_PER_TEAM,
+  MAX_PENDING_INVITATIONS_PER_USER,
+} from "$lib/server/teams";
 import { emitInvitationCreated } from "$lib/utils/socket";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function invitationCutoff(): Date {
+  return new Date(Date.now() - INVITATION_EXPIRY_MS);
+}
 
 type InvitationWithUser = CounterInvitation & {
   username: string | null;
@@ -256,7 +273,12 @@ export async function getUserPendingInvitations(userId: string) {
     .from(teamInvitations)
     .innerJoin(teams, eq(teamInvitations.teamId, teams.id))
     .leftJoin(inviterAlias, eq(teamInvitations.invitedBy, inviterAlias.id))
-    .where(eq(teamInvitations.userId, userId));
+    .where(
+      and(
+        eq(teamInvitations.userId, userId),
+        gt(teamInvitations.createdAt, invitationCutoff()),
+      ),
+    );
 
   return [
     ...counterRows.map((r) => ({
@@ -359,7 +381,12 @@ export async function getUserPendingInvitationCount(
   const [teamCount] = await db
     .select({ count: countFn() })
     .from(teamInvitations)
-    .where(eq(teamInvitations.userId, userId));
+    .where(
+      and(
+        eq(teamInvitations.userId, userId),
+        gt(teamInvitations.createdAt, invitationCutoff()),
+      ),
+    );
 
   return (
     Number(counterCount?.count ?? 0) +
@@ -376,14 +403,123 @@ export async function createTeamInvitation(
   role: TeamMemberRole,
   invitedBy: string,
 ): Promise<TeamInvitationWithUser | null> {
-  const [invitation] = await db
-    .insert(teamInvitations)
-    .values({ teamId, userId, role, invitedBy })
-    .onConflictDoUpdate({
-      target: [teamInvitations.teamId, teamInvitations.userId],
-      set: { role, invitedBy },
-    })
-    .returning();
+  const invitation = await db.transaction(async (tx) => {
+    // Lock order (team, then inviter) matches deleteUser; serializes cap checks
+    const [team] = await tx
+      .select({ id: teams.id })
+      .from(teams)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+      .where(eq(teams.id, teamId as any))
+      .for("update");
+    if (!team) return null;
+
+    await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, invitedBy))
+      .for("update");
+
+    const cutoff = invitationCutoff();
+
+    const [existing] = await tx
+      .select()
+      .from(teamInvitations)
+      .where(teamInvitationWhere(teamId, userId))
+      .for("update");
+    const stillPending = !!existing && existing.createdAt > cutoff;
+
+    if (stillPending) {
+      const waitMs =
+        INVITATION_COOLDOWN_SECONDS * 1000 -
+        (Date.now() - existing.createdAt.getTime());
+      if (waitMs > 0) {
+        throw new TeamLimitError(
+          "invitation_cooldown",
+          429,
+          "This user was invited moments ago. Please wait before inviting again",
+          Math.ceil(waitMs / 1000),
+        );
+      }
+    } else {
+      const [{ total: forTeam }] = await tx
+        .select({ total: countFn() })
+        .from(teamInvitations)
+        .where(
+          and(
+            // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+            eq(teamInvitations.teamId, teamId as any),
+            gt(teamInvitations.createdAt, cutoff),
+          ),
+        );
+      if (Number(forTeam) >= MAX_PENDING_INVITATIONS_PER_TEAM) {
+        throw new TeamLimitError(
+          "pending_team_limit",
+          409,
+          "This team has too many pending invitations",
+        );
+      }
+
+      const [{ total: forUser }] = await tx
+        .select({ total: countFn() })
+        .from(teamInvitations)
+        .where(
+          and(
+            eq(teamInvitations.userId, userId),
+            gt(teamInvitations.createdAt, cutoff),
+          ),
+        );
+      if (Number(forUser) >= MAX_PENDING_INVITATIONS_PER_USER) {
+        throw new TeamLimitError(
+          "pending_recipient_limit",
+          409,
+          "This user has too many pending team invitations",
+        );
+      }
+    }
+
+    // Sent events outlive accepted/declined invitations, unlike the rows
+    const [{ total: sentToday }] = await tx
+      .select({ total: countFn() })
+      .from(platformEvents)
+      .where(
+        and(
+          eq(platformEvents.userId, invitedBy),
+          eq(platformEvents.eventType, "invitation_sent"),
+          sql`${platformEvents.metadata}->>'target_type' = 'team'`,
+          gte(platformEvents.createdAt, new Date(Date.now() - DAY_MS)),
+        ),
+      );
+    if (Number(sentToday) >= MAX_INVITATIONS_PER_INVITER_PER_DAY) {
+      throw new TeamLimitError(
+        "daily_invitation_limit",
+        429,
+        "You have sent too many team invitations today",
+        DAY_MS / 1000,
+      );
+    }
+
+    // createdAt is refreshed so re-invites restart expiry and cooldown
+    const [upserted] = await tx
+      .insert(teamInvitations)
+      .values({ teamId, userId, role, invitedBy })
+      .onConflictDoUpdate({
+        target: [teamInvitations.teamId, teamInvitations.userId],
+        set: { role, invitedBy, createdAt: new Date() },
+      })
+      .returning();
+
+    if (upserted) {
+      await logEventInTx(tx, {
+        eventType: "invitation_sent",
+        userId: invitedBy,
+        entityId: teamId,
+        entityType: "invitation",
+        metadata: { target_type: "team", invited_user_id: userId, role },
+      });
+    }
+
+    return upserted ?? null;
+  });
 
   if (!invitation) return null;
 
@@ -396,14 +532,6 @@ export async function createTeamInvitation(
     .where(eq(teamInvitations.id, invitation.id));
 
   logger.info("Team invitation created", { teamId, userId, role, invitedBy });
-
-  logEvent({
-    eventType: "invitation_sent",
-    userId: invitedBy,
-    entityId: teamId,
-    entityType: "invitation",
-    metadata: { target_type: "team", invited_user_id: userId, role },
-  });
 
   if (!row) return null;
 
@@ -481,19 +609,21 @@ export async function getTeamInvitations(
 
 /**
  * Accept a team invitation. An existing membership is never downgraded.
+ * Expired invitations and ones whose inviter can no longer assign the role are
+ * purged and reported like an unknown invitation.
  */
 export async function acceptTeamInvitation(
   teamId: string,
   userId: string,
 ): Promise<TeamMember | null> {
   const result = await db.transaction(async (tx) => {
-    // Serializes with deleteTeam's FOR UPDATE so the team can't vanish mid-accept
+    // The update lock serializes with deleteTeam and keeps the member cap race-free
     const [team] = await tx
       .select({ id: teams.id })
       .from(teams)
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
       .where(eq(teams.id, teamId as any))
-      .for("share");
+      .for("update");
 
     if (!team) return null;
 
@@ -505,6 +635,37 @@ export async function acceptTeamInvitation(
       .for("update");
 
     if (!invitation) return null;
+
+    const discardInvitation = async () => {
+      await tx
+        .delete(teamInvitations)
+        .where(eq(teamInvitations.id, invitation.id));
+      return null;
+    };
+
+    if (invitation.createdAt <= invitationCutoff()) return discardInvitation();
+
+    if (!invitation.invitedBy) return discardInvitation();
+    const [inviter] = await tx
+      .select({ role: teamMembers.role })
+      .from(teamMembers)
+      .where(
+        and(
+          // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+          eq(teamMembers.teamId, teamId as any),
+          eq(teamMembers.userId, invitation.invitedBy),
+        ),
+      )
+      .for("share");
+    // Platform admins invite as owner without being members (see lockActingRole)
+    const inviterRole =
+      inviter?.role ??
+      ((await hasPermission(invitation.invitedBy, "team:edit_any"))
+        ? ("owner" as const)
+        : null);
+    if (!canAssignTeamRole(inviterRole, null, invitation.role)) {
+      return discardInvitation();
+    }
 
     const memberWhere = and(
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
@@ -540,6 +701,8 @@ export async function acceptTeamInvitation(
       // Removed again in between: roll back and let the user retry
       if (!member) return null;
     }
+
+    if (added) await enforceMemberCap(tx, teamId);
 
     if (!added && teamRoleRank(invitation.role) > teamRoleRank(member.role)) {
       [member] = await tx

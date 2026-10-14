@@ -75,6 +75,7 @@ vi.mock("$lib/server/permissions", () => ({
 }));
 
 import { teamInvitations, teamMembers } from "$lib/db/schema";
+import { TeamLimitError } from "./team-limits";
 import {
   countTeamOwners,
   disableJoinLink,
@@ -85,6 +86,7 @@ import {
   setJoinLinkRole,
   updateTeamMemberRole,
 } from "./team-members";
+import { MAX_MEMBERS_PER_TEAM } from "./teams";
 
 const tx = {
   select: mockTxSelect,
@@ -231,6 +233,51 @@ describe("updateTeamMemberRole", () => {
     const result = await updateTeamMemberRole("team-1", "ghost", "editor");
 
     expect(result).toMatchObject({ ok: false, status: 404 });
+  });
+
+  describe("purging invitations created by the demoted member", () => {
+    const demote = async (from: string, to: "owner" | "admin" | "editor" | "viewer") => {
+      mockTxWhere
+        .mockReturnValueOnce(
+          rows([{ userId: "owner-1" }, { userId: "owner-2" }]),
+        )
+        .mockReturnValueOnce(rows([{ role: from }]));
+      mockTxUpdateReturning.mockResolvedValueOnce([{ id: 1, role: to }]);
+      return updateTeamMemberRole("team-1", "owner-1", to);
+    };
+
+    it.each(["editor", "viewer"] as const)(
+      "deletes the member's pending invitations when demoted to %s",
+      async (to) => {
+        await expect(demote("admin", to)).resolves.toMatchObject({ ok: true });
+
+        expect(mockTxDelete).toHaveBeenCalledOnce();
+        expect(mockTxDelete).toHaveBeenCalledWith(teamInvitations);
+      },
+    );
+
+    it.each([
+      ["owner", "admin"],
+      ["editor", "admin"],
+      ["admin", "owner"],
+    ] as const)(
+      "keeps invitations when the role stays admin or higher (%s -> %s)",
+      async (from, to) => {
+        await expect(demote(from, to)).resolves.toMatchObject({ ok: true });
+
+        expect(mockTxDelete).not.toHaveBeenCalled();
+      },
+    );
+
+    it("keeps invitations when the change is refused", async () => {
+      mockTxWhere
+        .mockReturnValueOnce(rows([{ userId: "owner-1" }]))
+        .mockReturnValueOnce(rows([{ role: "owner" }]));
+
+      await updateTeamMemberRole("team-1", "owner-1", "viewer");
+
+      expect(mockTxDelete).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -473,6 +520,45 @@ describe("removeTeamMember", () => {
   });
 });
 
+describe("removeTeamMember invitation purge", () => {
+  it("deletes the member's row and the invitations they created", async () => {
+    mockTxWhere
+      .mockReturnValueOnce(rows([{ userId: "owner-1" }]))
+      .mockReturnValueOnce(rows([{ role: "admin" }]));
+
+    await expect(removeTeamMember("team-1", "admin-1")).resolves.toEqual({
+      ok: true,
+    });
+
+    expect(mockTxDelete).toHaveBeenCalledTimes(2);
+    expect(mockTxDelete).toHaveBeenNthCalledWith(1, teamMembers);
+    expect(mockTxDelete).toHaveBeenNthCalledWith(2, teamInvitations);
+  });
+
+  it("purges invitations when a member leaves on their own", async () => {
+    mockTxWhere
+      .mockReturnValueOnce(rows([{ userId: "owner-1" }]))
+      .mockReturnValueOnce(rows([{ role: "admin" }]));
+
+    await removeTeamMember("team-1", "admin-1", {
+      userId: "admin-1",
+      actingRole: "admin",
+    });
+
+    expect(mockTxDelete).toHaveBeenCalledWith(teamInvitations);
+  });
+
+  it("purges nothing when the removal is refused", async () => {
+    mockTxWhere
+      .mockReturnValueOnce(rows([{ userId: "owner-1" }]))
+      .mockReturnValueOnce(rows([{ role: "owner" }]));
+
+    await removeTeamMember("team-1", "owner-1");
+
+    expect(mockTxDelete).not.toHaveBeenCalled();
+  });
+});
+
 describe("join link settings", () => {
   it("enableOrRotateJoinLink sets a fresh token", async () => {
     mockUpdateReturning.mockImplementationOnce(async () => [
@@ -593,9 +679,11 @@ describe("joinTeamByToken", () => {
       role: "incrementer",
       joinedAt: new Date(),
     };
-    mockTxWhere.mockReturnValueOnce(
-      rows([{ joinToken: TOKEN, joinRole: "incrementer" }]),
-    );
+    mockTxWhere
+      .mockReturnValueOnce(
+        rows([{ joinToken: TOKEN, joinRole: "incrementer" }]),
+      )
+      .mockReturnValueOnce(rows([{ total: 1 }]));
     mockTxInsertReturning.mockResolvedValueOnce([inserted]);
 
     const result = await joinTeamByToken("team-1", "user-1", TOKEN);
@@ -618,5 +706,44 @@ describe("joinTeamByToken", () => {
       entityType: "team",
       metadata: { via: "join_link" },
     });
+  });
+
+  it("accepts the join that fills the team exactly to the cap", async () => {
+    mockTxWhere
+      .mockReturnValueOnce(rows([{ joinToken: TOKEN, joinRole: "viewer" }]))
+      .mockReturnValueOnce(rows([{ total: MAX_MEMBERS_PER_TEAM }]));
+    mockTxInsertReturning.mockResolvedValueOnce([{ id: 2, role: "viewer" }]);
+
+    await expect(
+      joinTeamByToken("team-1", "user-1", TOKEN),
+    ).resolves.toMatchObject({ ok: true, alreadyMember: false });
+  });
+
+  it("throws a 409 member_limit error over the cap, before invitation cleanup or logging", async () => {
+    mockTxWhere
+      .mockReturnValueOnce(rows([{ joinToken: TOKEN, joinRole: "viewer" }]))
+      .mockReturnValueOnce(rows([{ total: MAX_MEMBERS_PER_TEAM + 1 }]));
+    mockTxInsertReturning.mockResolvedValueOnce([{ id: 2, role: "viewer" }]);
+
+    const error = await joinTeamByToken("team-1", "user-1", TOKEN).catch(
+      (e) => e,
+    );
+
+    expect(error).toBeInstanceOf(TeamLimitError);
+    expect(error).toMatchObject({ code: "member_limit", status: 409 });
+    expect(mockTxDelete).not.toHaveBeenCalled();
+    expect(mockLogEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not apply the cap to an existing member re-using the link", async () => {
+    mockTxWhere
+      .mockReturnValueOnce(rows([{ joinToken: TOKEN, joinRole: "viewer" }]))
+      .mockReturnValueOnce(rows([{ id: 1, role: "viewer" }]));
+    mockTxInsertReturning.mockResolvedValueOnce([]);
+
+    await expect(
+      joinTeamByToken("team-1", "user-1", TOKEN),
+    ).resolves.toMatchObject({ ok: true, alreadyMember: true });
+    expect(mockTxWhere).toHaveBeenCalledTimes(2);
   });
 });

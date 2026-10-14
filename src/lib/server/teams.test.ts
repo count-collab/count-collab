@@ -78,17 +78,23 @@ import {
   teamMembers,
   teams as teamsTable,
 } from "$lib/db/schema";
+import { TeamLimitError } from "./team-limits";
 import {
   createTeam,
   deleteTeam,
+  enforceMemberCap,
   getSoleOwnedTeams,
   getTeam,
   getTeamResources,
   listAllTeams,
   listEditableTeams,
   listUserTeams,
+  MAX_MEMBERS_PER_TEAM,
+  MAX_TEAMS_PER_USER,
   updateTeam,
 } from "./teams";
+
+const mockForUpdate = vi.fn();
 
 const tx = {
   select: mockTxSelect,
@@ -138,8 +144,17 @@ beforeEach(() => {
 });
 
 describe("createTeam", () => {
+  /** Queues the user-row lock and the created-teams count. */
+  function queueCreateChecks(total: number) {
+    mockTxWhere
+      .mockReturnValueOnce({ for: mockForUpdate })
+      .mockResolvedValueOnce([{ total }]);
+    mockForUpdate.mockResolvedValueOnce([{ id: "user-1" }]);
+  }
+
   it("inserts the team and an owner membership in one transaction", async () => {
     const team = makeTeam({ name: "Alpha" });
+    queueCreateChecks(0);
     mockTxInsertReturning.mockResolvedValueOnce([team]);
 
     const result = await createTeam({
@@ -166,6 +181,7 @@ describe("createTeam", () => {
 
   it("logs a team_created event", async () => {
     const team = makeTeam({ name: "Alpha" });
+    queueCreateChecks(0);
     mockTxInsertReturning.mockResolvedValueOnce([team]);
 
     await createTeam({ name: "Alpha", userId: "user-1" });
@@ -177,6 +193,59 @@ describe("createTeam", () => {
       entityType: "team",
       metadata: { team_name: "Alpha" },
     });
+  });
+
+  it("locks the creator row before counting so the cap can't be raced", async () => {
+    queueCreateChecks(0);
+    mockTxInsertReturning.mockResolvedValueOnce([makeTeam()]);
+
+    await createTeam({ name: "Alpha", userId: "user-1" });
+
+    expect(mockForUpdate).toHaveBeenCalledWith("update");
+    expect(mockForUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+      mockTxInsert.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("allows the last team below the cap", async () => {
+    queueCreateChecks(MAX_TEAMS_PER_USER - 1);
+    mockTxInsertReturning.mockResolvedValueOnce([makeTeam()]);
+
+    await expect(
+      createTeam({ name: "Alpha", userId: "user-1" }),
+    ).resolves.toBeDefined();
+  });
+
+  it("throws a 409 TeamLimitError at the per-user team cap and inserts nothing", async () => {
+    queueCreateChecks(MAX_TEAMS_PER_USER);
+
+    const error = await createTeam({ name: "Alpha", userId: "user-1" }).catch(
+      (e) => e,
+    );
+
+    expect(error).toBeInstanceOf(TeamLimitError);
+    expect(error).toMatchObject({ code: "team_limit", status: 409 });
+    expect(mockTxInsert).not.toHaveBeenCalled();
+    expect(mockLogEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("enforceMemberCap", () => {
+  it("passes when the team is at the cap", async () => {
+    mockTxWhere.mockResolvedValueOnce([{ total: MAX_MEMBERS_PER_TEAM }]);
+
+    await expect(
+      enforceMemberCap(tx as any, "team-1"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("throws a 409 TeamLimitError when the team exceeds the cap", async () => {
+    mockTxWhere.mockResolvedValueOnce([{ total: MAX_MEMBERS_PER_TEAM + 1 }]);
+
+    const error = await enforceMemberCap(tx as any, "team-1").catch((e) => e);
+
+    expect(error).toBeInstanceOf(TeamLimitError);
+    expect(error).toMatchObject({ code: "member_limit", status: 409 });
   });
 });
 
@@ -400,6 +469,22 @@ describe("getTeamResources", () => {
     });
     expect(mockFrom).toHaveBeenNthCalledWith(1, counters);
     expect(mockFrom).toHaveBeenNthCalledWith(2, dashboards);
+  });
+
+  it("selects counter and dashboard columns without shareToken", async () => {
+    mockWhere
+      .mockReturnValueOnce({ orderBy: mockOrderBy })
+      .mockReturnValueOnce({ orderBy: mockOrderBy });
+    mockOrderBy.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    await getTeamResources("team-1");
+
+    for (const [selection] of mockSelect.mock.calls.slice(0, 2)) {
+      expect(selection).toBeTypeOf("object");
+      expect(selection).not.toHaveProperty("shareToken");
+      expect(Object.values(selection)).not.toContain(counters.shareToken);
+      expect(Object.values(selection)).not.toContain(dashboards.shareToken);
+    }
   });
 });
 
