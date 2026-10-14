@@ -29,9 +29,21 @@ src/lib/server/transfer.ts             # Ownership transfers (locks + permission
 src/lib/server/team-members.ts         # Last-owner guard, join-link tokens (constant-time compare)
 src/lib/utils/redirect.ts              # safeRedirectPath (open-redirect guard)
 src/lib/server/permissions.ts          # Role-based permission checks
-src/lib/server/crypto.ts               # Cryptographic utilities (share tokens, etc.)
+src/lib/server/crypto.ts               # Cryptographic utilities (share tokens, `tokensEqual`)
+src/lib/server/share-token.ts          # hasValidShareToken (private resources only)
+src/lib/server/public-columns.ts       # Column sets that omit shareToken for client payloads
+src/lib/server/auth-policy.ts          # OAuth signIn policy (verified email / linking)
+src/lib/server/api-rate-limit.ts       # Per-route IP/user rate-limit rules for /api/**
+src/lib/server/security-headers.ts     # Security headers handle (HSTS only on https)
+src/lib/server/csp.js                  # CSP config used by svelte.config.js
+src/lib/server/posthog-proxy.ts        # /ingest proxy (header allowlist, body cap)
+src/lib/server/request-logging.ts      # Log redaction of token/code/state
+src/lib/utils/redact.ts                # PostHog before_send URL redaction
+src/lib/server/team-limits.ts          # TeamLimitError, SoleTeamOwnerError, caps
+src/lib/server/counter-limits.ts       # int4 bounds, anonymous increment cap
 src/lib/utils/validation.ts            # Zod input validation schemas
-server.js                              # CORS configuration for Socket.IO
+src/lib/server/socket-server.ts        # Socket.IO auth, origin check, rooms, limits
+server.js                              # Starts HTTP server; delegates Socket.IO to the SvelteKit bundle
 ```
 
 ## OWASP Top 10 Checklist for This Project
