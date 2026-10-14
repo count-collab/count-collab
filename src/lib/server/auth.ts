@@ -9,6 +9,9 @@ import { accounts, sessions, users, verificationTokens } from "$lib/db/schema";
 import { shouldAllowSignIn } from "$lib/server/auth-policy";
 import { logEvent } from "$lib/server/events";
 import { toClientSessionUser } from "$lib/server/session-user";
+// Side effect: registers globalThis.__socketGateway, which server.js uses to start
+// Socket.IO. hooks.server.ts imports this file, so it loads before the server listens.
+import "$lib/server/socket-server";
 
 // Type assertion needed: drizzle-orm 0.29.x columns lack metadata fields
 // (isAutoincrement, isPrimaryKey, etc.) that @auth/drizzle-adapter 1.x expects.

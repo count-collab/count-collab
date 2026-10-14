@@ -6,6 +6,7 @@
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
+  import { subscribeRoom } from "$lib/stores/socket";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -49,6 +50,8 @@
   $effect(() => {
     if (!browser) return;
 
+    // Own counters arrive through the user room joined at connect time
+    const leaveFeed = subscribeRoom("feed");
     const unsubUpdate = onCounterUpdated(() => {
       invalidate("counters:list");
       invalidate("counters:user");
@@ -62,6 +65,7 @@
     return () => {
       unsubUpdate();
       unsubCreated();
+      leaveFeed();
     };
   });
 </script>

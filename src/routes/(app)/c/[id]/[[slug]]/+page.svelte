@@ -22,6 +22,7 @@ import { untrack } from "svelte";
   import type { CounterVisibilityMode } from "$lib/db/schema";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
+  import { subscribeRoom } from "$lib/stores/socket";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -309,6 +310,11 @@ import { untrack } from "svelte";
   $effect(() => {
     if (!browser) return;
 
+    const leaveRoom = subscribeRoom(
+      "counter",
+      data.counter.id,
+      data.shareToken,
+    );
     const unsubscribe = onCounterUpdated((payload) => {
       if (payload.counterId !== data.counter.id) return;
       if (isIncrementing) return;
@@ -331,7 +337,10 @@ import { untrack } from "svelte";
       }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      leaveRoom();
+    };
   });
 </script>
 

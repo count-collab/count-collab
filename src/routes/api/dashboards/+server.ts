@@ -41,7 +41,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     teamId: teamId ?? null,
   });
 
-  emitDashboardCreated(dashboard.id);
+  emitDashboardCreated(dashboard.id, {
+    visibilityMode: dashboard.visibilityMode,
+    ownerId: dashboard.ownerId,
+    teamId: dashboard.teamId,
+  });
 
   return json({ id: dashboard.id }, { status: 201 });
 };

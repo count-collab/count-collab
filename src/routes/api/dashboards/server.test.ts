@@ -72,7 +72,12 @@ describe("POST /api/dashboards", () => {
 
   it("creates the dashboard in the team", async () => {
     mockCanEditTeamResources.mockResolvedValue(true);
-    mockCreateDashboard.mockResolvedValue({ id: "d-1" });
+    mockCreateDashboard.mockResolvedValue({
+      id: "d-1",
+      visibilityMode: "private",
+      ownerId: "user-1",
+      teamId: TEAM_ID,
+    });
 
     const response = await POST(
       makeEvent("user-1", { title: "Board", teamId: TEAM_ID }),
@@ -82,7 +87,11 @@ describe("POST /api/dashboards", () => {
     expect(mockCreateDashboard).toHaveBeenCalledWith(
       expect.objectContaining({ ownerId: "user-1", teamId: TEAM_ID }),
     );
-    expect(mockEmitDashboardCreated).toHaveBeenCalledWith("d-1");
+    expect(mockEmitDashboardCreated).toHaveBeenCalledWith("d-1", {
+      visibilityMode: "private",
+      ownerId: "user-1",
+      teamId: TEAM_ID,
+    });
   });
 
   it("creates personal dashboards without a team check", async () => {

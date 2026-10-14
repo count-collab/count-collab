@@ -41,7 +41,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     teamId: teamId ?? null,
   });
 
-  emitCounterCreated(counter.id);
+  emitCounterCreated(counter.id, {
+    visibilityMode: counter.visibilityMode,
+    ownerId: counter.ownerId,
+    teamId: counter.teamId,
+  });
 
   return json({ id: counter.id, title: counter.title }, { status: 201 });
 };

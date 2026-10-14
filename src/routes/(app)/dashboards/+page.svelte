@@ -9,6 +9,7 @@
     onDashboardCreated,
     onDashboardUpdated,
   } from "$lib/stores/dashboards";
+  import { subscribeRoom } from "$lib/stores/socket";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -57,6 +58,7 @@
   $effect(() => {
     if (!browser) return;
 
+    const leaveFeed = subscribeRoom("feed");
     const unsubUpdate = onDashboardUpdated(() => {
       invalidate("dashboards:list");
     });
@@ -68,6 +70,7 @@
     return () => {
       unsubUpdate();
       unsubCreated();
+      leaveFeed();
     };
   });
 </script>

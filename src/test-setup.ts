@@ -1,19 +1,22 @@
-Object.defineProperty(window, "matchMedia", {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
+// Node-environment tests (e.g. socket integration) have no DOM to stub
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
 
 // Stub Element.prototype.animate for Svelte transitions in JSDOM
-if (typeof Element.prototype.animate !== "function") {
+if (typeof Element !== "undefined" && typeof Element.prototype.animate !== "function") {
   Element.prototype.animate = () => {
     const anim = {
       onfinish: null as (() => void) | null,

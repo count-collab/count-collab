@@ -2,7 +2,8 @@ import { browser } from "$app/environment";
 import { getSocket } from "./socket";
 
 export type TeamMembershipChangedPayload = {
-  userId: string;
+  // null when a team-wide change affected several members at once
+  userId: string | null;
   teamId: string;
   reason:
     | "joined"

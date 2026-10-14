@@ -7,6 +7,7 @@
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { faqItems } from "$lib/data/faq";
   import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
+  import { subscribeRoom } from "$lib/stores/socket";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -14,6 +15,7 @@
   $effect(() => {
     if (!browser) return;
 
+    const leaveFeed = subscribeRoom("feed");
     const unsubUpdate = onCounterUpdated(() => {
       invalidate("counters:list");
     });
@@ -25,6 +27,7 @@
     return () => {
       unsubUpdate();
       unsubCreated();
+      leaveFeed();
     };
   });
 
