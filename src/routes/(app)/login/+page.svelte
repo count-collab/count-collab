@@ -12,6 +12,8 @@
   const errorMessages: Record<string, string> = {
     OAuthAccountNotLinked:
       "This email is already associated with another provider. Please sign in with the original provider.",
+    AccessDenied:
+      "Sign-in was denied. Your provider email must be verified. Verify it with your provider and try again.",
     OAuthCallbackError:
       "Something went wrong during sign-in. Please try again.",
     OAuthSignin: "Could not start the sign-in flow. Please try again.",

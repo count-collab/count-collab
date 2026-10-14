@@ -3,9 +3,10 @@ import { SvelteKitAuth } from "@auth/sveltekit";
 import Discord from "@auth/sveltekit/providers/discord";
 import Google from "@auth/sveltekit/providers/google";
 import Twitch from "@auth/sveltekit/providers/twitch";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { accounts, sessions, users, verificationTokens } from "$lib/db/schema";
+import { shouldAllowSignIn } from "$lib/server/auth-policy";
 import { logEvent } from "$lib/server/events";
 import { toClientSessionUser } from "$lib/server/session-user";
 
@@ -28,15 +29,36 @@ export const {
 } = SvelteKitAuth({
   adapter,
   providers: [
+    // Email linking is only safe for Google because signIn requires email_verified.
     Google({ allowDangerousEmailAccountLinking: true }),
-    Discord({ allowDangerousEmailAccountLinking: true }),
-    Twitch({ allowDangerousEmailAccountLinking: true }),
+    Discord,
+    Twitch,
   ],
   session: { strategy: "database" },
   pages: {
     signIn: "/login",
   },
   callbacks: {
+    async signIn({ account, profile }) {
+      if (!account) return false;
+      return shouldAllowSignIn({
+        provider: account.provider,
+        profile,
+        hasLinkedAccount: async () => {
+          const [row] = await db
+            .select({ userId: accounts.userId })
+            .from(accounts)
+            .where(
+              and(
+                eq(accounts.provider, account.provider),
+                eq(accounts.providerAccountId, account.providerAccountId),
+              ),
+            )
+            .limit(1);
+          return !!row;
+        },
+      });
+    },
     async session({ session, user }) {
       const [dbUser] = await db
         .select({
