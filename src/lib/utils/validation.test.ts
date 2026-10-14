@@ -129,6 +129,19 @@ describe("incrementCounterSchema", () => {
   it("rejects non-integer amount", () => {
     expect(() => incrementCounterSchema.parse({ amount: 1.5 })).toThrow();
   });
+
+  it("accepts the bounds", () => {
+    expect(incrementCounterSchema.parse({ amount: 1000 }).amount).toBe(1000);
+    expect(incrementCounterSchema.parse({ amount: -1000 }).amount).toBe(-1000);
+  });
+
+  it("rejects amounts beyond the bounds", () => {
+    expect(() => incrementCounterSchema.parse({ amount: 1001 })).toThrow();
+    expect(() => incrementCounterSchema.parse({ amount: -1001 })).toThrow();
+    expect(() =>
+      incrementCounterSchema.parse({ amount: 2147483647 }),
+    ).toThrow();
+  });
 });
 
 describe("dashboard validation", () => {
@@ -334,6 +347,15 @@ describe("createGoalSchema", () => {
       description: "Countdown goal",
     });
     expect(result.amount).toBe(-50);
+  });
+
+  it("rejects amounts beyond +/-1,000,000,000", () => {
+    expect(
+      createGoalSchema.parse({ amount: 1_000_000_000 }).amount,
+    ).toBe(1_000_000_000);
+    expect(() => createGoalSchema.parse({ amount: 1_000_000_001 })).toThrow();
+    expect(() => createGoalSchema.parse({ amount: -1_000_000_001 })).toThrow();
+    expect(() => updateGoalSchema.parse({ amount: 2147483647 })).toThrow();
   });
 });
 
