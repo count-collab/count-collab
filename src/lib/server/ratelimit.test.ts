@@ -68,16 +68,23 @@ vi.mock("$lib/server/logger", () => ({
 
 import {
   checkCounterCooldown,
+  checkCreationRateLimit,
   checkPrivateCounterCooldown,
   checkRateLimit,
   checkTeamCreationRateLimit,
+  checkUserRateLimit,
   getClientIp,
+  getCreationRateLimitConfig,
   getEffectiveCooldownMs,
+  getRateLimitStoreSize,
   getTeamCreationRateLimitConfig,
+  MAX_RATE_LIMIT_ENTRIES,
   PRIVATE_COUNTER_DEBOUNCE_MS,
   recordCounterCooldown,
   resetCounterCooldownStore,
+  resetRateLimitStore,
   resetSettingsCache,
+  UNKNOWN_IP,
 } from "./ratelimit";
 
 // Use unique IPs per test to avoid in-memory state collisions
@@ -593,22 +600,208 @@ describe("team creation rate limit", () => {
 });
 
 describe("getClientIp", () => {
-  it("extracts IP from X-Forwarded-For header", () => {
-    const request = new Request("http://localhost", {
-      headers: { "x-forwarded-for": "203.0.113.50, 70.41.3.18" },
-    });
-    expect(getClientIp(request)).toBe("203.0.113.50");
+  it("uses the address resolved by SvelteKit", () => {
+    expect(getClientIp({ getClientAddress: () => "203.0.113.50" })).toBe(
+      "203.0.113.50",
+    );
   });
 
-  it("extracts IP from X-Real-IP header", () => {
+  it("does not read spoofed X-Forwarded-For or X-Real-IP headers", () => {
     const request = new Request("http://localhost", {
-      headers: { "x-real-ip": "198.51.100.178" },
+      headers: { "x-forwarded-for": "6.6.6.6", "x-real-ip": "7.7.7.7" },
     });
-    expect(getClientIp(request)).toBe("198.51.100.178");
+    const event = {
+      request,
+      getClientAddress: () => "203.0.113.9",
+    };
+    expect(getClientIp(event)).toBe("203.0.113.9");
   });
 
-  it("returns 127.0.0.1 as fallback", () => {
-    const request = new Request("http://localhost");
-    expect(getClientIp(request)).toBe("127.0.0.1");
+  it("returns UNKNOWN_IP when the address cannot be determined", () => {
+    expect(
+      getClientIp({
+        getClientAddress: () => {
+          throw new Error("no address");
+        },
+      }),
+    ).toBe(UNKNOWN_IP);
+  });
+
+  it("returns UNKNOWN_IP for malformed addresses", () => {
+    expect(getClientIp({ getClientAddress: () => "not-an-ip" })).toBe(
+      UNKNOWN_IP,
+    );
+  });
+
+  it("unwraps IPv4-mapped IPv6 addresses", () => {
+    expect(getClientIp({ getClientAddress: () => "::ffff:198.51.100.7" })).toBe(
+      "198.51.100.7",
+    );
+  });
+
+  it("collapses IPv6 addresses in the same /64 to one identity", () => {
+    const a = getClientIp({ getClientAddress: () => "2001:db8:1:2::1" });
+    const b = getClientIp({
+      getClientAddress: () => "2001:db8:1:2:aaaa:bbbb:cccc:dddd",
+    });
+    const other = getClientIp({ getClientAddress: () => "2001:db8:1:3::1" });
+    expect(a).toBe(b);
+    expect(a).not.toBe(other);
+  });
+
+  it("spoofed headers cannot mint extra quota", () => {
+    const config = { windowMs: 60_000, maxRequests: 1 };
+    const spoof = (xff: string) => ({
+      request: new Request("http://localhost", {
+        headers: { "x-forwarded-for": xff },
+      }),
+      getClientAddress: () => "203.0.113.77",
+    });
+
+    const first = getClientIp(spoof("1.1.1.1"));
+    expect(checkRateLimit(first, "/spoof", config)).toBeNull();
+    const second = getClientIp(spoof("2.2.2.2"));
+    expect(checkRateLimit(second, "/spoof", config)).not.toBeNull();
+  });
+});
+
+describe("rate limit store cap", () => {
+  beforeEach(() => resetRateLimitStore());
+  afterEach(() => resetRateLimitStore());
+
+  it("evicts the least recently used identities beyond the cap", () => {
+    const config = { windowMs: 60_000, maxRequests: 1 };
+    expect(checkRateLimit("victim", "/cap", config)).toBeNull();
+    expect(checkRateLimit("victim", "/cap", config)).not.toBeNull();
+
+    for (let i = 0; i < MAX_RATE_LIMIT_ENTRIES + 10; i++) {
+      checkRateLimit(`flood-${i}`, "/cap", config);
+    }
+
+    expect(getRateLimitStoreSize()).toBeLessThanOrEqual(MAX_RATE_LIMIT_ENTRIES);
+    // Evicted entry starts over, proving the store did not grow unbounded.
+    expect(checkRateLimit("victim", "/cap", config)).toBeNull();
+  });
+});
+
+describe("checkUserRateLimit", () => {
+  beforeEach(() => resetRateLimitStore());
+
+  it("returns 429 info with a positive retryAfter when over limit", () => {
+    const limit = { limit: 2, windowMs: 60_000 };
+    expect(checkUserRateLimit("u-1", "bucket", limit)).toBeNull();
+    expect(checkUserRateLimit("u-1", "bucket", limit)).toBeNull();
+    const limited = checkUserRateLimit("u-1", "bucket", limit);
+    expect(limited?.retryAfter).toBeGreaterThan(0);
+    expect(limited?.retryAfter).toBeLessThanOrEqual(60);
+  });
+
+  it("keys users separately from IPs", () => {
+    const limit = { limit: 1, windowMs: 60_000 };
+    expect(checkUserRateLimit("10.9.9.9", "bucket", limit)).toBeNull();
+    // A user whose id equals an IP string does not share the IP's quota.
+    expect(checkUserRateLimit({ ip: "10.9.9.9" }, "bucket", limit)).toBeNull();
+    expect(checkUserRateLimit("10.9.9.9", "bucket", limit)).not.toBeNull();
+    expect(
+      checkUserRateLimit({ ip: "10.9.9.9" }, "bucket", limit),
+    ).not.toBeNull();
+  });
+
+  it("tracks users independently", () => {
+    const limit = { limit: 1, windowMs: 60_000 };
+    expect(checkUserRateLimit("u-a", "bucket", limit)).toBeNull();
+    expect(checkUserRateLimit("u-b", "bucket", limit)).toBeNull();
+    expect(checkUserRateLimit("u-a", "bucket", limit)).not.toBeNull();
+  });
+});
+
+describe("creation rate limits", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetSettingsCache();
+    resetDbChain();
+    resetRateLimitStore();
+  });
+
+  it("reads counter and dashboard limits from global settings", async () => {
+    mockGlobalSettings({
+      counterCreationLimitAuth: 7,
+      counterCreationWindowAuth: 30,
+      counterCreationLimitUnauth: 3,
+      counterCreationWindowUnauth: 90,
+      dashboardCreationLimitAuth: 8,
+      dashboardCreationWindowAuth: 45,
+      dashboardCreationLimitUnauth: 4,
+      dashboardCreationWindowUnauth: 120,
+    });
+
+    expect(await getCreationRateLimitConfig("counter", true)).toEqual({
+      windowMs: 30_000,
+      maxRequests: 7,
+    });
+    expect(await getCreationRateLimitConfig("counter", false)).toEqual({
+      windowMs: 90_000,
+      maxRequests: 3,
+    });
+    expect(await getCreationRateLimitConfig("dashboard", true)).toEqual({
+      windowMs: 45_000,
+      maxRequests: 8,
+    });
+    expect(await getCreationRateLimitConfig("dashboard", false)).toEqual({
+      windowMs: 120_000,
+      maxRequests: 4,
+    });
+  });
+
+  it("enforces the configured limit per user", async () => {
+    mockGlobalSettings({
+      dashboardCreationLimitAuth: 2,
+      dashboardCreationWindowAuth: 60,
+    });
+    const subject = { userId: "creator-1", ip: "203.0.113.1" };
+
+    expect(await checkCreationRateLimit("dashboard", subject)).toBeNull();
+    expect(await checkCreationRateLimit("dashboard", subject)).toBeNull();
+    const limited = await checkCreationRateLimit("dashboard", subject);
+    expect(limited?.retryAfter).toBeGreaterThan(0);
+  });
+
+  it("limits anonymous callers by IP with the unauthenticated settings", async () => {
+    mockGlobalSettings({
+      counterCreationLimitUnauth: 1,
+      counterCreationWindowUnauth: 60,
+    });
+
+    expect(
+      await checkCreationRateLimit("counter", { ip: "203.0.113.2" }),
+    ).toBeNull();
+    expect(
+      await checkCreationRateLimit("counter", { ip: "203.0.113.2" }),
+    ).not.toBeNull();
+    expect(
+      await checkCreationRateLimit("counter", { ip: "203.0.113.3" }),
+    ).toBeNull();
+  });
+
+  it("keeps counter and dashboard quotas separate", async () => {
+    mockGlobalSettings({
+      counterCreationLimitAuth: 1,
+      dashboardCreationLimitAuth: 1,
+    });
+    const subject = { userId: "creator-2", ip: "203.0.113.4" };
+
+    expect(await checkCreationRateLimit("counter", subject)).toBeNull();
+    expect(await checkCreationRateLimit("dashboard", subject)).toBeNull();
+    expect(await checkCreationRateLimit("counter", subject)).not.toBeNull();
+  });
+
+  it("falls back to the default 5/min when settings cannot be read", async () => {
+    mockDbWhere.mockRejectedValue(new Error("db down"));
+    const subject = { userId: "creator-3", ip: "203.0.113.5" };
+
+    for (let i = 0; i < 5; i++) {
+      expect(await checkCreationRateLimit("counter", subject)).toBeNull();
+    }
+    expect(await checkCreationRateLimit("counter", subject)).not.toBeNull();
   });
 });
