@@ -14,22 +14,30 @@ runs:
 
   steps:
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: 22
 
     - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
 
     - name: Install dependencies
       run: bun install --frozen-lockfile
       shell: bash
 
+    # npm audit instead of bun audit: bun audit fails with a TLS error in some environments
+    - name: Audit production dependencies
+      run: npm audit --omit=dev --audit-level=critical
+      shell: bash
+
     - name: Write .env for type generation
       run: |
-        echo "PUBLIC_POSTHOG_PROJECT_TOKEN=${{ inputs.PUBLIC_POSTHOG_PROJECT_TOKEN }}" >> .env
-        echo "PUBLIC_POSTHOG_HOST=${{ inputs.PUBLIC_POSTHOG_HOST }}" >> .env
+        echo "PUBLIC_POSTHOG_PROJECT_TOKEN=$POSTHOG_TOKEN" >> .env
+        echo "PUBLIC_POSTHOG_HOST=$POSTHOG_HOST" >> .env
       shell: bash
+      env:
+        POSTHOG_TOKEN: ${{ inputs.PUBLIC_POSTHOG_PROJECT_TOKEN }}
+        POSTHOG_HOST: ${{ inputs.PUBLIC_POSTHOG_HOST }}
 
     - name: Prepare Svelte
       run: bunx svelte-kit sync

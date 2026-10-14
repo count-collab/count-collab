@@ -3,11 +3,14 @@ name: Development
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test-and-build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/test-and-build
         with:
           PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ vars.PUBLIC_POSTHOG_PROJECT_TOKEN }}
@@ -19,11 +22,11 @@ jobs:
   #   needs: test-and-build
 
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
   #     - uses: ./.github/actions/e2e
 
   #     - name: Upload Playwright report
-  #       uses: actions/upload-artifact@v4
+  #       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
   #       if: failure()
   #       with:
   #         name: playwright-report
@@ -31,17 +34,17 @@ jobs:
   #         retention-days: 7
 
   docker-build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: test-and-build
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@885d1462b80bc1c1c7f0b00334ad271f09369c55 # v2.10.0
 
       - name: Build Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@0a97817b6ade9f46837855d676c4cca3a2471fc9 # v4.2.1
         with:
           push: false
           tags: ghcr.io/count-collab/count-collab:latest

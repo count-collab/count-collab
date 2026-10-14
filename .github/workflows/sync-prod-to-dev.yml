@@ -3,6 +3,9 @@ name: DEV | Sync PROD Database to DEV
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   sync:
     name: Backup PROD & Import to DEV
@@ -10,12 +13,18 @@ jobs:
 
     steps:
       - name: Sync database via SSH
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          PROD_USER: ${{ secrets.POSTGRES_USER }}
+          PROD_DB: ${{ secrets.POSTGRES_DB }}
+          DEV_USER: ${{ secrets.POSTGRES_USER_DEV }}
+          DEV_DB: ${{ secrets.POSTGRES_DB_DEV }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           port: ${{ secrets.DEPLOY_PORT }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: PROD_USER,PROD_DB,DEV_USER,DEV_DB
           script: |
             set -e
 
@@ -23,11 +32,6 @@ jobs:
             DEV_DB_CONTAINER="count-collab-dev-db"
             DEV_APP_CONTAINER="count-collab-dev"
             DUMP_FILE="/tmp/count-collab-prod-backup-$(date +%Y%m%d-%H%M%S).dump"
-
-            PROD_USER="${{ secrets.POSTGRES_USER }}"
-            PROD_DB="${{ secrets.POSTGRES_DB }}"
-            DEV_USER="${{ secrets.POSTGRES_USER_DEV }}"
-            DEV_DB="${{ secrets.POSTGRES_DB_DEV }}"
 
             cleanup() {
               echo "=== Cleaning up dump file ==="
