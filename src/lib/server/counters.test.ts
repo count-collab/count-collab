@@ -2,7 +2,13 @@ import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Counter } from "$lib/db/schema";
-import { teamMembers, teams, users } from "$lib/db/schema";
+import {
+  counterHistory,
+  counters as countersTable,
+  teamMembers,
+  teams,
+  users,
+} from "$lib/db/schema";
 
 const mockInsert = vi.fn();
 const mockInsertValues = vi.fn();
@@ -17,6 +23,7 @@ const mockUpdateSet = vi.fn();
 const mockUpdateWhere = vi.fn();
 const mockUpdateReturning = vi.fn();
 const mockExecute = vi.fn();
+const mockTransaction = vi.fn();
 
 vi.mock("$lib/db", () => ({
   db: {
@@ -24,6 +31,7 @@ vi.mock("$lib/db", () => ({
     select: (...args: unknown[]) => mockSelect(...args),
     update: (...args: unknown[]) => mockUpdate(...args),
     execute: (...args: unknown[]) => mockExecute(...args),
+    transaction: (...args: unknown[]) => mockTransaction(...args),
   },
 }));
 
@@ -43,16 +51,25 @@ mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
 mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
 
 import {
+  CounterOverflowError,
+  INT4_MAX,
+  INT4_MIN,
+} from "./counter-limits";
+import {
   createCounter,
   getCounterCount,
   getCounterSparkline,
   getGlobalActionCount,
   getOwnedCounterCount,
+  getOwnedCounters,
   getSharedCounters,
   getUserCounters,
+  incrementCounter,
   listAllCounters,
+  listPublicCounters,
   listRecentlyCreatedCounters,
   listRecentlyUpdatedCounters,
+  regenerateCounterShareToken,
   sparklineCache,
   updateCounter,
 } from "./counters";
@@ -333,6 +350,57 @@ describe("updateCounter", () => {
 
     const setArg = mockUpdateSet.mock.calls[0][0];
     expect(setArg.lastActivityAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("incrementCounter", () => {
+  const txInsert = vi.fn();
+  const txUpdate = vi.fn();
+
+  function runWithCount(count: number) {
+    const tx = {
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            for: () => Promise.resolve([makeCounter({ count })]),
+          }),
+        }),
+      }),
+      insert: txInsert,
+      update: txUpdate,
+    };
+    mockTransaction.mockImplementation((fn: (t: unknown) => unknown) => fn(tx));
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rejects an increment that would exceed the int4 maximum", async () => {
+    runWithCount(INT4_MAX);
+
+    await expect(incrementCounter("c1", 1)).rejects.toBeInstanceOf(
+      CounterOverflowError,
+    );
+    expect(txInsert).not.toHaveBeenCalled();
+    expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a decrement that would go below the int4 minimum", async () => {
+    runWithCount(INT4_MIN + 5);
+
+    await expect(incrementCounter("c1", -6)).rejects.toBeInstanceOf(
+      CounterOverflowError,
+    );
+    expect(txUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a large delta from a mid-range value", async () => {
+    runWithCount(1_500_000_000);
+
+    await expect(
+      incrementCounter("c1", 1_000_000_000),
+    ).rejects.toBeInstanceOf(CounterOverflowError);
   });
 });
 
@@ -787,5 +855,258 @@ describe("getSharedCounters", () => {
     expect(where).toContain('"counters"."owner_id" IS DISTINCT FROM $1');
     expect(where).toContain('"team_members"."user_id" is not null');
     expect(itemsLimit).toHaveBeenCalledWith(4);
+  });
+});
+
+describe("share token exposure", () => {
+  const SECRET = "secret-token-value";
+
+  function expectNoShareToken(selection: unknown) {
+    expect(selection).toBeTypeOf("object");
+    expect(selection).not.toHaveProperty("shareToken");
+    expect(Object.values(selection as object)).not.toContain(
+      countersTable.shareToken,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("listRecentlyCreatedCounters selects columns without shareToken", async () => {
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockWhere.mockReturnValue({ orderBy: mockOrderBy });
+    mockOrderBy.mockReturnValue({ limit: mockLimit });
+    mockLimit.mockResolvedValue([]);
+
+    await listRecentlyCreatedCounters();
+
+    expectNoShareToken(mockSelect.mock.calls[0][0]);
+  });
+
+  it("listRecentlyUpdatedCounters selects columns without shareToken", async () => {
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockWhere.mockReturnValue({ orderBy: mockOrderBy });
+    mockOrderBy.mockReturnValue({ limit: mockLimit });
+    mockLimit.mockResolvedValue([]);
+
+    await listRecentlyUpdatedCounters();
+
+    expectNoShareToken(mockSelect.mock.calls[0][0]);
+  });
+
+  it("listPublicCounters selects columns without shareToken", async () => {
+    const offset = vi.fn().mockResolvedValue([]);
+    const countWhere = vi.fn().mockResolvedValue([{ total: 0 }]);
+    mockSelect
+      .mockReturnValueOnce({
+        from: () => ({
+          groupBy: () => ({
+            as: () => ({
+              counterId: counterHistory.counterId,
+              actionCount: counterHistory.id,
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({
+          leftJoin: () => ({
+            where: () => ({
+              orderBy: () => ({ limit: () => ({ offset }) }),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({ from: () => ({ where: countWhere }) });
+
+    await listPublicCounters();
+
+    expectNoShareToken(mockSelect.mock.calls[1][0]);
+  });
+
+  it("getOwnedCounters selects columns without shareToken", async () => {
+    const offset = vi.fn().mockResolvedValue([]);
+    mockSelect
+      .mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            orderBy: () => ({ limit: () => ({ offset }) }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({ where: vi.fn().mockResolvedValue([{ total: 0 }]) }),
+      });
+
+    await getOwnedCounters("user-1");
+
+    expectNoShareToken(mockSelect.mock.calls[0][0]);
+  });
+
+  it("listAllCounters strips shareToken from joined rows", async () => {
+    const offset = vi.fn().mockResolvedValue([
+      {
+        counter: makeCounter({ visibilityMode: "private", shareToken: SECRET }),
+        ownerUsername: "u",
+        ownerDisplayName: null,
+      },
+    ]);
+    mockSelect
+      .mockReturnValueOnce({
+        from: () => ({
+          leftJoin: () => ({
+            where: () => ({
+              orderBy: () => ({ limit: () => ({ offset }) }),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({ where: vi.fn().mockResolvedValue([{ total: 1 }]) }),
+      });
+
+    const result = await listAllCounters();
+
+    expect(result.items[0]).not.toHaveProperty("shareToken");
+    expect(JSON.stringify(result)).not.toContain(SECRET);
+  });
+});
+
+describe("updateCounter share token lifecycle", () => {
+  function existingCounter(overrides: Partial<Counter>) {
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockWhere.mockResolvedValueOnce([makeCounter(overrides)]);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdate.mockReturnValue({ set: mockUpdateSet });
+    mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
+    mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
+    mockUpdateReturning.mockResolvedValue([makeCounter()]);
+  });
+
+  it("clears the token when switching private to public", async () => {
+    await updateCounter("c1", { visibilityMode: "public" });
+
+    expect(mockUpdateSet.mock.calls[0][0]).toMatchObject({
+      visibilityMode: "public",
+      shareToken: null,
+    });
+  });
+
+  it("clears the token when switching private to public_readonly", async () => {
+    await updateCounter("c1", { visibilityMode: "public_readonly" });
+
+    expect(mockUpdateSet.mock.calls[0][0].shareToken).toBeNull();
+  });
+
+  it("clears the token when the legacy isPublic flag is set", async () => {
+    await updateCounter("c1", { isPublic: true });
+
+    expect(mockUpdateSet.mock.calls[0][0].shareToken).toBeNull();
+  });
+
+  it("generates a new token when switching public to private", async () => {
+    existingCounter({ visibilityMode: "public", shareToken: null });
+
+    await updateCounter("c1", { visibilityMode: "private" });
+
+    expect(mockUpdateSet.mock.calls[0][0].shareToken).toMatch(
+      /^[0-9a-f]{32}$/,
+    );
+  });
+
+  it("replaces a stale token left on a non-private counter", async () => {
+    existingCounter({ visibilityMode: "public", shareToken: "stale-token" });
+
+    await updateCounter("c1", { visibilityMode: "private" });
+
+    const next = mockUpdateSet.mock.calls[0][0].shareToken;
+    expect(next).toMatch(/^[0-9a-f]{32}$/);
+    expect(next).not.toBe("stale-token");
+  });
+
+  it("keeps the existing token when staying private", async () => {
+    existingCounter({ visibilityMode: "private", shareToken: "keep-me" });
+
+    await updateCounter("c1", { visibilityMode: "private" });
+
+    expect(mockUpdateSet.mock.calls[0][0]).not.toHaveProperty("shareToken");
+  });
+
+  it("does not touch the token when visibility is not updated", async () => {
+    await updateCounter("c1", { title: "Renamed" });
+
+    expect(mockUpdateSet.mock.calls[0][0]).not.toHaveProperty("shareToken");
+  });
+});
+
+describe("regenerateCounterShareToken", () => {
+  const txSet = vi.fn();
+
+  function useTx(
+    existing: { visibilityMode: string }[],
+    removed: { id: number }[] = [],
+  ) {
+    const tx = {
+      select: () => ({
+        from: () => ({ where: () => ({ for: async () => existing }) }),
+      }),
+      update: () => ({
+        set: (values: unknown) => {
+          txSet(values);
+          return { where: async () => undefined };
+        },
+      }),
+      delete: () => ({ where: () => ({ returning: async () => removed }) }),
+    };
+    mockTransaction.mockImplementation(async (fn: (t: unknown) => unknown) =>
+      fn(tx),
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("stores a fresh token and removes followers for private counters", async () => {
+    useTx([{ visibilityMode: "private" }], [{ id: 1 }, { id: 2 }]);
+
+    const first = await regenerateCounterShareToken("c1");
+    const second = await regenerateCounterShareToken("c1");
+
+    expect(first).toMatchObject({ ok: true, removedFollowers: 2 });
+    if (!first.ok || !second.ok) throw new Error("expected success");
+    expect(first.shareToken).toMatch(/^[0-9a-f]{32}$/);
+    expect(second.shareToken).not.toBe(first.shareToken);
+    expect(txSet).toHaveBeenCalledWith({ shareToken: first.shareToken });
+  });
+
+  it.each(["public", "public_readonly"])(
+    "refuses %s counters without writing",
+    async (visibilityMode) => {
+      useTx([{ visibilityMode }]);
+
+      await expect(regenerateCounterShareToken("c1")).resolves.toEqual({
+        ok: false,
+        reason: "not_private",
+      });
+      expect(txSet).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reports a missing counter", async () => {
+    useTx([]);
+
+    await expect(regenerateCounterShareToken("c1")).resolves.toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+    expect(txSet).not.toHaveBeenCalled();
   });
 });

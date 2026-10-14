@@ -26,7 +26,9 @@ import {
 import { getCounterInvitations } from "$lib/server/invitations";
 import { logger } from "$lib/server/logger";
 import { getCounterMembers } from "$lib/server/members";
+import { withoutShareToken } from "$lib/server/public-columns";
 import { checkCounterCooldown } from "$lib/server/ratelimit";
+import { hasValidShareToken } from "$lib/server/share-token";
 import { getActingTeamRole } from "$lib/server/team-authorize";
 import { getTeam, listEditableTeams } from "$lib/server/teams";
 import { counterIdSchema } from "$lib/utils/validation";
@@ -56,25 +58,13 @@ export const load: PageServerLoad = async ({
     throw error(404, "Counter not found");
   }
 
-  // Redirect to canonical URL with slug
-  const expectedSlug = slugify(counter.title);
-  if (expectedSlug && params.slug !== expectedSlug) {
-    const target = `/c/${params.id}/${expectedSlug}`;
-    const query = url.search;
-    throw redirect(301, `${target}${query}`);
-  }
-
   const session = await locals.auth();
   const userId = session?.user?.id;
   const isPrivate = counter.visibilityMode === "private";
 
-  // Check if a valid share token was provided
+  // Check if a valid share token was provided (ignored unless private)
   const token = url.searchParams.get("token");
-  const hasValidToken =
-    isPrivate &&
-    !!token &&
-    !!counter.shareToken &&
-    token === counter.shareToken;
+  const hasValidToken = hasValidShareToken(counter, token);
 
   let canViewPrivate = false;
 
@@ -88,6 +78,14 @@ export const load: PageServerLoad = async ({
     } else {
       throw error(404, "Counter not found");
     }
+  }
+
+  // Redirect only after the access check so private titles never leak
+  const expectedSlug = slugify(counter.title);
+  if (expectedSlug && params.slug !== expectedSlug) {
+    const target = `/c/${params.id}/${expectedSlug}`;
+    const query = url.search;
+    throw redirect(301, `${target}${query}`);
   }
 
   const canEdit = userId ? await canEditCounter(userId, counter.id) : false;
@@ -223,7 +221,7 @@ export const load: PageServerLoad = async ({
     : cooldownState.cooldownSeconds;
 
   return {
-    counter,
+    counter: withoutShareToken(counter),
     history: await getCounterHistory(params.id),
     canEdit,
     canDelete,

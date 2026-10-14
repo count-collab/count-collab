@@ -2,6 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { getCounterAccess } from "$lib/server/authorize";
 import { getCounter } from "$lib/server/counters";
 import { followCounter, unfollowCounter } from "$lib/server/followers";
+import { hasValidShareToken } from "$lib/server/share-token";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
@@ -24,7 +25,7 @@ export const POST: RequestHandler = async ({ params, locals, url }) => {
   // Private counters require a valid share token to follow
   if (counter.visibilityMode === "private") {
     const token = url.searchParams.get("token");
-    if (!token || !counter.shareToken || token !== counter.shareToken) {
+    if (!hasValidShareToken(counter, token)) {
       throw error(
         403,
         "Cannot follow a private counter without a valid share token",

@@ -9,6 +9,10 @@ import {
   canIncrementPrivateCounter,
 } from "$lib/server/authorize";
 import {
+  ANONYMOUS_MAX_INCREMENT,
+  CounterOverflowError,
+} from "$lib/server/counter-limits";
+import {
   deleteCounter,
   getCounter,
   incrementCounter,
@@ -16,13 +20,15 @@ import {
 } from "$lib/server/counters";
 import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
+import { withoutShareToken } from "$lib/server/public-columns";
 import {
   checkCounterCooldown,
   checkPrivateCounterCooldown,
   recordCounterCooldown,
 } from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
-import { emitCounterUpdate } from "$lib/utils/socket";
+import { hasValidShareToken } from "$lib/server/share-token";
+import { emitCounterUpdate, emitRoomRevoked } from "$lib/utils/socket";
 import {
   counterIdSchema,
   incrementCounterSchema,
@@ -72,6 +78,9 @@ export const POST: RequestHandler = async ({
     throw error(404, "Counter not found");
   }
 
+  // Only private counters honour share tokens
+  const hasValidToken = hasValidShareToken(counter, token);
+
   if (counter.visibilityMode === "public_readonly") {
     if (!userId) {
       throw error(403, "Sign in to increment this counter");
@@ -82,9 +91,6 @@ export const POST: RequestHandler = async ({
       throw error(403, "You don't have permission to increment this counter");
     }
   } else if (counter.visibilityMode === "private") {
-    const hasValidToken =
-      !!token && !!counter.shareToken && token === counter.shareToken;
-
     if (!hasValidToken) {
       if (!userId) {
         throw error(404, "Counter not found");
@@ -99,10 +105,7 @@ export const POST: RequestHandler = async ({
     }
   }
 
-  const hasValidShareToken =
-    !!token && !!counter.shareToken && token === counter.shareToken;
-  const shouldUsePrivateCooldown =
-    counter.visibilityMode === "private" || hasValidShareToken;
+  const shouldUsePrivateCooldown = counter.visibilityMode === "private";
 
   // Validate counter mode
   if (counter.counterMode === "increment_only" && amount < 0) {
@@ -110,6 +113,12 @@ export const POST: RequestHandler = async ({
   }
   if (counter.counterMode === "decrement_only" && amount > 0) {
     throw error(400, "This counter only supports decrementing");
+  }
+  if (!userId && Math.abs(amount) > ANONYMOUS_MAX_INCREMENT) {
+    throw error(
+      400,
+      `Sign in to change this counter by more than ${ANONYMOUS_MAX_INCREMENT}`,
+    );
   }
 
   const cooldownCheck = shouldUsePrivateCooldown
@@ -139,7 +148,19 @@ export const POST: RequestHandler = async ({
     );
   }
 
-  const updated = await incrementCounter(params.id, amount, userId);
+  let updated: Awaited<ReturnType<typeof incrementCounter>>;
+  try {
+    updated = await incrementCounter(params.id, amount, userId);
+  } catch (err) {
+    if (err instanceof CounterOverflowError) {
+      logger.warn("Increment rejected: value out of range", {
+        id: params.id,
+        amount,
+      });
+      throw error(409, "Counter has reached its maximum or minimum value");
+    }
+    throw err;
+  }
 
   if (!updated) {
     logger.warn("Increment failed: counter not found", { id: params.id });
@@ -235,6 +256,11 @@ export const POST: RequestHandler = async ({
     username,
     amount,
     cooldownSeconds,
+    {
+      visibilityMode: counter.visibilityMode,
+      ownerId: counter.ownerId,
+      teamId: counter.teamId,
+    },
   );
   recordCounterCooldown(params.id);
 
@@ -299,7 +325,11 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     throw error(404, "Counter not found");
   }
 
-  return json(counter);
+  // Sockets that joined while the counter was public must re-authorize
+  if (visibility === "private") emitRoomRevoked("counter", counter.id);
+
+  // Editors can PATCH but must not receive the manager-only share token
+  return json(withoutShareToken(counter));
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {
