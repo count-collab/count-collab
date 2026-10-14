@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import type { DashboardItem } from "$lib/db/schema";
-import { dashboardItems } from "$lib/db/schema";
+import { dashboardItems, dashboards } from "$lib/db/schema";
 import {
   fitItemsToColumns,
   GRID_COLS,
@@ -79,6 +79,9 @@ export async function getDashboardItem(
   return item ?? null;
 }
 
+export const MAX_DASHBOARD_ITEMS = 100;
+
+/** Resolves to null when the dashboard already holds MAX_DASHBOARD_ITEMS items. */
 export async function addDashboardItem(
   dashboardId: string,
   counterId: string,
@@ -86,18 +89,42 @@ export async function addDashboardItem(
   positionY: number,
   sizeColumns = 1,
   sizeRows = 1,
-): Promise<DashboardItem> {
-  const [item] = await db
-    .insert(dashboardItems)
-    .values({
-      dashboardId,
-      counterId,
-      positionX,
-      positionY,
-      sizeColumns,
-      sizeRows,
-    })
-    .returning();
+): Promise<DashboardItem | null> {
+  const item = await db.transaction(async (tx) => {
+    // Serialize concurrent adds so the cap cannot be raced past
+    await tx
+      .select({ id: dashboards.id })
+      .from(dashboards)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+      .where(eq(dashboards.id, dashboardId as any))
+      .for("update");
+
+    const [{ total }] = await tx
+      .select({ total: count() })
+      .from(dashboardItems)
+      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+      .where(eq(dashboardItems.dashboardId, dashboardId as any));
+
+    if (total >= MAX_DASHBOARD_ITEMS) return null;
+
+    const [inserted] = await tx
+      .insert(dashboardItems)
+      .values({
+        dashboardId,
+        counterId,
+        positionX,
+        positionY,
+        sizeColumns,
+        sizeRows,
+      })
+      .returning();
+    return inserted;
+  });
+
+  if (!item) {
+    logger.warn("Dashboard item limit reached", { dashboardId });
+    return null;
+  }
 
   logger.info("Dashboard item added", {
     dashboardId,
@@ -108,20 +135,32 @@ export async function addDashboardItem(
   return item;
 }
 
-export async function removeDashboardItem(itemId: number): Promise<boolean> {
+function itemInDashboard(dashboardId: string, itemId: number) {
+  return and(
+    eq(dashboardItems.id, itemId),
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    eq(dashboardItems.dashboardId, dashboardId as any),
+  );
+}
+
+export async function removeDashboardItem(
+  dashboardId: string,
+  itemId: number,
+): Promise<boolean> {
   const result = await db
     .delete(dashboardItems)
-    .where(eq(dashboardItems.id, itemId))
+    .where(itemInDashboard(dashboardId, itemId))
     .returning();
 
   if (result.length > 0) {
-    logger.info("Dashboard item removed", { itemId });
+    logger.info("Dashboard item removed", { dashboardId, itemId });
   }
 
   return result.length > 0;
 }
 
 export async function moveDashboardItem(
+  dashboardId: string,
   itemId: number,
   positionX: number,
   positionY: number,
@@ -129,17 +168,23 @@ export async function moveDashboardItem(
   const [updated] = await db
     .update(dashboardItems)
     .set({ positionX, positionY })
-    .where(eq(dashboardItems.id, itemId))
+    .where(itemInDashboard(dashboardId, itemId))
     .returning();
 
   if (updated) {
-    logger.info("Dashboard item moved", { itemId, positionX, positionY });
+    logger.info("Dashboard item moved", {
+      dashboardId,
+      itemId,
+      positionX,
+      positionY,
+    });
   }
 
   return updated ?? null;
 }
 
 export async function resizeDashboardItem(
+  dashboardId: string,
   itemId: number,
   sizeColumns: number,
   sizeRows: number,
@@ -147,17 +192,23 @@ export async function resizeDashboardItem(
   const [updated] = await db
     .update(dashboardItems)
     .set({ sizeColumns, sizeRows })
-    .where(eq(dashboardItems.id, itemId))
+    .where(itemInDashboard(dashboardId, itemId))
     .returning();
 
   if (updated) {
-    logger.info("Dashboard item resized", { itemId, sizeColumns, sizeRows });
+    logger.info("Dashboard item resized", {
+      dashboardId,
+      itemId,
+      sizeColumns,
+      sizeRows,
+    });
   }
 
   return updated ?? null;
 }
 
 export async function swapDashboardItems(
+  dashboardId: string,
   itemId1: number,
   itemId2: number,
 ): Promise<boolean> {
@@ -165,26 +216,26 @@ export async function swapDashboardItems(
     const [item1] = await tx
       .select()
       .from(dashboardItems)
-      .where(eq(dashboardItems.id, itemId1));
+      .where(itemInDashboard(dashboardId, itemId1));
 
     const [item2] = await tx
       .select()
       .from(dashboardItems)
-      .where(eq(dashboardItems.id, itemId2));
+      .where(itemInDashboard(dashboardId, itemId2));
 
     if (!item1 || !item2) return false;
 
     await tx
       .update(dashboardItems)
       .set({ positionX: item2.positionX, positionY: item2.positionY })
-      .where(eq(dashboardItems.id, itemId1));
+      .where(itemInDashboard(dashboardId, itemId1));
 
     await tx
       .update(dashboardItems)
       .set({ positionX: item1.positionX, positionY: item1.positionY })
-      .where(eq(dashboardItems.id, itemId2));
+      .where(itemInDashboard(dashboardId, itemId2));
 
-    logger.info("Dashboard items swapped", { itemId1, itemId2 });
+    logger.info("Dashboard items swapped", { dashboardId, itemId1, itemId2 });
 
     return true;
   });
