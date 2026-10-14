@@ -2,7 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { logger } from "$lib/server/logger";
 import { parseAndValidateBody } from "$lib/server/request";
 import { transferDashboard } from "$lib/server/transfer";
-import { emitDashboardUpdated } from "$lib/utils/socket";
+import { emitDashboardUpdated, emitRoomRevoked } from "$lib/utils/socket";
 import { dashboardIdSchema, transferSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
@@ -44,6 +44,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
   }
 
   emitDashboardUpdated(params.id);
+  // Access changes with the new owner/team, so sockets must re-authorize
+  emitRoomRevoked("dashboard", params.id);
 
   return json({ success: true });
 };

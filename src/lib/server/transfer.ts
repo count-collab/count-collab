@@ -8,7 +8,12 @@ import {
   teams,
 } from "$lib/db/schema";
 import { isTeamRoleAtLeast } from "$lib/roles";
+import { generateShareToken } from "$lib/server/crypto";
 import { logEventInTx } from "$lib/server/events";
+import {
+  removeCounterFollowers,
+  removeDashboardFollowers,
+} from "$lib/server/followers";
 import { logger } from "$lib/server/logger";
 import { getActingTeamRole } from "$lib/server/team-authorize";
 
@@ -22,7 +27,11 @@ export type TransferResult = { ok: true } | TransferFailure;
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-type Ownership = { ownerId: string | null; teamId: string | null };
+type Ownership = {
+  ownerId: string | null;
+  teamId: string | null;
+  visibilityMode: string;
+};
 
 function fail(status: TransferFailure["status"], message: string) {
   return { ok: false, status, message } as const;
@@ -30,7 +39,8 @@ function fail(status: TransferFailure["status"], message: string) {
 
 /**
  * Apply the transfer permission matrix for one resource.
- * Personal source: actor must be the owner. Team source: admin+. Team target: editor+.
+ * Personal source: actor must be the owner. Team source: team owner (admins may only
+ * move resources into a team). Team target: editor+.
  */
 async function checkTransfer(
   actorUserId: string,
@@ -51,8 +61,9 @@ async function checkTransfer(
     }
   } else {
     const sourceRole = await getRole(actorUserId, resource.teamId);
-    if (!isTeamRoleAtLeast(sourceRole, "admin")) {
-      return fail(403, "Admin role required in the source team");
+    // getActingTeamRole maps the team:edit_any permission to "owner"
+    if (sourceRole !== "owner") {
+      return fail(403, "Only a team owner can move a resource out of its team");
     }
   }
 
@@ -116,11 +127,22 @@ async function lockActorMemberships(
     .for("share");
 }
 
-function ownershipUpdate(actorUserId: string, targetTeamId: string | null) {
+function ownershipUpdate(
+  actorUserId: string,
+  targetTeamId: string | null,
+  source: Ownership,
+) {
   return {
     teamId: targetTeamId,
     updatedAt: new Date(),
     ...(targetTeamId === null ? { ownerId: actorUserId } : {}),
+    // Leaving a team: old links and followers must not carry over to the new owner
+    ...(source.teamId !== null
+      ? {
+          shareToken:
+            source.visibilityMode === "private" ? generateShareToken() : null,
+        }
+      : {}),
   };
 }
 
@@ -131,7 +153,11 @@ export async function transferCounter(
 ): Promise<TransferResult> {
   const result = await db.transaction(async (tx): Promise<TransferResult> => {
     const [counter] = await tx
-      .select({ ownerId: counters.ownerId, teamId: counters.teamId })
+      .select({
+        ownerId: counters.ownerId,
+        teamId: counters.teamId,
+        visibilityMode: counters.visibilityMode,
+      })
       .from(counters)
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
       .where(eq(counters.id, counterId as any))
@@ -155,9 +181,13 @@ export async function transferCounter(
 
     await tx
       .update(counters)
-      .set(ownershipUpdate(actorUserId, targetTeamId))
+      .set(ownershipUpdate(actorUserId, targetTeamId, counter))
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
       .where(eq(counters.id, counterId as any));
+
+    if (counter.teamId !== null) {
+      await removeCounterFollowers(counterId, tx);
+    }
 
     await logEventInTx(tx, {
       eventType: "resource_transferred",
@@ -166,6 +196,7 @@ export async function transferCounter(
       entityType: "counter",
       metadata: {
         resourceType: "counter",
+        actorId: actorUserId,
         fromTeamId: counter.teamId,
         toTeamId: targetTeamId,
       },
@@ -195,7 +226,11 @@ export async function transferDashboard(
 
   const result = await db.transaction(async (tx): Promise<TransferResult> => {
     const [dashboard] = await tx
-      .select({ ownerId: dashboards.ownerId, teamId: dashboards.teamId })
+      .select({
+        ownerId: dashboards.ownerId,
+        teamId: dashboards.teamId,
+        visibilityMode: dashboards.visibilityMode,
+      })
       .from(dashboards)
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
       .where(eq(dashboards.id, dashboardId as any))
@@ -220,15 +255,15 @@ export async function transferDashboard(
     );
     if (!check.ok) return check;
 
-    const movedCounters: { id: string; teamId: string | null }[] = [];
+    const movedCounters: (Ownership & { id: string })[] = [];
 
     if (counterIds.length > 0) {
       const counterRows = await tx
         .select({
           id: counters.id,
-          title: counters.title,
           ownerId: counters.ownerId,
           teamId: counters.teamId,
+          visibilityMode: counters.visibilityMode,
         })
         .from(counters)
         // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
@@ -272,19 +307,23 @@ export async function transferDashboard(
         if (!counterCheck.ok) {
           return fail(
             counterCheck.status,
-            `Cannot move counter "${counter.title}": ${counterCheck.message}`,
+            `Cannot move counter ${id}: ${counterCheck.message}`,
           );
         }
 
-        movedCounters.push({ id, teamId: counter.teamId });
+        movedCounters.push({ ...counter, id });
       }
     }
 
     await tx
       .update(dashboards)
-      .set(ownershipUpdate(actorUserId, targetTeamId))
+      .set(ownershipUpdate(actorUserId, targetTeamId, dashboard))
       // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
       .where(eq(dashboards.id, dashboardId as any));
+
+    if (dashboard.teamId !== null) {
+      await removeDashboardFollowers(dashboardId, tx);
+    }
 
     await logEventInTx(tx, {
       eventType: "resource_transferred",
@@ -293,24 +332,24 @@ export async function transferDashboard(
       entityType: "dashboard",
       metadata: {
         resourceType: "dashboard",
+        actorId: actorUserId,
         fromTeamId: dashboard.teamId,
         toTeamId: targetTeamId,
       },
     });
 
     if (movedCounters.length > 0) {
-      await tx
-        .update(counters)
-        .set(ownershipUpdate(actorUserId, targetTeamId))
-        .where(
-          inArray(
-            counters.id,
-            // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
-            movedCounters.map((c) => c.id) as any,
-          ),
-        );
-
       for (const counter of movedCounters) {
+        await tx
+          .update(counters)
+          .set(ownershipUpdate(actorUserId, targetTeamId, counter))
+          // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+          .where(eq(counters.id, counter.id as any));
+
+        if (counter.teamId !== null) {
+          await removeCounterFollowers(counter.id, tx);
+        }
+
         await logEventInTx(tx, {
           eventType: "resource_transferred",
           userId: actorUserId,
@@ -318,6 +357,7 @@ export async function transferDashboard(
           entityType: "counter",
           metadata: {
             resourceType: "counter",
+            actorId: actorUserId,
             fromTeamId: counter.teamId,
             toTeamId: targetTeamId,
           },

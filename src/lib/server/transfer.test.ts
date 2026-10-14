@@ -13,6 +13,8 @@ const {
   mockGetActingTeamRole,
   mockLockWhere,
   mockLockFor,
+  mockRemoveCounterFollowers,
+  mockRemoveDashboardFollowers,
 } = vi.hoisted(() => ({
   mockTransaction: vi.fn(),
   mockTxSelect: vi.fn(),
@@ -25,6 +27,17 @@ const {
   mockGetActingTeamRole: vi.fn(),
   mockLockWhere: vi.fn(),
   mockLockFor: vi.fn(),
+  mockRemoveCounterFollowers: vi.fn(),
+  mockRemoveDashboardFollowers: vi.fn(),
+}));
+
+vi.mock("$lib/server/followers", () => ({
+  removeCounterFollowers: mockRemoveCounterFollowers,
+  removeDashboardFollowers: mockRemoveDashboardFollowers,
+}));
+
+vi.mock("$lib/server/crypto", () => ({
+  generateShareToken: () => "fresh-token",
 }));
 
 vi.mock("$lib/db", () => ({
@@ -85,10 +98,16 @@ beforeEach(() => {
 
 /** Queue the counter row and (when a target team is given) the team-exists row. */
 function queueCounter(
-  counter: { ownerId: string | null; teamId: string | null } | null,
+  counter: {
+    ownerId: string | null;
+    teamId: string | null;
+    visibilityMode?: string;
+  } | null,
   targetTeamId: string | null,
 ) {
-  mockTxWhere.mockReturnValueOnce(rows(counter ? [counter] : []));
+  mockTxWhere.mockReturnValueOnce(
+    rows(counter ? [{ visibilityMode: "public", ...counter }] : []),
+  );
   if (targetTeamId)
     mockTxWhere.mockReturnValueOnce(rows([{ id: targetTeamId }]));
 }
@@ -125,11 +144,18 @@ describe("transferCounter permission matrix", () => {
       expected: { ok: false, status: 403 },
     },
     {
-      name: "team → personal: source admin",
+      name: "team → personal: source owner",
+      counter: { ownerId: "creator", teamId: "team-a" },
+      target: null,
+      roles: { "team-a": "owner" },
+      expected: { ok: true },
+    },
+    {
+      name: "team → personal: source admin cannot move out",
       counter: { ownerId: "creator", teamId: "team-a" },
       target: null,
       roles: { "team-a": "admin" },
-      expected: { ok: true },
+      expected: { ok: false, status: 403 },
     },
     {
       name: "team → personal: source editor",
@@ -139,17 +165,24 @@ describe("transferCounter permission matrix", () => {
       expected: { ok: false, status: 403 },
     },
     {
-      name: "team → team: source admin, target editor",
+      name: "team → team: source owner, target editor",
       counter: { ownerId: "creator", teamId: "team-a" },
       target: "team-b",
-      roles: { "team-a": "admin", "team-b": "editor" },
+      roles: { "team-a": "owner", "team-b": "editor" },
       expected: { ok: true },
     },
     {
-      name: "team → team: source admin, target viewer",
+      name: "team → team: source admin cannot move out even as target owner",
       counter: { ownerId: "creator", teamId: "team-a" },
       target: "team-b",
-      roles: { "team-a": "admin", "team-b": "viewer" },
+      roles: { "team-a": "admin", "team-b": "owner" },
+      expected: { ok: false, status: 403 },
+    },
+    {
+      name: "team → team: source owner, target viewer",
+      counter: { ownerId: "creator", teamId: "team-a" },
+      target: "team-b",
+      roles: { "team-a": "owner", "team-b": "viewer" },
       expected: { ok: false, status: 403 },
     },
     {
@@ -205,6 +238,7 @@ describe("transferCounter permission matrix", () => {
         entityType: "counter",
         metadata: {
           resourceType: "counter",
+          actorId: ACTOR,
           fromTeamId: counter.teamId,
           toTeamId: target,
         },
@@ -218,7 +252,7 @@ describe("transferCounter permission matrix", () => {
 
 describe("transferCounter", () => {
   it("team → personal makes the actor the owner and bumps updatedAt", async () => {
-    actorRoles({ "team-a": "admin" });
+    actorRoles({ "team-a": "owner" });
     queueCounter({ ownerId: "creator", teamId: "team-a" }, null);
 
     await transferCounter(ACTOR, "counter-1", null);
@@ -226,8 +260,87 @@ describe("transferCounter", () => {
     expect(mockTxUpdateSet).toHaveBeenCalledWith({
       teamId: null,
       ownerId: ACTOR,
+      shareToken: null,
       updatedAt: expect.any(Date),
     });
+  });
+
+  it("leaving a team regenerates the token of a private counter", async () => {
+    actorRoles({ "team-a": "owner" });
+    queueCounter(
+      { ownerId: "creator", teamId: "team-a", visibilityMode: "private" },
+      null,
+    );
+
+    await transferCounter(ACTOR, "counter-1", null);
+
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ shareToken: "fresh-token" }),
+    );
+  });
+
+  it("leaving a team clears the token of a public counter", async () => {
+    actorRoles({ "team-a": "owner", "team-b": "editor" });
+    queueCounter(
+      { ownerId: "creator", teamId: "team-a", visibilityMode: "public_readonly" },
+      "team-b",
+    );
+
+    await transferCounter(ACTOR, "counter-1", "team-b");
+
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ teamId: "team-b", shareToken: null }),
+    );
+  });
+
+  it("leaving a team drops the counter's followers inside the transaction", async () => {
+    actorRoles({ "team-a": "owner" });
+    queueCounter({ ownerId: "creator", teamId: "team-a" }, null);
+
+    await transferCounter(ACTOR, "counter-1", null);
+
+    expect(mockRemoveCounterFollowers).toHaveBeenCalledWith("counter-1", tx);
+  });
+
+  it("moving into a team keeps token and followers", async () => {
+    actorRoles({ "team-b": "editor" });
+    queueCounter(
+      { ownerId: ACTOR, teamId: null, visibilityMode: "private" },
+      "team-b",
+    );
+
+    await transferCounter(ACTOR, "counter-1", "team-b");
+
+    expect(mockTxUpdateSet.mock.calls[0][0]).not.toHaveProperty("shareToken");
+    expect(mockRemoveCounterFollowers).not.toHaveBeenCalled();
+  });
+
+  it("an admin can still move a counter into the team", async () => {
+    actorRoles({ "team-b": "admin" });
+    queueCounter({ ownerId: ACTOR, teamId: null }, "team-b");
+
+    await expect(transferCounter(ACTOR, "counter-1", "team-b")).resolves.toEqual({
+      ok: true,
+    });
+  });
+
+  it("does not put tokens or emails in the event metadata", async () => {
+    actorRoles({ "team-a": "owner" });
+    queueCounter(
+      { ownerId: "creator", teamId: "team-a", visibilityMode: "private" },
+      null,
+    );
+
+    await transferCounter(ACTOR, "counter-1", null);
+
+    const { metadata } = mockLogEventInTx.mock.calls[0][1];
+    expect(JSON.stringify(metadata)).not.toContain("fresh-token");
+    expect(Object.keys(metadata).sort()).toEqual([
+      "actorId",
+      "fromTeamId",
+      "resourceType",
+      "toTeamId",
+    ]);
   });
 
   it("personal → team keeps ownerId and sets teamId", async () => {
@@ -271,7 +384,7 @@ describe("transferCounter", () => {
   });
 
   it("share-locks the actor's source and target memberships before reading roles", async () => {
-    actorRoles({ "team-a": "admin", "team-b": "editor" });
+    actorRoles({ "team-a": "owner", "team-b": "editor" });
     queueCounter({ ownerId: "creator", teamId: "team-a" }, "team-b");
 
     const result = await transferCounter(ACTOR, "counter-1", "team-b");
@@ -297,21 +410,30 @@ describe("transferCounter", () => {
 describe("transferDashboard", () => {
   /** Queue: dashboard, team exists, counters, dashboard items. */
   function queueDashboard(opts: {
-    dashboard: { ownerId: string | null; teamId: string | null };
+    dashboard: {
+      ownerId: string | null;
+      teamId: string | null;
+      visibilityMode?: string;
+    };
     target: string | null;
     counters?: {
       id: string;
       title: string;
       ownerId: string | null;
       teamId: string | null;
+      visibilityMode?: string;
     }[];
     itemCounterIds?: string[];
   }) {
-    mockTxWhere.mockReturnValueOnce(rows([opts.dashboard]));
+    mockTxWhere.mockReturnValueOnce(
+      rows([{ visibilityMode: "public", ...opts.dashboard }]),
+    );
     if (opts.target)
       mockTxWhere.mockReturnValueOnce(rows([{ id: opts.target }]));
     if (opts.counters) {
-      mockTxWhere.mockReturnValueOnce(rows(opts.counters));
+      mockTxWhere.mockReturnValueOnce(
+        rows(opts.counters.map((c) => ({ visibilityMode: "public", ...c }))),
+      );
       mockTxWhere.mockReturnValueOnce(
         rows((opts.itemCounterIds ?? []).map((counterId) => ({ counterId }))),
       );
@@ -347,6 +469,7 @@ describe("transferDashboard", () => {
         entityId: "dash-1",
         metadata: {
           resourceType: "dashboard",
+          actorId: ACTOR,
           fromTeamId: null,
           toTeamId: "team-b",
         },
@@ -355,7 +478,7 @@ describe("transferDashboard", () => {
   });
 
   it("moves only the dashboard when no counters are listed", async () => {
-    actorRoles({ "team-a": "admin" });
+    actorRoles({ "team-a": "owner" });
     queueDashboard({
       dashboard: { ownerId: "creator", teamId: "team-a" },
       target: null,
@@ -368,8 +491,91 @@ describe("transferDashboard", () => {
     expect(mockTxUpdateSet).toHaveBeenCalledWith({
       teamId: null,
       ownerId: ACTOR,
+      shareToken: null,
       updatedAt: expect.any(Date),
     });
+  });
+
+  it("leaving a team regenerates a private dashboard's token and drops its followers", async () => {
+    actorRoles({ "team-a": "owner" });
+    queueDashboard({
+      dashboard: {
+        ownerId: "creator",
+        teamId: "team-a",
+        visibilityMode: "private",
+      },
+      target: null,
+    });
+
+    await transferDashboard(ACTOR, "dash-1", null, []);
+
+    expect(mockTxUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ shareToken: "fresh-token" }),
+    );
+    expect(mockRemoveDashboardFollowers).toHaveBeenCalledWith("dash-1", tx);
+    expect(mockRemoveCounterFollowers).not.toHaveBeenCalled();
+  });
+
+  it("leaving a team also resets tokens and followers of the counters moved along", async () => {
+    actorRoles({ "team-a": "owner" });
+    queueDashboard({
+      dashboard: { ownerId: "creator", teamId: "team-a" },
+      target: null,
+      counters: [
+        {
+          id: "c1",
+          title: "One",
+          ownerId: "x",
+          teamId: "team-a",
+          visibilityMode: "private",
+        },
+        { id: "c2", title: "Two", ownerId: "x", teamId: "team-a" },
+      ],
+      itemCounterIds: ["c1", "c2"],
+    });
+
+    const result = await transferDashboard(ACTOR, "dash-1", null, ["c1", "c2"]);
+
+    expect(result).toEqual({ ok: true });
+    const counterSets = mockTxUpdateSet.mock.calls
+      .map((c) => c[0])
+      .filter((s) => s.shareToken !== undefined);
+    expect(counterSets.map((s) => s.shareToken)).toEqual([
+      null,
+      "fresh-token",
+      null,
+    ]);
+    expect(mockRemoveCounterFollowers).toHaveBeenCalledWith("c1", tx);
+    expect(mockRemoveCounterFollowers).toHaveBeenCalledWith("c2", tx);
+  });
+
+  it("an admin cannot move a dashboard out of the team", async () => {
+    actorRoles({ "team-a": "admin" });
+    queueDashboard({
+      dashboard: { ownerId: "creator", teamId: "team-a" },
+      target: null,
+    });
+
+    const result = await transferDashboard(ACTOR, "dash-1", null, []);
+
+    expect(result).toMatchObject({ ok: false, status: 403 });
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+    expect(mockRemoveDashboardFollowers).not.toHaveBeenCalled();
+  });
+
+  it("aborts when an admin lists a counter owned by a team they only administer", async () => {
+    actorRoles({ "team-b": "editor", "team-a": "admin" });
+    queueDashboard({
+      dashboard: { ownerId: ACTOR, teamId: null },
+      target: "team-b",
+      counters: [{ id: "c1", title: "One", ownerId: "x", teamId: "team-a" }],
+      itemCounterIds: ["c1"],
+    });
+
+    const result = await transferDashboard(ACTOR, "dash-1", "team-b", ["c1"]);
+
+    expect(result).toMatchObject({ ok: false, status: 403 });
+    expect(mockTxUpdate).not.toHaveBeenCalled();
   });
 
   it("rejects a counter that is not on the dashboard without leaking its title", async () => {
@@ -433,7 +639,8 @@ describe("transferDashboard", () => {
     const result = await transferDashboard(ACTOR, "dash-1", "team-b", ["c1"]);
 
     expect(result).toMatchObject({ ok: false, status: 403 });
-    expect(result.ok ? "" : result.message).toContain('"Not mine"');
+    expect(result.ok ? "" : result.message).toContain("c1");
+    expect(result.ok ? "" : result.message).not.toContain("Not mine");
     expect(mockTxUpdate).not.toHaveBeenCalled();
   });
 
@@ -451,7 +658,7 @@ describe("transferDashboard", () => {
   });
 
   it("share-locks the actor's memberships in counters' source teams", async () => {
-    actorRoles({ "team-a": "admin", "team-b": "editor", "team-c": "admin" });
+    actorRoles({ "team-a": "owner", "team-b": "editor", "team-c": "owner" });
     queueDashboard({
       dashboard: { ownerId: "creator", teamId: "team-a" },
       target: "team-b",

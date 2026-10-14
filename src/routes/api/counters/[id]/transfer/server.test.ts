@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockTransferCounter } = vi.hoisted(() => ({
+const { mockTransferCounter, mockEmitRoomRevoked } = vi.hoisted(() => ({
   mockTransferCounter: vi.fn(),
+  mockEmitRoomRevoked: vi.fn(),
 }));
 
 vi.mock("$lib/server/transfer", () => ({
   transferCounter: mockTransferCounter,
+}));
+
+vi.mock("$lib/utils/socket", () => ({
+  emitRoomRevoked: mockEmitRoomRevoked,
 }));
 
 vi.mock("$lib/server/logger", () => ({
@@ -84,6 +89,7 @@ describe("POST /api/counters/[id]/transfer", () => {
       COUNTER_ID,
       TEAM_ID,
     );
+    expect(mockEmitRoomRevoked).toHaveBeenCalledWith("counter", COUNTER_ID);
   });
 
   it("transfers back to personal ownership with teamId null", async () => {
