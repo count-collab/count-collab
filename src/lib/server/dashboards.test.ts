@@ -2,6 +2,7 @@ import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dashboard } from "$lib/db/schema";
+import { dashboardFollowers, dashboards } from "$lib/db/schema";
 
 const mockSelect = vi.fn();
 const mockFrom = vi.fn();
@@ -67,6 +68,8 @@ import {
   getSharedDashboards,
   getUserDashboards,
   listAllDashboards,
+  listPublicDashboards,
+  regenerateDashboardShareToken,
   updateDashboard,
 } from "./dashboards";
 
@@ -357,5 +360,267 @@ describe("updateDashboard gridColumns", () => {
 
     expect(mockTransaction).not.toHaveBeenCalled();
     expect(mockRefitDashboardItems).not.toHaveBeenCalled();
+  });
+});
+
+describe("share token exposure", () => {
+  const SECRET = "secret-dashboard-token";
+
+  function expectNoShareToken(selection: unknown) {
+    expect(selection).toBeTypeOf("object");
+    expect(selection).not.toHaveProperty("shareToken");
+    expect(Object.values(selection as object)).not.toContain(
+      dashboards.shareToken,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("listPublicDashboards selects columns without shareToken", async () => {
+    const offset = vi.fn().mockResolvedValue([]);
+    mockSelect
+      .mockReturnValueOnce({
+        from: () => ({
+          groupBy: () => ({
+            as: () => ({
+              dashboardId: dashboardFollowers.dashboardId,
+              followerCount: dashboardFollowers.id,
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({
+          leftJoin: () => ({
+            where: () => ({
+              orderBy: () => ({ limit: () => ({ offset }) }),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({ where: vi.fn().mockResolvedValue([{ total: 0 }]) }),
+      });
+
+    await listPublicDashboards();
+
+    expectNoShareToken(mockSelect.mock.calls[1][0]);
+  });
+
+  it("getOwnedDashboards selects columns without shareToken", async () => {
+    const offset = vi.fn().mockResolvedValue([]);
+    mockSelect
+      .mockReturnValueOnce({
+        from: () => ({
+          where: () => ({
+            orderBy: () => ({ limit: () => ({ offset }) }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({ where: vi.fn().mockResolvedValue([{ total: 0 }]) }),
+      });
+
+    await getOwnedDashboards("user-1");
+
+    expectNoShareToken(mockSelect.mock.calls[0][0]);
+  });
+
+  it("getUserDashboards selects columns without shareToken", async () => {
+    const rows = Object.assign(Promise.resolve([]), {
+      limit: () => ({ offset: vi.fn().mockResolvedValue([]) }),
+    });
+    const joins = { leftJoin: () => joins, where: () => ({ orderBy: () => ({ $dynamic: () => rows }) }) };
+    mockSelect
+      .mockReturnValueOnce({ from: () => joins })
+      .mockReturnValueOnce({
+        from: () => ({
+          leftJoin: () => ({
+            leftJoin: () => ({
+              where: vi.fn().mockResolvedValue([{ total: 0 }]),
+            }),
+          }),
+        }),
+      });
+
+    await getUserDashboards("user-1");
+
+    expectNoShareToken(mockSelect.mock.calls[0][0]);
+  });
+
+  it("getSharedDashboards selects columns without shareToken", async () => {
+    const joins = {
+      leftJoin: () => joins,
+      where: () => ({
+        orderBy: () => ({
+          limit: () => ({ offset: vi.fn().mockResolvedValue([]) }),
+        }),
+      }),
+    };
+    mockSelect
+      .mockReturnValueOnce({ from: () => joins })
+      .mockReturnValueOnce({
+        from: () => ({
+          leftJoin: () => ({
+            leftJoin: () => ({
+              where: vi.fn().mockResolvedValue([{ total: 0 }]),
+            }),
+          }),
+        }),
+      });
+
+    await getSharedDashboards("user-1", 4);
+
+    expectNoShareToken(mockSelect.mock.calls[0][0]);
+  });
+
+  it("listAllDashboards strips shareToken from joined rows", async () => {
+    const offset = vi.fn().mockResolvedValue([
+      {
+        dashboard: makeDashboard({
+          visibilityMode: "private",
+          shareToken: SECRET,
+        }),
+        ownerUsername: "u",
+        ownerDisplayName: null,
+      },
+    ]);
+    mockSelect
+      .mockReturnValueOnce({
+        from: () => ({
+          leftJoin: () => ({
+            where: () => ({
+              orderBy: () => ({ limit: () => ({ offset }) }),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: () => ({ where: vi.fn().mockResolvedValue([{ total: 1 }]) }),
+      });
+
+    const result = await listAllDashboards();
+
+    expect(result.items[0]).not.toHaveProperty("shareToken");
+    expect(JSON.stringify(result)).not.toContain(SECRET);
+  });
+});
+
+describe("updateDashboard share token lifecycle", () => {
+  function existingDashboard(overrides: Partial<Dashboard>) {
+    mockSelect.mockReturnValue({ from: mockFrom });
+    mockFrom.mockReturnValue({ where: mockWhere });
+    mockWhere.mockResolvedValueOnce([makeDashboard(overrides)]);
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUpdate.mockReturnValue({ set: mockUpdateSet });
+    mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
+    mockUpdateWhere.mockReturnValue({ returning: mockUpdateReturning });
+    mockUpdateReturning.mockResolvedValue([makeDashboard()]);
+  });
+
+  it("clears the token when switching private to public", async () => {
+    await updateDashboard("d1", { visibilityMode: "public" });
+
+    expect(mockUpdateSet.mock.calls[0][0]).toMatchObject({
+      visibilityMode: "public",
+      shareToken: null,
+    });
+  });
+
+  it("generates a new token when switching public to private", async () => {
+    existingDashboard({ visibilityMode: "public", shareToken: null });
+
+    await updateDashboard("d1", { visibilityMode: "private" });
+
+    expect(mockUpdateSet.mock.calls[0][0].shareToken).toBe("mock-share-token");
+  });
+
+  it("replaces a stale token left on a public dashboard", async () => {
+    existingDashboard({ visibilityMode: "public", shareToken: "stale" });
+
+    await updateDashboard("d1", { visibilityMode: "private" });
+
+    expect(mockUpdateSet.mock.calls[0][0].shareToken).toBe("mock-share-token");
+  });
+
+  it("keeps the existing token when staying private", async () => {
+    existingDashboard({ visibilityMode: "private", shareToken: "keep-me" });
+
+    await updateDashboard("d1", { visibilityMode: "private" });
+
+    expect(mockUpdateSet.mock.calls[0][0]).not.toHaveProperty("shareToken");
+  });
+
+  it("does not touch the token when visibility is unchanged", async () => {
+    await updateDashboard("d1", { title: "Renamed" });
+
+    expect(mockUpdateSet.mock.calls[0][0]).not.toHaveProperty("shareToken");
+  });
+});
+
+describe("regenerateDashboardShareToken", () => {
+  const txSet = vi.fn();
+
+  function useTx(
+    existing: { visibilityMode: string }[],
+    removed: { id: number }[] = [],
+  ) {
+    const tx = {
+      select: () => ({
+        from: () => ({ where: () => ({ for: async () => existing }) }),
+      }),
+      update: () => ({
+        set: (values: unknown) => {
+          txSet(values);
+          return { where: async () => undefined };
+        },
+      }),
+      delete: () => ({ where: () => ({ returning: async () => removed }) }),
+    };
+    mockTransaction.mockImplementation(async (fn: (t: unknown) => unknown) =>
+      fn(tx),
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("stores a fresh token and removes followers for private dashboards", async () => {
+    useTx([{ visibilityMode: "private" }], [{ id: 1 }, { id: 2 }, { id: 3 }]);
+
+    const result = await regenerateDashboardShareToken("d1");
+
+    expect(result).toEqual({
+      ok: true,
+      shareToken: "mock-share-token",
+      removedFollowers: 3,
+    });
+    expect(txSet).toHaveBeenCalledWith({ shareToken: "mock-share-token" });
+  });
+
+  it("refuses public dashboards without writing", async () => {
+    useTx([{ visibilityMode: "public" }]);
+
+    await expect(regenerateDashboardShareToken("d1")).resolves.toEqual({
+      ok: false,
+      reason: "not_private",
+    });
+    expect(txSet).not.toHaveBeenCalled();
+  });
+
+  it("reports a missing dashboard", async () => {
+    useTx([]);
+
+    await expect(regenerateDashboardShareToken("d1")).resolves.toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+    expect(txSet).not.toHaveBeenCalled();
   });
 });
