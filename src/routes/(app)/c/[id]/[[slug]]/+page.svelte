@@ -64,7 +64,7 @@ import { untrack } from "svelte";
       return visibilityDescriptions.public_readonly;
     }
 
-    return "You can view this counter, but you can't change it.";
+    return "You can view this counter,\nbut you can't change it.";
   });
 
   let optimisticCount = $state<number | null>(null);
@@ -685,7 +685,7 @@ import { untrack } from "svelte";
 
         {#if incrementUnavailableMessage}
           <p
-            class="mt-3 text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs"
+            class="mt-3 text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs whitespace-pre-line"
           >
             {incrementUnavailableMessage}
           </p>

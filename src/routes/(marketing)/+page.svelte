@@ -503,7 +503,7 @@
         class="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-indigo-300/20 dark:bg-indigo-500/10 blur-3xl"
         aria-hidden="true"
       ></div>
-      <div class="relative grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+      <div class="relative grid grid-cols-1 lg:grid-cols-2 gap-10">
         <div>
           <p
             class="mb-4 inline-block rounded-full bg-blue-100 dark:bg-blue-900 px-4 py-1 text-sm font-medium text-blue-700 dark:text-blue-300 tracking-wide"
