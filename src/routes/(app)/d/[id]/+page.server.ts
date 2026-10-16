@@ -63,10 +63,10 @@ export const load: PageServerLoad = async ({
     if (userId) {
       const canView = await canViewDashboard(userId, dashboard.id);
       if (!canView) {
-        throw error(403, "You don't have access to this dashboard");
+        throw error(404, "Dashboard not found");
       }
     } else {
-      throw error(403, "Sign in to view this private dashboard");
+      throw error(404, "Dashboard not found");
     }
   }
 

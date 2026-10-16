@@ -151,7 +151,13 @@ describe("/d/[id] load share token exposure", () => {
     ["empty", "?token="],
     ["missing", ""],
   ])("rejects a %s token for anonymous callers", async (_label, search) => {
-    await expect(callLoad(null, search)).rejects.toMatchObject({ status: 403 });
+    await expect(callLoad(null, search)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("returns 404 for a signed-in user without access", async () => {
+    mocks.canViewDashboard.mockResolvedValue(false);
+
+    await expect(callLoad("outsider")).rejects.toMatchObject({ status: 404 });
   });
 
   it("rejects any token when the stored token is null", async () => {
@@ -161,7 +167,7 @@ describe("/d/[id] load share token exposure", () => {
     });
 
     await expect(callLoad(null, "?token=null")).rejects.toMatchObject({
-      status: 403,
+      status: 404,
     });
   });
 

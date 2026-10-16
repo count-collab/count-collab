@@ -156,7 +156,15 @@ describe("GET /api/dashboards/[id] share token handling", () => {
     ["empty", "?token="],
   ])("rejects a %s token for anonymous callers", async (_label, search) => {
     await expect(GET(getEvent(null, search))).rejects.toMatchObject({
-      status: 403,
+      status: 404,
+    });
+  });
+
+  it("returns 404 for a signed-in user without access", async () => {
+    mockCanViewDashboard.mockResolvedValue(false);
+
+    await expect(GET(getEvent("outsider-1"))).rejects.toMatchObject({
+      status: 404,
     });
   });
 
@@ -168,7 +176,7 @@ describe("GET /api/dashboards/[id] share token handling", () => {
     });
 
     await expect(GET(getEvent(null, "?token=null"))).rejects.toMatchObject({
-      status: 403,
+      status: 404,
     });
   });
 

@@ -36,12 +36,12 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     if (!hasValidShareToken(dashboard, token)) {
       const session = await locals.auth();
       if (!session?.user?.id) {
-        throw error(403, "Sign in to view this private dashboard");
+        throw error(404, "Dashboard not found");
       }
 
       const canView = await canViewDashboard(session.user.id, params.id);
       if (!canView) {
-        throw error(403, "You don't have access to this dashboard");
+        throw error(404, "Dashboard not found");
       }
     }
   }
