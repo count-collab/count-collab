@@ -398,7 +398,7 @@ test("UI: create a team from /my/teams and land on the team page", async ({
   await waitForHydration(page);
   await page
     .getByRole("navigation")
-    .getByRole("link", { name: "Teams", exact: true })
+    .getByRole("link", { name: /^Teams\b/ })
     .click();
   await expect(page).toHaveURL(/\/my\/teams$/);
 
