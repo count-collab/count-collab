@@ -8,6 +8,7 @@ export async function init() {
     api_host: "/ingest",
     ui_host: "https://eu.posthog.com",
     defaults: "2026-01-30",
+    cookieless_mode: "always",
     capture_exceptions: true,
     before_send: sanitizeCaptureResult,
   });
