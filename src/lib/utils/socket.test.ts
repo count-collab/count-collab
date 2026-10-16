@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 
 describe("emitCounterUpdate", () => {
-  it("sends full details to the counter room only for private counters", () => {
+  it("sends full details to the counter room and a bare stats ping to the feed for private counters", () => {
     emitCounterUpdate("c1", 5, updatedAt, "alice", 2, 10, {
       visibilityMode: "private",
       ownerId: null,
@@ -83,7 +83,23 @@ describe("emitCounterUpdate", () => {
           cooldownSeconds: 10,
         },
       },
+      {
+        rooms: ["feed:public"],
+        except: [],
+        event: "stats:updated",
+        payload: undefined,
+      },
     ]);
+  });
+
+  it("does not send stats:updated for public counters", () => {
+    emitCounterUpdate("c1", 5, updatedAt, "alice", 1, 0, {
+      visibilityMode: "public",
+      ownerId: null,
+      teamId: null,
+    });
+
+    expect(emissions.map((e) => e.event)).not.toContain("stats:updated");
   });
 
   it("adds a username-free list notice to the owner room for private counters", () => {
@@ -93,7 +109,7 @@ describe("emitCounterUpdate", () => {
       teamId: null,
     });
 
-    expect(emissions).toHaveLength(2);
+    expect(emissions).toHaveLength(3);
     expect(emissions[1]).toEqual({
       rooms: ["user:owner-1"],
       except: ["counter:c1"],

@@ -38,3 +38,13 @@ export function roomForSubscription(
       return teamRoom(id ?? "");
   }
 }
+
+/** Managers get the token in page data; other link holders only have it in the URL. */
+export function resolveRoomToken(
+  data: { shareToken?: string | null; hasValidToken?: boolean },
+  href: string,
+): string | null {
+  if (data.shareToken) return data.shareToken;
+  if (!data.hasValidToken) return null;
+  return new URL(href).searchParams.get("token");
+}

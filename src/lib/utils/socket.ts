@@ -61,6 +61,11 @@ export function emitCounterUpdate(
         updatedAt,
       });
   }
+
+  // Private counters only feed the global totals; the payload names no counter
+  if (audience?.visibilityMode === "private") {
+    io.to(FEED_PUBLIC_ROOM).emit("stats:updated");
+  }
 }
 
 export function emitCounterCreated(

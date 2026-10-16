@@ -180,7 +180,11 @@ describe("POST /api/counters/[id] (increment)", () => {
       expect.any(String),
       1,
       5,
-      { visibilityMode: "public", ownerId: undefined, teamId: undefined },
+      {
+        visibilityMode: "public",
+        ownerId: undefined,
+        teamId: undefined,
+      },
     );
     expect(mockRecordCounterCooldown).toHaveBeenCalledWith(VALID_ID);
   });

@@ -3,6 +3,7 @@ import {
   counterRoom,
   dashboardRoom,
   FEED_PUBLIC_ROOM,
+  resolveRoomToken,
   roomForSubscription,
   SUBSCRIBABLE_ROOM_TYPES,
   teamRoom,
@@ -51,5 +52,36 @@ describe("roomForSubscription", () => {
 
   it("falls back to an empty id instead of throwing", () => {
     expect(roomForSubscription("counter")).toBe("counter:");
+  });
+});
+
+describe("resolveRoomToken", () => {
+  const href = "http://localhost/c/abc/title?token=url-token";
+
+  it("prefers the manager token from page data", () => {
+    expect(
+      resolveRoomToken({ shareToken: "data-token", hasValidToken: true }, href),
+    ).toBe("data-token");
+  });
+
+  it("falls back to the URL token for link holders", () => {
+    expect(
+      resolveRoomToken({ shareToken: null, hasValidToken: true }, href),
+    ).toBe("url-token");
+  });
+
+  it("ignores the URL token when the server did not validate it", () => {
+    expect(
+      resolveRoomToken({ shareToken: null, hasValidToken: false }, href),
+    ).toBeNull();
+  });
+
+  it("returns null when the URL has no token", () => {
+    expect(
+      resolveRoomToken(
+        { shareToken: null, hasValidToken: true },
+        "http://localhost/c/abc",
+      ),
+    ).toBeNull();
   });
 });

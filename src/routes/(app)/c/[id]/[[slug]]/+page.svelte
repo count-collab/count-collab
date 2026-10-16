@@ -23,6 +23,7 @@ import { untrack } from "svelte";
   import { onCounterUpdated } from "$lib/stores/counters";
   import { rateLimit } from "$lib/stores/ratelimit";
   import { subscribeRoom } from "$lib/stores/socket";
+  import { resolveRoomToken } from "$lib/utils/socket-rooms";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -313,7 +314,7 @@ import { untrack } from "svelte";
     const leaveRoom = subscribeRoom(
       "counter",
       data.counter.id,
-      data.shareToken,
+      resolveRoomToken(data, window.location.href),
     );
     const unsubscribe = onCounterUpdated((payload) => {
       if (payload.counterId !== data.counter.id) return;

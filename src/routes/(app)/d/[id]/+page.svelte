@@ -19,6 +19,7 @@ import { browser } from "$app/environment";
   } from "$lib/stores/dashboards";
   import { rateLimit } from "$lib/stores/ratelimit";
   import { subscribeRoom } from "$lib/stores/socket";
+  import { resolveRoomToken } from "$lib/utils/socket-rooms";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -440,7 +441,7 @@ import { browser } from "$app/environment";
     const leaveRoom = subscribeRoom(
       "dashboard",
       data.dashboard.id,
-      data.shareToken,
+      resolveRoomToken(data, window.location.href),
     );
     const unsubs = [
       onDashboardUpdated((payload) => {
