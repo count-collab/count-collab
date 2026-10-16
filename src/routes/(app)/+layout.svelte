@@ -170,9 +170,14 @@
       {#if session?.user}
         <a
           href="/my/teams"
-          class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
-          >Teams</a
+          class="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
         >
+          Teams
+          <span
+            class="rounded-full bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-blue-700 dark:text-blue-300"
+            >New</span
+          >
+        </a>
       {/if}
       <div class="flex items-center gap-3 ml-auto">
         {#if session?.user}
@@ -321,6 +326,10 @@
             <ion-icon name="people-outline" style="font-size: 18px;"
             ></ion-icon>
             <span>Teams</span>
+            <span
+              class="rounded-full bg-blue-100 dark:bg-blue-900 px-1.5 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-blue-700 dark:text-blue-300"
+              >New</span
+            >
           </a>
         {/if}
         <a
