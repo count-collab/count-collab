@@ -72,12 +72,26 @@
 
   let showDeleteConfirm = $state(false);
   let isDeleting = $state(false);
+  let deleteError = $state<string | null>(null);
 
   async function handleDeleteUser(userId: string) {
     if (isDeleting) return;
     isDeleting = true;
+    deleteError = null;
     try {
-      await fetch(`/admin/users/${userId}`, { method: "DELETE" });
+      const response = await fetch(`/admin/users/${userId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        const names = (body.teams ?? [])
+          .map((t: { name: string }) => t.name)
+          .join(", ");
+        deleteError = names
+          ? `${body.error}: ${names}`
+          : (body.error ?? "Failed to delete user");
+        return;
+      }
       showDeleteConfirm = false;
       goto("/admin/users");
     } finally {
@@ -291,6 +305,9 @@
     Are you sure you want to delete {user.username ?? "this user"}?
     This action cannot be undone.
   </p>
+  {#if deleteError}
+    <p class="text-sm text-red-600" role="alert">{deleteError}</p>
+  {/if}
   <div class="flex items-center justify-end gap-3">
     <button
       type="button"

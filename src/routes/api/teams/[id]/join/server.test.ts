@@ -19,6 +19,7 @@ vi.mock("$lib/server/logger", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
 }));
 
+import { TeamLimitError } from "$lib/server/team-limits";
 import { POST } from "./+server";
 
 const TEAM_ID = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
@@ -108,5 +109,39 @@ describe("POST /api/teams/[id]/join", () => {
     expect(await response.json()).toEqual({ alreadyMember: true });
     expect(mockJoinTeamByToken).toHaveBeenCalledWith(TEAM_ID, "user-1", "good");
     expect(mockEmitTeamMembershipChanged).not.toHaveBeenCalled();
+  });
+
+  it("maps the member cap to 409 without notifying anyone", async () => {
+    mockJoinTeamByToken.mockRejectedValue(
+      new TeamLimitError("member_limit", 409, "This team has reached its member limit"),
+    );
+
+    const response = await POST(makeEvent("user-1", { token: "good" }));
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "This team has reached its member limit",
+      code: "member_limit",
+    });
+    expect(mockEmitTeamMembershipChanged).not.toHaveBeenCalled();
+  });
+
+  it("adds Retry-After when the limit error carries one", async () => {
+    mockJoinTeamByToken.mockRejectedValue(
+      new TeamLimitError("member_limit", 429, "slow", 30),
+    );
+
+    const response = await POST(makeEvent("user-1", { token: "good" }));
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("30");
+  });
+
+  it("rethrows unexpected errors", async () => {
+    mockJoinTeamByToken.mockRejectedValue(new Error("db down"));
+
+    await expect(POST(makeEvent("user-1", { token: "good" }))).rejects.toThrow(
+      "db down",
+    );
   });
 });

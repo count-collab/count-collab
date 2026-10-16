@@ -670,6 +670,8 @@ export type NewTeamInvitation = typeof teamInvitations.$inferInsert;
 
 export type Counter = typeof counters.$inferSelect;
 export type NewCounter = typeof counters.$inferInsert;
+/** Counter row without the share token secret; safe for list/page payloads. */
+export type PublicCounter = Omit<Counter, "shareToken">;
 export type CounterHistory = typeof counterHistory.$inferSelect;
 export type NewCounterHistory = typeof counterHistory.$inferInsert;
 
@@ -678,6 +680,8 @@ export type NewCounterMember = typeof counterMembers.$inferInsert;
 
 export type Dashboard = typeof dashboards.$inferSelect;
 export type NewDashboard = typeof dashboards.$inferInsert;
+/** Dashboard row without the share token secret; safe for list/page payloads. */
+export type PublicDashboard = Omit<Dashboard, "shareToken">;
 export type DashboardItem = typeof dashboardItems.$inferSelect;
 export type NewDashboardItem = typeof dashboardItems.$inferInsert;
 export type DashboardMember = typeof dashboardMembers.$inferSelect;

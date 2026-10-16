@@ -8,8 +8,10 @@ function socketIOPlugin() {
     async configureServer(server: ViteDevServer) {
       if (!server.httpServer) return;
 
-      const { initializeSocket } =
-        await import("./src/lib/utils/socket-dev.js");
+      // ssrLoadModule resolves $lib and shares the SSR module graph
+      const { initializeSocket } = await server.ssrLoadModule(
+        "/src/lib/server/socket-server.ts",
+      );
       initializeSocket(server.httpServer as import("node:http").Server);
     },
   };
@@ -17,9 +19,7 @@ function socketIOPlugin() {
 
 export default defineConfig({
   plugins: [sveltekit(), socketIOPlugin()],
-  resolve: {
-    conditions: process.env.VITEST ? ["browser"] : [],
-  },
+  ...(process.env.VITEST ? { resolve: { conditions: ["browser"] } } : {}),
   server: {
     hmr: {
       protocol: "ws",

@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockTransferDashboard, mockEmitDashboardUpdated } = vi.hoisted(() => ({
-  mockTransferDashboard: vi.fn(),
-  mockEmitDashboardUpdated: vi.fn(),
-}));
+const { mockTransferDashboard, mockEmitDashboardUpdated, mockEmitRoomRevoked } =
+  vi.hoisted(() => ({
+    mockTransferDashboard: vi.fn(),
+    mockEmitDashboardUpdated: vi.fn(),
+    mockEmitRoomRevoked: vi.fn(),
+  }));
 
 vi.mock("$lib/server/transfer", () => ({
   transferDashboard: mockTransferDashboard,
@@ -11,6 +13,7 @@ vi.mock("$lib/server/transfer", () => ({
 
 vi.mock("$lib/utils/socket", () => ({
   emitDashboardUpdated: mockEmitDashboardUpdated,
+  emitRoomRevoked: mockEmitRoomRevoked,
 }));
 
 vi.mock("$lib/server/logger", () => ({
@@ -95,6 +98,7 @@ describe("POST /api/dashboards/[id]/transfer", () => {
       [COUNTER_ID],
     );
     expect(mockEmitDashboardUpdated).toHaveBeenCalledWith(DASHBOARD_ID);
+    expect(mockEmitRoomRevoked).toHaveBeenCalledWith("dashboard", DASHBOARD_ID);
   });
 
   it("defaults counterIds to an empty array", async () => {

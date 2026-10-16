@@ -10,13 +10,33 @@ const mockOrderBy = vi.fn();
 const mockDelete = vi.fn();
 const mockDeleteWhere = vi.fn();
 const mockDeleteReturning = vi.fn();
+const mockTransaction = vi.fn();
+const mockTxSelect = vi.fn();
+const mockTxFrom = vi.fn();
+const mockTxWhere = vi.fn();
+const mockTxDelete = vi.fn();
+const mockTxDeleteWhere = vi.fn();
+const mockTxDeleteReturning = vi.fn();
 
 vi.mock("$lib/db", () => ({
   db: {
     select: (...args: unknown[]) => mockSelect(...args),
     delete: (...args: unknown[]) => mockDelete(...args),
+    transaction: (...args: unknown[]) => mockTransaction(...args),
   },
 }));
+
+const tx = {
+  select: (...args: unknown[]) => mockTxSelect(...args),
+  delete: (...args: unknown[]) => mockTxDelete(...args),
+};
+
+/** Query result that can be awaited directly or after `.for(...)`. */
+function rows<T>(data: T[]) {
+  return Object.assign(Promise.resolve(data), {
+    for: () => Promise.resolve(data),
+  });
+}
 
 vi.mock("$lib/server/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -27,11 +47,11 @@ vi.mock("$lib/server/events", () => ({
 }));
 
 const mockGetSoleOwnedTeams = vi.fn();
-const mockDeleteTeam = vi.fn();
+const mockDeleteTeamInTx = vi.fn();
 
 vi.mock("$lib/server/teams", () => ({
   getSoleOwnedTeams: (...args: unknown[]) => mockGetSoleOwnedTeams(...args),
-  deleteTeam: (...args: unknown[]) => mockDeleteTeam(...args),
+  deleteTeamInTx: (...args: unknown[]) => mockDeleteTeamInTx(...args),
 }));
 
 const mockEmitTeamMembershipChanged = vi.fn();
@@ -48,6 +68,7 @@ mockDeleteWhere.mockReturnValue({ returning: mockDeleteReturning });
 
 import { counters, dashboards, teams, users } from "$lib/db/schema";
 import { logEvent } from "$lib/server/events";
+import { SoleTeamOwnerError } from "$lib/server/team-limits";
 import {
   deleteUser,
   getAdminStats,
@@ -97,11 +118,16 @@ describe("getAdminStats", () => {
 describe("deleteUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDelete.mockReturnValue({ where: mockDeleteWhere });
-    mockSelect.mockReturnValue({ from: mockFrom });
-    mockFrom.mockReturnValue({ where: mockWhere });
+    mockTransaction.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn(tx),
+    );
+    mockTxSelect.mockReturnValue({ from: mockTxFrom });
+    mockTxFrom.mockReturnValue({ where: mockTxWhere });
+    mockTxDelete.mockReturnValue({ where: mockTxDeleteWhere });
+    mockGetSoleOwnedTeams.mockReset();
     mockGetSoleOwnedTeams.mockResolvedValue([]);
-    mockDeleteTeam.mockResolvedValue({
+    mockDeleteTeamInTx.mockReset();
+    mockDeleteTeamInTx.mockResolvedValue({
       deleted: true,
       counterIds: [],
       dashboardIds: [],
@@ -109,37 +135,64 @@ describe("deleteUser", () => {
     });
   });
 
-  function setupPersonalDeletes(userRows: unknown[]) {
-    mockWhere.mockResolvedValueOnce(userRows);
+  function soleTeam(id: string, memberCount = 1) {
+    return {
+      id,
+      name: `Team ${id}`,
+      memberCount,
+      counterCount: 0,
+      dashboardCount: 0,
+    };
+  }
+
+  /** Queues the transaction's selects: user row, owner-row lock, one team lock per sole-owned team. */
+  function setupPersonalDeletes(userRows: unknown[], lockedTeamIds: string[] = []) {
+    mockTxWhere.mockReturnValueOnce(rows(userRows));
+    mockTxWhere.mockReturnValueOnce(rows([]));
+    for (const id of lockedTeamIds) {
+      mockTxWhere.mockReturnValueOnce(rows([{ id }]));
+    }
     // dashboards, counters: awaited directly
-    mockDeleteWhere.mockResolvedValueOnce(undefined);
-    mockDeleteWhere.mockResolvedValueOnce(undefined);
+    mockTxDeleteWhere.mockResolvedValueOnce(undefined);
+    mockTxDeleteWhere.mockResolvedValueOnce(undefined);
     // users: .returning()
-    mockDeleteWhere.mockReturnValueOnce({ returning: mockDeleteReturning });
+    mockTxDeleteWhere.mockReturnValueOnce({ returning: mockTxDeleteReturning });
   }
 
   it("deletes personal dashboards and counters, then the user, returns true", async () => {
     setupPersonalDeletes([{ username: "testuser", email: "test@test.com" }]);
-    mockDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
+    mockTxDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
 
     const result = await deleteUser("user-1");
 
     expect(result).toBe(true);
-    expect(mockDelete).toHaveBeenCalledTimes(3);
-    expect(mockDelete).toHaveBeenNthCalledWith(1, dashboards);
-    expect(mockDelete).toHaveBeenNthCalledWith(2, counters);
-    expect(mockDelete).toHaveBeenNthCalledWith(3, users);
-    expect(mockDeleteTeam).not.toHaveBeenCalled();
+    expect(mockTxDelete).toHaveBeenCalledTimes(3);
+    expect(mockTxDelete).toHaveBeenNthCalledWith(1, dashboards);
+    expect(mockTxDelete).toHaveBeenNthCalledWith(2, counters);
+    expect(mockTxDelete).toHaveBeenNthCalledWith(3, users);
+    expect(mockDeleteTeamInTx).not.toHaveBeenCalled();
+  });
+
+  it("runs every statement in one transaction", async () => {
+    setupPersonalDeletes([{ username: "testuser", email: "t@t.com" }]);
+    mockTxDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
+
+    await deleteUser("user-1");
+
+    expect(mockTransaction).toHaveBeenCalledOnce();
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(mockGetSoleOwnedTeams).toHaveBeenCalledWith("user-1", tx);
   });
 
   it("scopes personal deletes to resources without a team", async () => {
     setupPersonalDeletes([]);
-    mockDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
+    mockTxDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
 
     await deleteUser("user-1");
 
     const dialect = new PgDialect();
-    const [dashboardWhere, counterWhere] = mockDeleteWhere.mock.calls.map(
+    const [dashboardWhere, counterWhere] = mockTxDeleteWhere.mock.calls.map(
       (call) => dialect.sqlToQuery(call[0] as SQL).sql,
     );
     expect(dashboardWhere).toContain('"dashboards"."owner_id" = $1');
@@ -148,41 +201,99 @@ describe("deleteUser", () => {
     expect(counterWhere).toContain('"counters"."team_id" is null');
   });
 
-  it("deletes sole-owned teams before personal resources", async () => {
-    mockGetSoleOwnedTeams.mockResolvedValueOnce([
-      { id: "team-1" },
-      { id: "team-2" },
-    ]);
-    setupPersonalDeletes([]);
-    mockDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
+  it("deletes teams where the user is the only member before personal resources", async () => {
+    mockGetSoleOwnedTeams.mockResolvedValue([soleTeam("team-1"), soleTeam("team-2")]);
+    setupPersonalDeletes([], ["team-1", "team-2"]);
+    mockTxDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
 
     await deleteUser("user-1", "admin-1");
 
-    expect(mockGetSoleOwnedTeams).toHaveBeenCalledWith("user-1");
-    expect(mockDeleteTeam).toHaveBeenCalledTimes(2);
-    expect(mockDeleteTeam).toHaveBeenNthCalledWith(1, "team-1", "admin-1");
-    expect(mockDeleteTeam).toHaveBeenNthCalledWith(2, "team-2", "admin-1");
-    expect(mockDeleteTeam.mock.invocationCallOrder[1]).toBeLessThan(
-      mockDelete.mock.invocationCallOrder[0],
+    expect(mockDeleteTeamInTx).toHaveBeenCalledTimes(2);
+    expect(mockDeleteTeamInTx).toHaveBeenNthCalledWith(1, tx, "team-1", "admin-1");
+    expect(mockDeleteTeamInTx).toHaveBeenNthCalledWith(2, tx, "team-2", "admin-1");
+    expect(mockDeleteTeamInTx.mock.invocationCallOrder[1]).toBeLessThan(
+      mockTxDelete.mock.invocationCallOrder[0],
     );
   });
 
+  it("re-reads the sole-owned teams after locking them", async () => {
+    mockGetSoleOwnedTeams
+      .mockResolvedValueOnce([soleTeam("team-1")])
+      .mockResolvedValueOnce([soleTeam("team-1", 2)]);
+    setupPersonalDeletes([], ["team-1"]);
+
+    await expect(deleteUser("user-1")).rejects.toBeInstanceOf(
+      SoleTeamOwnerError,
+    );
+
+    expect(mockGetSoleOwnedTeams).toHaveBeenCalledTimes(2);
+    expect(mockDeleteTeamInTx).not.toHaveBeenCalled();
+  });
+
+  it("throws SoleTeamOwnerError listing teams that still have other members", async () => {
+    mockGetSoleOwnedTeams.mockResolvedValue([
+      soleTeam("team-1", 3),
+      soleTeam("team-2", 2),
+    ]);
+    setupPersonalDeletes([], ["team-1", "team-2"]);
+
+    const error = await deleteUser("user-1").catch((e) => e);
+
+    expect(error).toBeInstanceOf(SoleTeamOwnerError);
+    expect(error.teams).toEqual([
+      { id: "team-1", name: "Team team-1", memberCount: 3 },
+      { id: "team-2", name: "Team team-2", memberCount: 2 },
+    ]);
+  });
+
+  it("changes nothing when any sole-owned team has other members", async () => {
+    // team-1 alone would be cascaded, but team-2 blocks the whole deletion
+    mockGetSoleOwnedTeams.mockResolvedValue([
+      soleTeam("team-1", 1),
+      soleTeam("team-2", 4),
+    ]);
+    setupPersonalDeletes([{ username: "u", email: "e" }], ["team-1", "team-2"]);
+
+    await expect(deleteUser("user-1")).rejects.toBeInstanceOf(
+      SoleTeamOwnerError,
+    );
+
+    expect(mockDeleteTeamInTx).not.toHaveBeenCalled();
+    expect(mockTxDelete).not.toHaveBeenCalled();
+    expect(logEvent).not.toHaveBeenCalled();
+    expect(mockEmitTeamMembershipChanged).not.toHaveBeenCalled();
+  });
+
+  it("rolls back by rejecting, without events or notifications, when a later step fails", async () => {
+    mockGetSoleOwnedTeams.mockResolvedValue([soleTeam("team-1")]);
+    mockDeleteTeamInTx.mockResolvedValueOnce({
+      deleted: true,
+      counterIds: [],
+      dashboardIds: [],
+      memberIds: ["user-1", "user-2"],
+    });
+    setupPersonalDeletes([{ username: "u", email: "e" }], ["team-1"]);
+    mockTxDeleteReturning.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(deleteUser("user-1")).rejects.toThrow("db down");
+
+    expect(logEvent).not.toHaveBeenCalled();
+    expect(mockEmitTeamMembershipChanged).not.toHaveBeenCalled();
+  });
+
   it("uses the deleted user as team-deletion actor when no actor is given", async () => {
-    mockGetSoleOwnedTeams.mockResolvedValueOnce([{ id: "team-1" }]);
-    setupPersonalDeletes([]);
-    mockDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
+    mockGetSoleOwnedTeams.mockResolvedValue([soleTeam("team-1")]);
+    setupPersonalDeletes([], ["team-1"]);
+    mockTxDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
 
     await deleteUser("user-1");
 
-    expect(mockDeleteTeam).toHaveBeenCalledWith("team-1", "user-1");
+    expect(mockDeleteTeamInTx).toHaveBeenCalledWith(tx, "team-1", "user-1");
   });
 
   it("notifies remaining members of deleted sole-owned teams", async () => {
-    mockGetSoleOwnedTeams.mockResolvedValueOnce([
-      { id: "team-1" },
-      { id: "team-2" },
-    ]);
-    mockDeleteTeam
+    mockGetSoleOwnedTeams.mockResolvedValue([soleTeam("team-1"), soleTeam("team-2")]);
+    mockDeleteTeamInTx
       .mockResolvedValueOnce({
         deleted: true,
         counterIds: [],
@@ -195,8 +306,8 @@ describe("deleteUser", () => {
         dashboardIds: [],
         memberIds: [],
       });
-    setupPersonalDeletes([]);
-    mockDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
+    setupPersonalDeletes([], ["team-1", "team-2"]);
+    mockTxDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
 
     await deleteUser("user-1");
 
@@ -209,11 +320,11 @@ describe("deleteUser", () => {
 
   it("does not read or log the full name of the deleted user", async () => {
     setupPersonalDeletes([{ username: null, email: "test@test.com" }]);
-    mockDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
+    mockTxDeleteReturning.mockResolvedValueOnce([{ id: "user-1" }]);
 
     await deleteUser("user-1");
 
-    const selection = mockSelect.mock.calls[0][0] as Record<string, unknown>;
+    const selection = mockTxSelect.mock.calls[0][0] as Record<string, unknown>;
     expect(Object.values(selection)).not.toContain(users.name);
     expect(logEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -225,12 +336,13 @@ describe("deleteUser", () => {
 
   it("returns false when user not found", async () => {
     setupPersonalDeletes([]);
-    mockDeleteReturning.mockResolvedValueOnce([]);
+    mockTxDeleteReturning.mockResolvedValueOnce([]);
 
     const result = await deleteUser("nonexistent");
 
     expect(result).toBe(false);
-    expect(mockDelete).toHaveBeenCalledTimes(3);
+    expect(mockTxDelete).toHaveBeenCalledTimes(3);
+    expect(logEvent).not.toHaveBeenCalled();
   });
 });
 

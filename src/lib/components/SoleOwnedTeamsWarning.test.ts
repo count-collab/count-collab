@@ -14,7 +14,7 @@ function team(
   return {
     id: "team-1",
     name: "Alpha",
-    memberCount: 3,
+    memberCount: 1,
     counterCount: 2,
     dashboardCount: 0,
     ...overrides,
@@ -82,5 +82,28 @@ describe("SoleOwnedTeamsWarning", () => {
     expect(second.textContent).toMatch(
       /0 members, 5 counters, 2 dashboards will/,
     );
+  });
+
+  it("warns that teams with other members block deletion", () => {
+    render(SoleOwnedTeamsWarning, {
+      props: { teams: [team({ memberCount: 3 })] },
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toMatch(
+      /cannot be deleted until\s+ownership is transferred/,
+    );
+    expect(alert.textContent).toMatch(/3 members/);
+    expect(alert.textContent).not.toMatch(/will be deleted/);
+  });
+
+  it("shows both alerts when blocking and deletable teams are mixed", () => {
+    render(SoleOwnedTeamsWarning, {
+      props: {
+        teams: [team({ memberCount: 3 }), team({ id: "team-2", name: "Beta" })],
+      },
+    });
+
+    expect(screen.getAllByRole("alert")).toHaveLength(2);
   });
 });

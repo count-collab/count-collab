@@ -4,13 +4,14 @@
   import { page } from "$app/stores";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
   import { counterUrl } from "$lib/counter";
-  import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
+  import type { CounterVisibilityMode, PublicCounter } from "$lib/db/schema";
   import { onCounterUpdated } from "$lib/stores/counters";
+  import { subscribeRoom } from "$lib/stores/socket";
   import RollingNumber from "./RollingNumber.svelte";
   import Sparkline from "./Sparkline.svelte";
 
   type Props = {
-    counter: Counter & { teamName?: string | null };
+    counter: PublicCounter & { teamName?: string | null };
     showBadges?: boolean;
     followed?: boolean;
   };
@@ -47,7 +48,7 @@
     }, 350);
   }
 
-  function getVisibilityMode(counter: Counter): CounterVisibilityMode {
+  function getVisibilityMode(counter: PublicCounter): CounterVisibilityMode {
     return counter.visibilityMode ?? (counter.isPublic ? "public" : "private");
   }
 
@@ -71,12 +72,17 @@
   $effect(() => {
     if (!browser) return;
 
+    // Room membership is what delivers the incrementer name for this card
+    const leaveRoom = subscribeRoom("counter", counter.id);
     const unsubscribe = onCounterUpdated((payload) => {
       if (payload.counterId !== counter.id) return;
       showLastAction(payload.username, payload.amount);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      leaveRoom();
+    };
   });
 </script>
 

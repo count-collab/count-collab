@@ -5,6 +5,7 @@ import {
   updateDashboardMemberRole,
 } from "$lib/server/dashboard-members";
 import { parseAndValidateBody } from "$lib/server/request";
+import { revokeUserRooms } from "$lib/utils/socket";
 import {
   dashboardIdSchema,
   updateDashboardMemberRoleSchema,
@@ -73,6 +74,8 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   if (!removed) {
     throw error(404, "Member not found");
   }
+
+  revokeUserRooms(params.userId);
 
   return json({ success: true });
 };

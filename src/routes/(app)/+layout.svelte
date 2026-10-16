@@ -15,6 +15,7 @@
     onInvitationDeleted,
     onInvitationUpdated,
   } from "$lib/stores/invitations";
+  import { subscribeRoom } from "$lib/stores/socket";
   import {
     onTeamMembershipChanged,
     type TeamMembershipChangedPayload,
@@ -34,12 +35,17 @@
   }
 
   function handleTeamMembershipChange(payload: TeamMembershipChangedPayload) {
-    if (payload.userId !== session?.user?.id) return;
-
     const teamPath = `/t/${payload.teamId}`;
     const { pathname } = page.url;
     const onTeamPage =
       pathname === teamPath || pathname.startsWith(`${teamPath}/`);
+
+    // Changes to other members arrive through the team room we joined on this page
+    if (payload.userId !== session?.user?.id) {
+      if (onTeamPage) invalidateAll();
+      return;
+    }
+
     const lostAccess =
       payload.reason === "removed" || payload.reason === "team_deleted";
 
@@ -77,6 +83,17 @@
       unsubDeleted();
       unsubTeam();
     };
+  });
+
+  // Team room delivers changes to other members while viewing a team page
+  const viewedTeamId = $derived(
+    /^\/t\/([0-9a-f-]{36})(?:\/|$)/i.exec(page.url.pathname)?.[1] ?? null,
+  );
+
+  $effect(() => {
+    if (!viewedTeamId || !session?.user?.id) return;
+
+    return subscribeRoom("team", viewedTeamId);
   });
 </script>
 

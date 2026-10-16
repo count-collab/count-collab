@@ -5,7 +5,6 @@ import {
   count as countFn,
   desc,
   eq,
-  getTableColumns,
   ilike,
   inArray,
   isNotNull,
@@ -21,6 +20,7 @@ import type {
   CounterVisibilityMode,
   NewCounter,
   NewCounterHistory,
+  PublicCounter,
   SparklinePoint,
 } from "$lib/db/schema";
 import {
@@ -33,9 +33,19 @@ import {
 } from "$lib/db/schema";
 import { mapTeamRoleToCounterRole, maxCounterRole } from "$lib/roles";
 import { createCache } from "$lib/server/cache";
+import {
+  CounterOverflowError,
+  INT4_MAX,
+  INT4_MIN,
+} from "$lib/server/counter-limits";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
 import { logEvent } from "$lib/server/events";
+import { removeCounterFollowers } from "$lib/server/followers";
 import { logger } from "$lib/server/logger";
+import {
+  publicCounterColumns,
+  withoutShareToken,
+} from "$lib/server/public-columns";
 
 export const sparklineCache = createCache<SparklinePoint[]>({
   ttlMs: 300_000,
@@ -119,7 +129,7 @@ export async function listPublicCounters(
   query?: string,
   offset = 0,
   sort: CounterSort = "popular",
-): Promise<{ items: Counter[]; total: number }> {
+): Promise<{ items: PublicCounter[]; total: number }> {
   const searchQuery = query?.trim();
   const whereClause = searchQuery
     ? and(
@@ -145,26 +155,7 @@ export async function listPublicCounters(
 
   const [items, [{ total }]] = await Promise.all([
     db
-      .select({
-        id: countersTable.id,
-        title: countersTable.title,
-        description: countersTable.description,
-        count: countersTable.count,
-        isPublic: countersTable.isPublic,
-        visibilityMode: countersTable.visibilityMode,
-        counterMode: countersTable.counterMode,
-        shareToken: countersTable.shareToken,
-        cooldownEnabled: countersTable.cooldownEnabled,
-        cooldownSeconds: countersTable.cooldownSeconds,
-        goalsEnabled: countersTable.goalsEnabled,
-        showAllReachedGoals: countersTable.showAllReachedGoals,
-        scoreboardEnabled: countersTable.scoreboardEnabled,
-        ownerId: countersTable.ownerId,
-        teamId: countersTable.teamId,
-        createdAt: countersTable.createdAt,
-        updatedAt: countersTable.updatedAt,
-        lastActivityAt: countersTable.lastActivityAt,
-      })
+      .select(publicCounterColumns)
       .from(countersTable)
       .leftJoin(actionCountSq, eq(countersTable.id, actionCountSq.counterId))
       .where(whereClause)
@@ -188,9 +179,9 @@ export async function listPublicCounters(
 
 export async function listRecentlyCreatedCounters(
   limit = 6,
-): Promise<Counter[]> {
+): Promise<PublicCounter[]> {
   return db
-    .select()
+    .select(publicCounterColumns)
     .from(countersTable)
     .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes))
     .orderBy(desc(countersTable.createdAt))
@@ -199,9 +190,9 @@ export async function listRecentlyCreatedCounters(
 
 export async function listRecentlyUpdatedCounters(
   limit = 6,
-): Promise<Counter[]> {
+): Promise<PublicCounter[]> {
   return db
-    .select()
+    .select(publicCounterColumns)
     .from(countersTable)
     .where(inArray(countersTable.visibilityMode, publicCounterVisibilityModes))
     .orderBy(desc(countersTable.updatedAt))
@@ -248,6 +239,9 @@ export async function incrementCounter(
     if (!counter) return null;
 
     const nextValue = counter.count + delta;
+    if (nextValue > INT4_MAX || nextValue < INT4_MIN) {
+      throw new CounterOverflowError();
+    }
 
     // Record history entry
     const historyEntry: NewCounterHistory = {
@@ -368,12 +362,18 @@ export async function updateCounter(
     set.isPublic = deriveLegacyIsPublic(visibilityMode);
     set.visibilityMode = visibilityMode;
 
-    // Generate a share token when switching to private (if not already set)
+    // Entering private always mints a fresh token; staying private keeps it
     if (visibilityMode === "private") {
       const existing = await getCounter(counterId);
-      if (existing && !existing.shareToken) {
+      if (
+        existing &&
+        (!existing.shareToken || existing.visibilityMode !== "private")
+      ) {
         set.shareToken = generateShareToken();
       }
+    } else {
+      // A stale token must not survive a public period
+      set.shareToken = null;
     }
   }
 
@@ -389,6 +389,54 @@ export async function updateCounter(
   }
 
   return updated ?? null;
+}
+
+export type RegenerateShareTokenResult =
+  | { ok: true; shareToken: string; removedFollowers: number }
+  | { ok: false; reason: "not_found" | "not_private" };
+
+/**
+ * Replace a private counter's share token and revoke every follower,
+ * since followers keep access without the token.
+ */
+export async function regenerateCounterShareToken(
+  counterId: string,
+): Promise<RegenerateShareTokenResult> {
+  const shareToken = generateShareToken();
+
+  const result = await db.transaction(
+    async (tx): Promise<RegenerateShareTokenResult> => {
+      const [existing] = await tx
+        .select({ visibilityMode: countersTable.visibilityMode })
+        .from(countersTable)
+        // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+        .where(eq(countersTable.id, counterId as any))
+        .for("update");
+
+      if (!existing) return { ok: false, reason: "not_found" };
+      if (existing.visibilityMode !== "private") {
+        return { ok: false, reason: "not_private" };
+      }
+
+      await tx
+        .update(countersTable)
+        .set({ shareToken })
+        // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
+        .where(eq(countersTable.id, counterId as any));
+
+      const removedFollowers = await removeCounterFollowers(counterId, tx);
+      return { ok: true, shareToken, removedFollowers };
+    },
+  );
+
+  if (result.ok) {
+    logger.info("Counter share token regenerated", {
+      id: counterId,
+      removedFollowers: result.removedFollowers,
+    });
+  }
+
+  return result;
 }
 
 export async function transferCounterOwnership(
@@ -446,7 +494,7 @@ export async function deleteCounter(
   return result.length > 0;
 }
 
-export type UserCounter = Counter & { teamName: string | null };
+export type UserCounter = PublicCounter & { teamName: string | null };
 
 /** Team-owned counters are never personally owned, even by their creator. */
 function personallyOwnedCounter(userId: string) {
@@ -484,7 +532,7 @@ export async function getUserCounters(
   );
 
   const itemsQuery = db
-    .select({ ...getTableColumns(countersTable), teamName: teams.name })
+    .select({ ...publicCounterColumns, teamName: teams.name })
     .from(countersTable)
     .leftJoin(counterMembers, directCounterMemberJoin(userId))
     .leftJoin(teamMembers, counterTeamMemberJoin(userId))
@@ -519,7 +567,10 @@ export async function listAllCounters(
   sortBy?: string,
   sortOrder: "asc" | "desc" = "desc",
 ): Promise<{
-  items: (Counter & { ownerName: string | null; actionCount: number })[];
+  items: (PublicCounter & {
+    ownerName: string | null;
+    actionCount: number;
+  })[];
   total: number;
 }> {
   const searchQuery = query?.trim();
@@ -569,7 +620,7 @@ export async function listAllCounters(
   ]);
 
   const items = rows.map((row) => ({
-    ...row.counter,
+    ...withoutShareToken(row.counter),
     ownerName: row.ownerUsername ?? null,
     actionCount: Number(row.actionCount),
   }));
@@ -787,12 +838,12 @@ export async function getOwnedCounters(
   userId: string,
   limit?: number,
   offset = 0,
-): Promise<{ items: Counter[]; total: number }> {
+): Promise<{ items: PublicCounter[]; total: number }> {
   const whereClause = personallyOwnedCounter(userId);
 
   const [rows, [{ total }]] = await Promise.all([
     db
-      .select()
+      .select(publicCounterColumns)
       .from(countersTable)
       .where(whereClause)
       .orderBy(desc(countersTable.updatedAt))
@@ -826,7 +877,7 @@ export async function getSharedCounters(
   const [rows, [{ total }]] = await Promise.all([
     db
       .select({
-        ...getTableColumns(countersTable),
+        ...publicCounterColumns,
         teamName: teams.name,
         directRole: counterMembers.role,
         teamRole: teamMembers.role,

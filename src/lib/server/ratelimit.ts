@@ -1,4 +1,6 @@
+import { isIP } from "node:net";
 import { eq } from "drizzle-orm";
+import { LRUCache } from "lru-cache";
 import { db } from "$lib/db";
 import { type GlobalSettings, globalSettings } from "$lib/db/schema";
 import { canEditCounter } from "$lib/server/authorize";
@@ -10,15 +12,29 @@ export interface RateLimitConfig {
   maxRequests: number;
 }
 
+/** Limit expressed as "limit requests per windowMs". */
+export interface BucketLimit {
+  limit: number;
+  windowMs: number;
+}
+
 interface RequestRecord {
   timestamps: number[];
+  windowMs: number;
 }
 
 interface IPRecord {
   [route: string]: RequestRecord;
 }
 
-const ipStore = new Map<string, IPRecord>();
+/** Bounds memory when identities are attacker-chosen; least recently used keys are evicted first. */
+export const MAX_RATE_LIMIT_ENTRIES = 50_000;
+const ipStore = new LRUCache<string, IPRecord>({
+  max: MAX_RATE_LIMIT_ENTRIES,
+});
+
+/** Shared bucket for requests whose client address cannot be determined. */
+export const UNKNOWN_IP = "unknown";
 const counterAbuseStore = new Map<string, Record<string, number>>();
 const counterCooldownStore = new Map<string, number>(); // counterId → last increment timestamp (ms)
 export const PRIVATE_COUNTER_DEBOUNCE_MS = 100;
@@ -136,6 +152,64 @@ export async function getRateLimitConfig(isAuthenticated: boolean): Promise<{
   };
 }
 
+export type CreationKind = "counter" | "dashboard";
+
+/**
+ * Creation limit for counters or dashboards from the admin-editable global settings.
+ */
+export async function getCreationRateLimitConfig(
+  kind: CreationKind,
+  isAuthenticated: boolean,
+): Promise<RateLimitConfig> {
+  const s = await getGlobalSettings();
+  if (kind === "counter") {
+    return isAuthenticated
+      ? {
+          windowMs: s.counterCreationWindowAuth * 1000,
+          maxRequests: s.counterCreationLimitAuth,
+        }
+      : {
+          windowMs: s.counterCreationWindowUnauth * 1000,
+          maxRequests: s.counterCreationLimitUnauth,
+        };
+  }
+  return isAuthenticated
+    ? {
+        windowMs: s.dashboardCreationWindowAuth * 1000,
+        maxRequests: s.dashboardCreationLimitAuth,
+      }
+    : {
+        windowMs: s.dashboardCreationWindowUnauth * 1000,
+        maxRequests: s.dashboardCreationLimitUnauth,
+      };
+}
+
+/**
+ * Enforce the configured creation limit. Signed-in callers are keyed by user,
+ * anonymous callers by IP. Falls back to the hard-coded default if settings
+ * cannot be read.
+ */
+export async function checkCreationRateLimit(
+  kind: CreationKind,
+  subject: { userId?: string | null; ip: string },
+): Promise<{ retryAfter: number } | null> {
+  let config: RateLimitConfig;
+  try {
+    config = await getCreationRateLimitConfig(kind, !!subject.userId);
+  } catch (err) {
+    logger.warn("Unable to read creation limits, using defaults", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    config = RATE_LIMIT_CONFIG["/api/counters"];
+  }
+
+  return checkUserRateLimit(
+    subject.userId ? subject.userId : { ip: subject.ip },
+    kind === "counter" ? "/api/counters" : "/api/dashboards",
+    { limit: config.maxRequests, windowMs: config.windowMs },
+  );
+}
+
 /**
  * Get the team creation rate limit from global settings. Teams always require login.
  */
@@ -155,7 +229,23 @@ export async function checkTeamCreationRateLimit(
   userId: string,
 ): Promise<{ retryAfter: number } | null> {
   const config = await getTeamCreationRateLimitConfig();
-  return checkRateLimit(`user:${userId}`, "/api/teams", config);
+  return checkUserRateLimit(userId, "/api/teams", {
+    limit: config.maxRequests,
+    windowMs: config.windowMs,
+  });
+}
+
+/**
+ * Sliding-window limit for a signed-in user (pass the user id) or an IP
+ * (pass `{ ip }`) within a named bucket. Returns null if allowed.
+ */
+export function checkUserRateLimit(
+  subject: string | { ip: string },
+  bucket: string,
+  { limit, windowMs }: BucketLimit,
+): { retryAfter: number } | null {
+  const key = typeof subject === "string" ? `user:${subject}` : subject.ip;
+  return checkRateLimit(key, bucket, { windowMs, maxRequests: limit });
 }
 
 /**
@@ -202,7 +292,7 @@ export async function getEffectiveCooldownMs(
  * Record a counter-wide cooldown after a successful increment.
  */
 export function recordCounterCooldown(counterId: string): void {
-  counterCooldownStore.set(counterId, Date.now());
+  counterCooldownStore.set(counterId.toLowerCase(), Date.now());
 }
 
 /**
@@ -257,7 +347,7 @@ export async function checkCounterCooldown(
   const effectiveCooldownMs = Math.max(globalCooldownMs, counterCooldownMs);
   const effectiveCooldownSec = Math.ceil(effectiveCooldownMs / 1000);
 
-  const lastIncrement = counterCooldownStore.get(counterId);
+  const lastIncrement = counterCooldownStore.get(counterId.toLowerCase());
   if (lastIncrement !== undefined) {
     const elapsed = Date.now() - lastIncrement;
     if (elapsed < effectiveCooldownMs) {
@@ -304,7 +394,7 @@ export async function checkPrivateCounterCooldown(
     configuredCooldownMs,
   );
 
-  const lastIncrement = counterCooldownStore.get(counterId);
+  const lastIncrement = counterCooldownStore.get(counterId.toLowerCase());
   if (lastIncrement !== undefined) {
     const elapsed = Date.now() - lastIncrement;
     if (elapsed < effectiveCooldownMs) {
@@ -326,22 +416,52 @@ export async function checkPrivateCounterCooldown(
   };
 }
 
+// Collapses IPv6 to its /64 so one subscriber cannot mint unlimited identities.
+function normalizeIp(raw: string): string {
+  const ip = raw.trim();
+  const family = isIP(ip);
+  if (family === 0) return UNKNOWN_IP;
+  if (family === 4) return ip;
+
+  const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  if (mapped) return mapped[1];
+
+  const [head, tail] = ip.split("%")[0].split("::");
+  const headParts = head ? head.split(":") : [];
+  const tailParts = tail ? tail.split(":") : [];
+  const groups =
+    tail === undefined
+      ? headParts
+      : [
+          ...headParts,
+          ...Array(Math.max(0, 8 - headParts.length - tailParts.length)).fill("0"),
+          ...tailParts,
+        ];
+  const prefix = groups.slice(0, 4).map((g) => Number.parseInt(g, 16));
+  return `${prefix.map((g) => g.toString(16)).join(":")}::/64`;
+}
+
 /**
- * Get IP address from request, handling X-Forwarded-For headers
+ * Client address as resolved by SvelteKit. adapter-node derives it from the socket,
+ * or from ADDRESS_HEADER/XFF_DEPTH behind a trusted proxy; raw X-Forwarded-For is
+ * never read here because clients can spoof it.
  */
-export function getClientIp(request: Request): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0].trim();
+export function getClientIp(event: { getClientAddress: () => string }): string {
+  try {
+    return normalizeIp(event.getClientAddress());
+  } catch {
+    return UNKNOWN_IP;
   }
+}
 
-  const xRealIp = request.headers.get("x-real-ip");
-  if (xRealIp) {
-    return xRealIp;
-  }
+/** Number of identities currently tracked — used in tests. */
+export function getRateLimitStoreSize(): number {
+  return ipStore.size;
+}
 
-  // Fallback for local connections
-  return "127.0.0.1";
+/** Clear all rate limit state — used in tests. */
+export function resetRateLimitStore(): void {
+  ipStore.clear();
 }
 
 /**
@@ -357,24 +477,21 @@ export function checkRateLimit(
   const routeKey = route;
   const windowStart = now - config.windowMs;
 
-  // Initialize IP record if needed
-  if (!ipStore.has(ip)) {
-    ipStore.set(ip, {});
-  }
-
-  const ipRecord = ipStore.get(ip);
+  let ipRecord = ipStore.get(ip);
   if (!ipRecord) {
-    return null;
+    ipRecord = {};
+    ipStore.set(ip, ipRecord);
   }
 
-  // Initialize route record if needed
   if (!ipRecord[routeKey]) {
     ipRecord[routeKey] = {
       timestamps: [],
+      windowMs: config.windowMs,
     };
   }
 
   const record = ipRecord[routeKey];
+  record.windowMs = config.windowMs;
 
   // Remove timestamps outside the sliding window
   record.timestamps = record.timestamps.filter(
@@ -436,13 +553,14 @@ export function cleanupOldRecords(): void {
   const maxAge = 5 * 60 * 1000; // 5 minutes
 
   // Cleanup IP store
-  for (const [ip, routes] of ipStore.entries()) {
+  for (const [ip, routes] of [...ipStore.entries()]) {
     let hasActiveRoute = false;
 
     for (const [route, record] of Object.entries(routes)) {
-      // Remove timestamps older than maxAge
+      // Keep timestamps for as long as their own window needs them
+      const keepFor = Math.max(record.windowMs, maxAge);
       record.timestamps = record.timestamps.filter(
-        (timestamp) => now - timestamp < maxAge,
+        (timestamp) => now - timestamp < keepFor,
       );
 
       // Keep route if it has recent activity

@@ -2,6 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { logger } from "$lib/server/logger";
 import { parseAndValidateBody } from "$lib/server/request";
 import { transferCounter } from "$lib/server/transfer";
+import { emitRoomRevoked } from "$lib/utils/socket";
 import { counterIdSchema, transferSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
@@ -38,6 +39,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     });
     throw error(result.status, result.message);
   }
+
+  // Access changes with the new owner/team, so sockets must re-authorize
+  emitRoomRevoked("counter", params.id);
 
   return json({ success: true });
 };

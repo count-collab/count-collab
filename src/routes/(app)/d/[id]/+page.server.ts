@@ -25,6 +25,8 @@ import {
   isFollowingDashboard,
 } from "$lib/server/followers";
 import { logger } from "$lib/server/logger";
+import { withoutShareToken } from "$lib/server/public-columns";
+import { hasValidShareToken } from "$lib/server/share-token";
 import { getActingTeamRole } from "$lib/server/team-authorize";
 import { getTeam, listEditableTeams } from "$lib/server/teams";
 import { dashboardIdSchema } from "$lib/utils/validation";
@@ -55,11 +57,7 @@ export const load: PageServerLoad = async ({
   const isPrivate = dashboard.visibilityMode === "private";
 
   const token = url.searchParams.get("token");
-  const hasValidToken =
-    isPrivate &&
-    !!token &&
-    !!dashboard.shareToken &&
-    token === dashboard.shareToken;
+  const hasValidToken = hasValidShareToken(dashboard, token);
 
   if (isPrivate && !hasValidToken) {
     if (userId) {
@@ -104,7 +102,7 @@ export const load: PageServerLoad = async ({
           : false;
       }
 
-      return { item, counter, canIncrement };
+      return { item, counter: withoutShareToken(counter), canIncrement };
     }),
   );
 
@@ -174,7 +172,7 @@ export const load: PageServerLoad = async ({
   depends(`dashboard:${params.id}`);
 
   return {
-    dashboard,
+    dashboard: withoutShareToken(dashboard),
     items,
     canEdit,
     canDelete,

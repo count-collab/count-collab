@@ -9,9 +9,10 @@ You are a real-time communication specialist for the Count Collab project. Your 
 ## Project Context
 
 - **Socket.IO**: v4.7 (both `socket.io` server and `socket.io-client`)
-- **Production server**: `server.js` — creates HTTP server, initializes Socket.IO, exposes `globalThis.__socketIO`
+- **Production server**: `server.js` — creates HTTP server and calls `globalThis.__socketGateway.initializeSocket(server)` (registered by `src/lib/server/socket-server.ts` via the SvelteKit bundle); exposes `globalThis.__socketIO`
+- **Socket security**: `src/lib/server/socket-server.ts` (session-cookie handshake, origin check, subscribe rate limit, room cap), `socket-authorize.ts` (subscribe authorization), `socket-session.ts`, `src/lib/utils/socket-rooms.ts` (rooms `counter:`, `dashboard:`, `team:`, `user:`, `feed:public`). Never use global `io.emit` for private data.
 - **Dev mode**: Socket.IO initialized via Vite plugin in `vite.config.ts`
-- **Server emitters**: `src/lib/utils/socket.ts` — `emitCounterUpdate()`, `emitCounterCreated()`, invitation emitters (type `counter`/`dashboard`/`team`), `emitTeamMembershipChanged()` (`team:membership-changed`, broadcast + client-side userId filter)
+- **Server emitters**: `src/lib/utils/socket.ts` — `emitCounterUpdate()`, `emitCounterCreated()`, invitation emitters (type `counter`/`dashboard`/`team`), `emitTeamMembershipChanged()` (`team:membership-changed`, emitted to `user:<id>` and `team:<id>` rooms)
 - **Client stores**: `src/lib/stores/counters.ts` — subscribes to realtime updates
 - **Client init**: `src/lib/utils/socket-dev.ts` — Socket.IO client connection setup
 

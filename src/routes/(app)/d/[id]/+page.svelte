@@ -18,6 +18,7 @@ import { browser } from "$app/environment";
     onDashboardUpdated,
   } from "$lib/stores/dashboards";
   import { rateLimit } from "$lib/stores/ratelimit";
+  import { subscribeRoom } from "$lib/stores/socket";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -407,6 +408,12 @@ import { browser } from "$app/environment";
   $effect(() => {
     if (!browser) return;
 
+    // Counter updates are delivered per counter room; the server skips ones this viewer cannot see
+    const leaveRooms = data.items.flatMap(
+      (i: { counter: { id: string } | null }) =>
+        i.counter ? [subscribeRoom("counter", i.counter.id)] : [],
+    );
+
     const unsubscribe = onCounterUpdated((payload) => {
       const hasCounter = data.items.some(
         (i: { counter: { id: string } | null }) =>
@@ -420,13 +427,21 @@ import { browser } from "$app/environment";
       });
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      for (const leave of leaveRooms) leave();
+    };
   });
 
   // Real-time dashboard updates
   $effect(() => {
     if (!browser) return;
 
+    const leaveRoom = subscribeRoom(
+      "dashboard",
+      data.dashboard.id,
+      data.shareToken,
+    );
     const unsubs = [
       onDashboardUpdated((payload) => {
         if (payload.dashboardId !== data.dashboard.id) return;
@@ -444,6 +459,7 @@ import { browser } from "$app/environment";
 
     return () => {
       for (const unsub of unsubs) unsub();
+      leaveRoom();
     };
   });
 

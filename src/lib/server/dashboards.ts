@@ -5,7 +5,6 @@ import {
   count as countFn,
   desc,
   eq,
-  getTableColumns,
   ilike,
   inArray,
   isNotNull,
@@ -19,6 +18,7 @@ import type {
   DashboardMemberRole,
   DashboardVisibilityMode,
   NewDashboard,
+  PublicDashboard,
 } from "$lib/db/schema";
 import {
   dashboardFollowers,
@@ -32,9 +32,16 @@ import { mapTeamRoleToDashboardRole, maxDashboardRole } from "$lib/roles";
 import { escapeLikePattern, generateShareToken } from "$lib/server/crypto";
 import { refitDashboardItems } from "$lib/server/dashboard-items";
 import { logEvent } from "$lib/server/events";
+import { removeDashboardFollowers } from "$lib/server/followers";
 import { logger } from "$lib/server/logger";
+import {
+  publicDashboardColumns,
+  withoutShareToken,
+} from "$lib/server/public-columns";
 
-export type DashboardWithFollowerCount = Dashboard & { followerCount: number };
+export type DashboardWithFollowerCount = PublicDashboard & {
+  followerCount: number;
+};
 
 const publicDashboardVisibilityModes: DashboardVisibilityMode[] = ["public"];
 
@@ -110,12 +117,18 @@ export async function updateDashboard(
   if (input.visibilityMode !== undefined) {
     set.visibilityMode = input.visibilityMode;
 
-    // Generate a share token when switching to private (if not already set)
+    // Entering private always mints a fresh token; staying private keeps it
     if (input.visibilityMode === "private") {
       const existing = await getDashboard(dashboardId);
-      if (existing && !existing.shareToken) {
+      if (
+        existing &&
+        (!existing.shareToken || existing.visibilityMode !== "private")
+      ) {
         set.shareToken = generateShareToken();
       }
+    } else {
+      // A stale token must not survive a public period
+      set.shareToken = null;
     }
   }
 
@@ -181,6 +194,54 @@ async function updateDashboardWithGridColumns(
   return result.updated;
 }
 
+export type RegenerateShareTokenResult =
+  | { ok: true; shareToken: string; removedFollowers: number }
+  | { ok: false; reason: "not_found" | "not_private" };
+
+/**
+ * Replace a private dashboard's share token and revoke every follower,
+ * since followers keep access without the token.
+ */
+export async function regenerateDashboardShareToken(
+  dashboardId: string,
+): Promise<RegenerateShareTokenResult> {
+  const shareToken = generateShareToken();
+
+  const result = await db.transaction(
+    async (tx): Promise<RegenerateShareTokenResult> => {
+      const [existing] = await tx
+        .select({ visibilityMode: dashboardsTable.visibilityMode })
+        .from(dashboardsTable)
+        // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+        .where(eq(dashboardsTable.id, dashboardId as any))
+        .for("update");
+
+      if (!existing) return { ok: false, reason: "not_found" };
+      if (existing.visibilityMode !== "private") {
+        return { ok: false, reason: "not_private" };
+      }
+
+      await tx
+        .update(dashboardsTable)
+        .set({ shareToken })
+        // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+        .where(eq(dashboardsTable.id, dashboardId as any));
+
+      const removedFollowers = await removeDashboardFollowers(dashboardId, tx);
+      return { ok: true, shareToken, removedFollowers };
+    },
+  );
+
+  if (result.ok) {
+    logger.info("Dashboard share token regenerated", {
+      id: dashboardId,
+      removedFollowers: result.removedFollowers,
+    });
+  }
+
+  return result;
+}
+
 export async function deleteDashboard(
   dashboardId: string,
   deletedByUserId?: string | null,
@@ -244,7 +305,6 @@ export async function listPublicDashboards(
         title: dashboardsTable.title,
         description: dashboardsTable.description,
         visibilityMode: dashboardsTable.visibilityMode,
-        shareToken: dashboardsTable.shareToken,
         ownerId: dashboardsTable.ownerId,
         teamId: dashboardsTable.teamId,
         gridColumns: dashboardsTable.gridColumns,
@@ -276,7 +336,7 @@ export async function listPublicDashboards(
   };
 }
 
-export type UserDashboard = Dashboard & { teamName: string | null };
+export type UserDashboard = PublicDashboard & { teamName: string | null };
 
 /** Team-owned dashboards are never personally owned, even by their creator. */
 function personallyOwnedDashboard(userId: string) {
@@ -317,7 +377,7 @@ export async function getUserDashboards(
   );
 
   const itemsQuery = db
-    .select({ ...getTableColumns(dashboardsTable), teamName: teams.name })
+    .select({ ...publicDashboardColumns, teamName: teams.name })
     .from(dashboardsTable)
     .leftJoin(dashboardMembers, directDashboardMemberJoin(userId))
     .leftJoin(teamMembers, dashboardTeamMemberJoin(userId))
@@ -349,7 +409,7 @@ export async function listAllDashboards(
   sortBy?: string,
   sortOrder: "asc" | "desc" = "desc",
 ): Promise<{
-  items: (Dashboard & { ownerName: string | null })[];
+  items: (PublicDashboard & { ownerName: string | null })[];
   total: number;
 }> {
   const searchQuery = query?.trim();
@@ -393,7 +453,7 @@ export async function listAllDashboards(
   ]);
 
   const items = rows.map((row) => ({
-    ...row.dashboard,
+    ...withoutShareToken(row.dashboard),
     ownerName: row.ownerUsername ?? null,
   }));
 
@@ -407,12 +467,12 @@ export async function getOwnedDashboards(
   userId: string,
   limit?: number,
   offset = 0,
-): Promise<{ items: Dashboard[]; total: number }> {
+): Promise<{ items: PublicDashboard[]; total: number }> {
   const whereClause = personallyOwnedDashboard(userId);
 
   const [rows, [{ total }]] = await Promise.all([
     db
-      .select()
+      .select(publicDashboardColumns)
       .from(dashboardsTable)
       .where(whereClause)
       .orderBy(desc(dashboardsTable.updatedAt))
@@ -448,7 +508,7 @@ export async function getSharedDashboards(
   const [rows, [{ total }]] = await Promise.all([
     db
       .select({
-        ...getTableColumns(dashboardsTable),
+        ...publicDashboardColumns,
         teamName: teams.name,
         directRole: dashboardMembers.role,
         teamRole: teamMembers.role,

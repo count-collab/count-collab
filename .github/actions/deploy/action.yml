@@ -85,81 +85,129 @@ inputs:
     description: PostHog host URL
     required: false
     default: ""
+  origin:
+    description: "Public origin for ORIGIN (CSRF check, HTTPS detection). Defaults to https://<domain>"
+    required: false
+    default: ""
+  address-header:
+    description: "Header carrying the client IP for ADDRESS_HEADER (rate limiting). Traefik sets X-Forwarded-For; clear it if the app is exposed without a proxy"
+    required: false
+    default: "X-Forwarded-For"
+  xff-depth:
+    description: "Trusted proxies in front of the app for XFF_DEPTH (1 = Traefik only; use 2 when Cloudflare is also in front and trusted by Traefik)"
+    required: false
+    default: "1"
 
 runs:
   using: composite
 
   steps:
     - name: Deploy via SSH
-      uses: appleboy/ssh-action@v1
+      uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+      env:
+        IN_DEPLOY_DIR: ${{ inputs.deploy-dir }}
+        IN_GHCR_USERNAME: ${{ inputs.ghcr-username }}
+        IN_GHCR_PAT: ${{ inputs.ghcr-pat }}
+        IN_DOCKER_IMAGE: ${{ inputs.docker-image }}
+        IN_CONTAINER_NAME: ${{ inputs.container-name }}
+        IN_COMPOSE_FILENAME: ${{ inputs.compose-filename }}
+        IN_VOLUME_NAME: ${{ inputs.volume-name }}
+        IN_DOMAIN: ${{ inputs.domain }}
+        IN_NOINDEX: ${{ inputs.noindex }}
+        IN_POSTGRES_USER: ${{ inputs.postgres-user }}
+        IN_POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
+        IN_POSTGRES_DB: ${{ inputs.postgres-db }}
+        IN_AUTH_SECRET: ${{ inputs.auth-secret }}
+        IN_AUTH_GOOGLE_ID: ${{ inputs.auth-google-id }}
+        IN_AUTH_GOOGLE_SECRET: ${{ inputs.auth-google-secret }}
+        IN_AUTH_DISCORD_ID: ${{ inputs.auth-discord-id }}
+        IN_AUTH_DISCORD_SECRET: ${{ inputs.auth-discord-secret }}
+        IN_AUTH_TWITCH_ID: ${{ inputs.auth-twitch-id }}
+        IN_AUTH_TWITCH_SECRET: ${{ inputs.auth-twitch-secret }}
+        IN_POSTHOG_KEY: ${{ inputs.posthog-key }}
+        IN_POSTHOG_HOST: ${{ inputs.posthog-host }}
+        IN_ORIGIN: ${{ inputs.origin }}
+        IN_ADDRESS_HEADER: ${{ inputs.address-header }}
+        IN_XFF_DEPTH: ${{ inputs.xff-depth }}
       with:
         host: ${{ inputs.deploy-host }}
         port: ${{ inputs.deploy-port }}
         username: ${{ inputs.deploy-user }}
         key: ${{ inputs.deploy-ssh-key }}
+        envs: IN_DEPLOY_DIR,IN_GHCR_USERNAME,IN_GHCR_PAT,IN_DOCKER_IMAGE,IN_CONTAINER_NAME,IN_COMPOSE_FILENAME,IN_VOLUME_NAME,IN_DOMAIN,IN_NOINDEX,IN_POSTGRES_USER,IN_POSTGRES_PASSWORD,IN_POSTGRES_DB,IN_AUTH_SECRET,IN_AUTH_GOOGLE_ID,IN_AUTH_GOOGLE_SECRET,IN_AUTH_DISCORD_ID,IN_AUTH_DISCORD_SECRET,IN_AUTH_TWITCH_ID,IN_AUTH_TWITCH_SECRET,IN_POSTHOG_KEY,IN_POSTHOG_HOST,IN_ORIGIN,IN_ADDRESS_HEADER,IN_XFF_DEPTH
         script: |
           set -e
 
-          # Function to URL-encode credentials
+          # Function to URL-encode credentials (value passed as argv, never interpolated into code)
           urlencode() {
-            python3 -c "import urllib.parse; print(urllib.parse.quote('''$1''', safe=''))"
+            python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$1"
           }
 
-          DEPLOY_DIR="${{ inputs.deploy-dir }}"
+          # Callers pass a literal leading $HOME (e.g. $HOME/count-collab); expand it here without eval
+          case "$IN_DEPLOY_DIR" in
+            '$HOME'|'$HOME'/*) DEPLOY_DIR="$HOME${IN_DEPLOY_DIR#\$HOME}" ;;
+            *) DEPLOY_DIR="$IN_DEPLOY_DIR" ;;
+          esac
           mkdir -p "$DEPLOY_DIR"
 
           # Login to GHCR and pull latest image
-          echo "${{ inputs.ghcr-pat }}" | docker login ghcr.io -u ${{ inputs.ghcr-username }} --password-stdin
+          printf '%s' "$IN_GHCR_PAT" | docker login ghcr.io -u "$IN_GHCR_USERNAME" --password-stdin
 
           # Save previous image digest for rollback
-          PREVIOUS_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ inputs.docker-image }} 2>/dev/null || echo "")
+          PREVIOUS_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IN_DOCKER_IMAGE" 2>/dev/null || echo "")
           if [ -n "$PREVIOUS_DIGEST" ]; then
-            docker tag ${{ inputs.docker-image }} ${{ inputs.docker-image }}-rollback
-            echo "Saved previous image as ${{ inputs.docker-image }}-rollback (digest: $PREVIOUS_DIGEST)"
+            docker tag "$IN_DOCKER_IMAGE" "$IN_DOCKER_IMAGE-rollback"
+            echo "Saved previous image as $IN_DOCKER_IMAGE-rollback (digest: $PREVIOUS_DIGEST)"
           else
             echo "No previous image found, rollback will not be available"
           fi
 
-          docker pull ${{ inputs.docker-image }}
+          docker pull "$IN_DOCKER_IMAGE"
 
           # Generate .env file with URL-encoded credentials
-          ENCODED_USER=$(urlencode "${{ inputs.postgres-user }}")
-          ENCODED_PASSWORD=$(urlencode "${{ inputs.postgres-password }}")
+          ENCODED_USER=$(urlencode "$IN_POSTGRES_USER")
+          ENCODED_PASSWORD=$(urlencode "$IN_POSTGRES_PASSWORD")
           cat > "$DEPLOY_DIR/.env" <<EOF
-          DATABASE_URL=postgresql://${ENCODED_USER}:${ENCODED_PASSWORD}@db:5432/${{ inputs.postgres-db }}
+          DATABASE_URL=postgresql://${ENCODED_USER}:${ENCODED_PASSWORD}@db:5432/${IN_POSTGRES_DB}
           NODE_ENV=production
-          NOINDEX=${{ inputs.noindex }}
-          AUTH_SECRET=${{ inputs.auth-secret }}
-          AUTH_GOOGLE_ID=${{ inputs.auth-google-id }}
-          AUTH_GOOGLE_SECRET=${{ inputs.auth-google-secret }}
-          AUTH_DISCORD_ID=${{ inputs.auth-discord-id }}
-          AUTH_DISCORD_SECRET=${{ inputs.auth-discord-secret }}
-          AUTH_TWITCH_ID=${{ inputs.auth-twitch-id }}
-          AUTH_TWITCH_SECRET=${{ inputs.auth-twitch-secret }}
-          PUBLIC_POSTHOG_KEY=${{ inputs.posthog-key }}
-          PUBLIC_POSTHOG_HOST=${{ inputs.posthog-host }}
+          NOINDEX=${IN_NOINDEX}
+          AUTH_SECRET=${IN_AUTH_SECRET}
+          AUTH_GOOGLE_ID=${IN_AUTH_GOOGLE_ID}
+          AUTH_GOOGLE_SECRET=${IN_AUTH_GOOGLE_SECRET}
+          AUTH_DISCORD_ID=${IN_AUTH_DISCORD_ID}
+          AUTH_DISCORD_SECRET=${IN_AUTH_DISCORD_SECRET}
+          AUTH_TWITCH_ID=${IN_AUTH_TWITCH_ID}
+          AUTH_TWITCH_SECRET=${IN_AUTH_TWITCH_SECRET}
+          PUBLIC_POSTHOG_KEY=${IN_POSTHOG_KEY}
+          PUBLIC_POSTHOG_HOST=${IN_POSTHOG_HOST}
+          ORIGIN=${IN_ORIGIN:-https://${IN_DOMAIN}}
           EOF
 
+          # Client IP for rate limiting comes from the proxy header; without it every user shares one bucket
+          if [ -n "$IN_ADDRESS_HEADER" ]; then
+            printf 'ADDRESS_HEADER=%s\nXFF_DEPTH=%s\n' "$IN_ADDRESS_HEADER" "${IN_XFF_DEPTH:-1}" >> "$DEPLOY_DIR/.env"
+          fi
+
           # Generate compose file
-          cat > "$DEPLOY_DIR/${{ inputs.compose-filename }}" <<EOF
+          cat > "$DEPLOY_DIR/$IN_COMPOSE_FILENAME" <<EOF
           services:
             migrations:
-              image: ${{ inputs.docker-image }}
-              container_name: ${{ inputs.container-name }}-migrations
+              image: ${IN_DOCKER_IMAGE}
+              container_name: ${IN_CONTAINER_NAME}-migrations
               env_file:
                 - .env
               depends_on:
                 db:
                   condition: service_healthy
               networks:
-                - ${{ inputs.container-name }}
+                - ${IN_CONTAINER_NAME}
               command: bun run db:migrate
               profiles:
                 - ""
 
             count-collab:
-              image: ${{ inputs.docker-image }}
-              container_name: ${{ inputs.container-name }}
+              image: ${IN_DOCKER_IMAGE}
+              container_name: ${IN_CONTAINER_NAME}
               restart: unless-stopped
               env_file:
                 - .env
@@ -174,38 +222,38 @@ runs:
                 start_period: 5s
               labels:
                 - "traefik.enable=true"
-                - "traefik.http.routers.${{ inputs.container-name }}.rule=Host(\`${{ inputs.domain }}\`)"
-                - "traefik.http.routers.${{ inputs.container-name }}.entrypoints=websecure"
-                - "traefik.http.routers.${{ inputs.container-name }}.tls=true"
-                - "traefik.http.services.${{ inputs.container-name }}.loadbalancer.server.port=3000"
+                - "traefik.http.routers.${IN_CONTAINER_NAME}.rule=Host(\`${IN_DOMAIN}\`)"
+                - "traefik.http.routers.${IN_CONTAINER_NAME}.entrypoints=websecure"
+                - "traefik.http.routers.${IN_CONTAINER_NAME}.tls=true"
+                - "traefik.http.services.${IN_CONTAINER_NAME}.loadbalancer.server.port=3000"
               networks:
-                - ${{ inputs.container-name }}
+                - ${IN_CONTAINER_NAME}
                 - web
 
             db:
               image: postgres:16-alpine
-              container_name: ${{ inputs.container-name }}-db
+              container_name: ${IN_CONTAINER_NAME}-db
               restart: unless-stopped
               environment:
-                POSTGRES_USER: ${{ inputs.postgres-user }}
-                POSTGRES_PASSWORD: ${{ inputs.postgres-password }}
-                POSTGRES_DB: ${{ inputs.postgres-db }}
+                POSTGRES_USER: ${IN_POSTGRES_USER}
+                POSTGRES_PASSWORD: ${IN_POSTGRES_PASSWORD}
+                POSTGRES_DB: ${IN_POSTGRES_DB}
               volumes:
-                - ${{ inputs.volume-name }}:/var/lib/postgresql/data
+                - ${IN_VOLUME_NAME}:/var/lib/postgresql/data
               healthcheck:
-                test: ["CMD-SHELL", "pg_isready -U ${{ inputs.postgres-user }} -d ${{ inputs.postgres-db }}"]
+                test: ["CMD-SHELL", "pg_isready -U ${IN_POSTGRES_USER} -d ${IN_POSTGRES_DB}"]
                 interval: 10s
                 timeout: 5s
                 retries: 5
               networks:
-                - ${{ inputs.container-name }}
+                - ${IN_CONTAINER_NAME}
 
           volumes:
-            ${{ inputs.volume-name }}:
+            ${IN_VOLUME_NAME}:
               driver: local
 
           networks:
-            ${{ inputs.container-name }}:
+            ${IN_CONTAINER_NAME}:
               driver: bridge
             web:
               external: true
@@ -214,7 +262,7 @@ runs:
           cd "$DEPLOY_DIR"
 
           # Check if database container is already running
-          if docker ps --format '{{.Names}}' | grep -q '^${{ inputs.container-name }}-db$'; then
+          if docker ps --format '{{.Names}}' | grep -qxF "${IN_CONTAINER_NAME}-db"; then
             echo "Database already running, running migrations and restarting app..."
             docker compose run --rm migrations
             docker compose up -d count-collab
@@ -231,7 +279,7 @@ runs:
 
           set +e
           while [ $ELAPSED -lt $HEALTH_TIMEOUT ]; do
-            HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' ${{ inputs.container-name }} 2>/dev/null)
+            HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$IN_CONTAINER_NAME" 2>/dev/null)
 
             echo $HEALTH_STATUS
 
@@ -256,9 +304,9 @@ runs:
           docker compose logs count-collab --tail 50
           echo "======================"
 
-          if docker image inspect ${{ inputs.docker-image }}-rollback >/dev/null 2>&1; then
+          if docker image inspect "$IN_DOCKER_IMAGE-rollback" >/dev/null 2>&1; then
             echo "Rolling back to previous image (migrations are always backward-compatible)..."
-            docker tag ${{ inputs.docker-image }}-rollback ${{ inputs.docker-image }}
+            docker tag "$IN_DOCKER_IMAGE-rollback" "$IN_DOCKER_IMAGE"
             docker compose up -d count-collab
             echo "Rollback complete — restarted with previous image"
           else

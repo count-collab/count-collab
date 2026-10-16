@@ -2,6 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { canManageMembers } from "$lib/server/authorize";
 import { removeMember, updateMemberRole } from "$lib/server/members";
 import { parseAndValidateBody } from "$lib/server/request";
+import { revokeUserRooms } from "$lib/utils/socket";
 import { counterIdSchema, updateMemberRoleSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
@@ -67,6 +68,8 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
   if (!removed) {
     throw error(404, "Member not found");
   }
+
+  revokeUserRooms(params.userId);
 
   return json({ success: true });
 };

@@ -77,10 +77,15 @@ export type CounterId = z.infer<typeof counterIdSchema>;
 /**
  * Validation schema for increment payload
  */
+export const MAX_INCREMENT_AMOUNT = 1000;
+export const MAX_GOAL_AMOUNT = 1_000_000_000;
+
 export const incrementCounterSchema = z.object({
   amount: z
     .number()
     .int("Increment amount must be an integer")
+    .min(-MAX_INCREMENT_AMOUNT, `Increment amount must be at least -${MAX_INCREMENT_AMOUNT}`)
+    .max(MAX_INCREMENT_AMOUNT, `Increment amount must be at most ${MAX_INCREMENT_AMOUNT}`)
     .refine((v) => v !== 0, "Increment amount must be non-zero")
     .default(1)
     .optional(),
@@ -248,14 +253,20 @@ export type SwapDashboardItemsInput = z.infer<typeof swapDashboardItemsSchema>;
 
 // ── Counter Goals ───────────────────────────────────────────────
 
+const goalAmountSchema = z
+  .number()
+  .int()
+  .min(-MAX_GOAL_AMOUNT)
+  .max(MAX_GOAL_AMOUNT);
+
 export const createGoalSchema = z.object({
-  amount: z.number().int(),
+  amount: goalAmountSchema,
   description: z.string().max(200).trim().optional().default(""),
 });
 export type CreateGoalInput = z.infer<typeof createGoalSchema>;
 
 export const updateGoalSchema = z.object({
-  amount: z.number().int().optional(),
+  amount: goalAmountSchema.optional(),
   description: z.string().max(200).trim().optional(),
 });
 export type UpdateGoalInput = z.infer<typeof updateGoalSchema>;

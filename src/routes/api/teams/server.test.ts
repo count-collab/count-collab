@@ -20,6 +20,7 @@ vi.mock("$lib/server/logger", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
 }));
 
+import { TeamLimitError } from "$lib/server/team-limits";
 import { GET, POST } from "./+server";
 
 function makeLocals(userId: string | null) {
@@ -110,5 +111,34 @@ describe("POST /api/teams", () => {
       description: null,
       userId: "user-1",
     });
+  });
+
+  it("maps the team cap to 409 with its code", async () => {
+    mockCreateTeam.mockRejectedValue(
+      new TeamLimitError("team_limit", 409, "You can create at most 20 teams"),
+    );
+
+    const response = await POST({
+      request: makeRequest({ name: "Team" }),
+      locals: makeLocals("user-1"),
+    } as any);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "You can create at most 20 teams",
+      code: "team_limit",
+    });
+    expect(response.headers.get("Retry-After")).toBeNull();
+  });
+
+  it("rethrows unexpected errors", async () => {
+    mockCreateTeam.mockRejectedValue(new Error("db down"));
+
+    await expect(
+      POST({
+        request: makeRequest({ name: "Team" }),
+        locals: makeLocals("user-1"),
+      } as any),
+    ).rejects.toThrow("db down");
   });
 });

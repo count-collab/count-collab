@@ -3,3 +3,17 @@ postgres_data/
 docker-compose.yml
 LICENSE
 .github
+
+# Secrets and local env files (the Dockerfile does not need .env.example)
+secrets
+.env
+.env.*
+
+# VCS, dependencies and build/test artifacts (the image installs and builds itself)
+.git
+node_modules
+build
+.svelte-kit
+playwright-report
+test-results
+screenshots

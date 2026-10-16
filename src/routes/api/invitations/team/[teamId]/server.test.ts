@@ -26,6 +26,7 @@ vi.mock("$lib/server/logger", () => ({
   logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
 }));
 
+import { TeamLimitError } from "$lib/server/team-limits";
 import { DELETE, POST } from "./+server";
 
 const TEAM_ID = "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
@@ -63,6 +64,39 @@ describe("POST /api/invitations/team/[teamId]", () => {
     await expect(POST(makeEvent("user-1"))).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it("answers an expired or revoked invitation like an unknown one (404)", async () => {
+    // acceptTeamInvitation returns null after purging stale invitations
+    mockAcceptTeamInvitation.mockResolvedValue(null);
+
+    await expect(POST(makeEvent("user-1"))).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(mockEmitTeamMembershipChanged).not.toHaveBeenCalled();
+    expect(mockEmitInvitationDeleted).not.toHaveBeenCalled();
+  });
+
+  it("maps the member cap to 409 without notifying anyone", async () => {
+    mockAcceptTeamInvitation.mockRejectedValue(
+      new TeamLimitError("member_limit", 409, "This team has reached its member limit"),
+    );
+
+    const response = await POST(makeEvent("user-1"));
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "This team has reached its member limit",
+      code: "member_limit",
+    });
+    expect(mockEmitTeamMembershipChanged).not.toHaveBeenCalled();
+    expect(mockEmitInvitationDeleted).not.toHaveBeenCalled();
+  });
+
+  it("rethrows unexpected errors", async () => {
+    mockAcceptTeamInvitation.mockRejectedValue(new Error("db down"));
+
+    await expect(POST(makeEvent("user-1"))).rejects.toThrow("db down");
   });
 
   it("accepts the invitation", async () => {

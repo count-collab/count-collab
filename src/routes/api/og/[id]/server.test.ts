@@ -35,6 +35,7 @@ vi.mock("@resvg/resvg-js", () => {
   return { Resvg: MockResvg };
 });
 
+import satori from "satori";
 import { GET } from "./+server";
 
 function makeEvent(id: string) {
@@ -122,5 +123,51 @@ describe("GET /api/og/[id]", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("image/png");
+  });
+
+  it("serves repeat requests from the cache until the counter changes", async () => {
+    const id = "44444444-4444-4444-4444-444444444444";
+    const base = {
+      id,
+      title: "Cached",
+      description: null,
+      count: 5,
+      visibilityMode: "public",
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
+    };
+    vi.mocked(satori).mockClear();
+    mockGetCounter.mockResolvedValue(base);
+
+    const first = await GET(makeEvent(id));
+    const second = await GET(makeEvent(id));
+    expect(satori).toHaveBeenCalledTimes(1);
+    expect(new Uint8Array(await second.arrayBuffer())).toEqual(
+      new Uint8Array(await first.arrayBuffer()),
+    );
+    expect(second.headers.get("Content-Type")).toBe("image/png");
+
+    mockGetCounter.mockResolvedValue({
+      ...base,
+      updatedAt: new Date("2026-01-02T00:00:00Z"),
+    });
+    await GET(makeEvent(id));
+    expect(satori).toHaveBeenCalledTimes(2);
+  });
+
+  it("never serves a cached image for a counter that became private", async () => {
+    const id = "55555555-5555-5555-5555-555555555555";
+    const counter = {
+      id,
+      title: "Was public",
+      description: null,
+      count: 1,
+      visibilityMode: "public",
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
+    };
+    mockGetCounter.mockResolvedValue(counter);
+    await GET(makeEvent(id));
+
+    mockGetCounter.mockResolvedValue({ ...counter, visibilityMode: "private" });
+    await expect(GET(makeEvent(id))).rejects.toMatchObject({ status: 404 });
   });
 });

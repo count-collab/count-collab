@@ -157,4 +157,20 @@ describe("/t/[id] load", () => {
       resources: { counters: [], dashboards: [] },
     });
   });
+
+  it.each([
+    ["viewer", false],
+    ["manager", true],
+  ])("never serializes resource share tokens for a %s", async (_label, manage) => {
+    mocks.canManageTeam.mockResolvedValue(manage);
+    mocks.getTeamResources.mockResolvedValue({
+      counters: [{ id: "c1", title: "Private", visibilityMode: "private" }],
+      dashboards: [{ id: "d1", title: "Dash", visibilityMode: "private" }],
+    });
+
+    const data = await callLoad("user-1");
+
+    expect(JSON.stringify(data.resources)).not.toContain("shareToken");
+    expect(JSON.stringify(data)).not.toContain("shareToken");
+  });
 });

@@ -56,6 +56,8 @@ import {
   getFollowedDashboards,
   isFollowingCounter,
   isFollowingDashboard,
+  removeCounterFollowers,
+  removeDashboardFollowers,
   unfollowCounter,
   unfollowDashboard,
 } from "./followers";
@@ -187,6 +189,14 @@ describe("counter followers", () => {
       expect(result).toEqual(counters);
       expect(mockSelect).toHaveBeenCalledOnce();
       expect(mockInnerJoin).toHaveBeenCalledOnce();
+    });
+
+    it("does not select the share token column", async () => {
+      mockOrderBy.mockResolvedValueOnce([]);
+
+      await getFollowedCounters("user-1");
+
+      expect(mockSelect.mock.calls[0][0]).not.toHaveProperty("shareToken");
     });
 
     it("returns empty array when not following any counters", async () => {
@@ -326,6 +336,14 @@ describe("dashboard followers", () => {
       expect(mockInnerJoin).toHaveBeenCalledOnce();
     });
 
+    it("does not select the share token column", async () => {
+      mockOrderBy.mockResolvedValueOnce([]);
+
+      await getFollowedDashboards("user-1");
+
+      expect(mockSelect.mock.calls[0][0]).not.toHaveProperty("shareToken");
+    });
+
     it("returns empty array when not following any dashboards", async () => {
       mockOrderBy.mockResolvedValueOnce([]);
 
@@ -333,5 +351,40 @@ describe("dashboard followers", () => {
 
       expect(result).toEqual([]);
     });
+  });
+});
+
+describe("removing all followers", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupChains();
+  });
+
+  it("removeCounterFollowers returns the number of removed rows", async () => {
+    mockDeleteReturning.mockResolvedValueOnce([{ id: 1 }, { id: 2 }]);
+
+    await expect(removeCounterFollowers("counter-1")).resolves.toBe(2);
+    expect(mockDelete).toHaveBeenCalledOnce();
+  });
+
+  it("removeDashboardFollowers returns the number of removed rows", async () => {
+    mockDeleteReturning.mockResolvedValueOnce([{ id: 1 }]);
+
+    await expect(removeDashboardFollowers("dashboard-1")).resolves.toBe(1);
+  });
+
+  it("runs on the provided transaction executor instead of db", async () => {
+    const txDeleteReturning = vi.fn().mockResolvedValue([]);
+    const txDelete = vi.fn(() => ({
+      where: () => ({ returning: txDeleteReturning }),
+    }));
+
+    const removed = await removeCounterFollowers("counter-1", {
+      delete: txDelete,
+    } as never);
+
+    expect(removed).toBe(0);
+    expect(txDelete).toHaveBeenCalledOnce();
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 });

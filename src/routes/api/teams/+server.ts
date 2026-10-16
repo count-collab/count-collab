@@ -2,6 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { logger } from "$lib/server/logger";
 import { checkTeamCreationRateLimit } from "$lib/server/ratelimit";
 import { parseAndValidateBody } from "$lib/server/request";
+import { TeamLimitError, teamLimitResponse } from "$lib/server/team-limits";
 import { createTeam, listUserTeams } from "$lib/server/teams";
 import { createTeamSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
@@ -50,11 +51,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return validation.response;
   }
 
-  const team = await createTeam({
-    name: validation.data.name,
-    description: validation.data.description,
-    userId: session.user.id,
-  });
+  try {
+    const team = await createTeam({
+      name: validation.data.name,
+      description: validation.data.description,
+      userId: session.user.id,
+    });
 
-  return json(team, { status: 201 });
+    return json(team, { status: 201 });
+  } catch (err) {
+    if (err instanceof TeamLimitError) {
+      return teamLimitResponse(err);
+    }
+    throw err;
+  }
 };

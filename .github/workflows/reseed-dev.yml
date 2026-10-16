@@ -3,6 +3,9 @@ name: DEV | Reseed Database
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   reseed:
     name: Clear & Reseed Counters (DEV)
@@ -10,7 +13,7 @@ jobs:
 
     steps:
       - name: Reseed via SSH
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           port: ${{ secrets.DEPLOY_PORT }}

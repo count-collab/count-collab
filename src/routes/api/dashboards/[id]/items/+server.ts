@@ -1,5 +1,7 @@
 import { error, json } from "@sveltejs/kit";
 import { z } from "zod";
+import { canViewPrivateCounter } from "$lib/server/authorize";
+import { getCounter } from "$lib/server/counters";
 import { canEditDashboard } from "$lib/server/dashboard-authorize";
 import {
   addDashboardItem,
@@ -69,6 +71,15 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     return exceedsGridResponse(gridColumns);
   }
 
+  const counter = await getCounter(counterId);
+  const canViewCounter =
+    !!counter &&
+    (counter.visibilityMode !== "private" ||
+      (await canViewPrivateCounter(session.user.id, counter.id)));
+  if (!canViewCounter) {
+    throw error(404, "Counter not found");
+  }
+
   const item = await addDashboardItem(
     params.id,
     counterId,
@@ -77,6 +88,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     sizeColumns,
     sizeRows,
   );
+
+  if (!item) {
+    throw error(409, "This dashboard has reached its item limit");
+  }
 
   emitDashboardItemAdded(params.id, item.id);
 
@@ -155,6 +170,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
   }
   const { itemId, sizeColumns, sizeRows } = validation.data;
   const gridColumns = await loadGridColumns(params.id);
+  if (!(await getDashboardItem(params.id, itemId))) {
+    throw error(404, "Dashboard item not found");
+  }
   // Relayout shifts the item left if needed, so only the width is bounded here
   if (sizeColumns > gridColumns) {
     return exceedsGridResponse(gridColumns);
@@ -197,7 +215,7 @@ export const DELETE: RequestHandler = async ({ params, request, locals }) => {
   }
 
   const { itemId } = validation.data;
-  const removed = await removeDashboardItem(itemId);
+  const removed = await removeDashboardItem(params.id, itemId);
   if (!removed) {
     throw error(404, "Dashboard item not found");
   }

@@ -20,10 +20,12 @@ import { POST } from "./+server";
 
 const DASHBOARD_ID = "2f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e";
 
-function makeEvent(userId: string | null) {
+function makeEvent(userId: string | null, search = "") {
   return {
     params: { id: DASHBOARD_ID },
-    url: new URL(`http://localhost/api/dashboards/${DASHBOARD_ID}/follow`),
+    url: new URL(
+      `http://localhost/api/dashboards/${DASHBOARD_ID}/follow${search}`,
+    ),
     locals: {
       auth: vi.fn(async () => (userId ? { user: { id: userId } } : null)),
     },
@@ -81,5 +83,53 @@ describe("POST /api/dashboards/[id]/follow", () => {
 
     expect(response.status).toBe(201);
     expect(mockFollowDashboard).toHaveBeenCalledWith("user-3", DASHBOARD_ID);
+  });
+});
+
+describe("POST /api/dashboards/[id]/follow (private dashboards)", () => {
+  const TOKEN = "private-dash-token";
+
+  beforeEach(() => {
+    mockGetDashboard.mockResolvedValue({
+      id: DASHBOARD_ID,
+      visibilityMode: "private",
+      shareToken: TOKEN,
+      ownerId: "owner-1",
+    });
+    mockGetDashboardAccess.mockResolvedValue(access());
+    mockFollowDashboard.mockResolvedValue(true);
+  });
+
+  it("follows with a valid token and does not echo it back", async () => {
+    const response = await POST(makeEvent("user-3", `?token=${TOKEN}`));
+
+    expect(response.status).toBe(201);
+    expect(JSON.stringify(await response.json())).not.toContain(TOKEN);
+    expect(mockFollowDashboard).toHaveBeenCalledWith("user-3", DASHBOARD_ID);
+  });
+
+  it.each([
+    ["missing", ""],
+    ["empty", "?token="],
+    ["shorter", "?token=private"],
+    ["longer", `?token=${TOKEN}0`],
+    ["wrong", "?token=private-dash-tokem"],
+  ])("rejects a %s token", async (_label, search) => {
+    await expect(POST(makeEvent("user-3", search))).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(mockFollowDashboard).not.toHaveBeenCalled();
+  });
+
+  it("rejects any token when the stored token is null", async () => {
+    mockGetDashboard.mockResolvedValue({
+      id: DASHBOARD_ID,
+      visibilityMode: "private",
+      shareToken: null,
+    });
+
+    await expect(
+      POST(makeEvent("user-3", "?token=null")),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });
