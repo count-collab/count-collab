@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   test-and-build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: ./.github/actions/test-and-build
@@ -34,7 +34,7 @@ jobs:
   #         retention-days: 7
 
   docker-build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: test-and-build
 
     steps:
