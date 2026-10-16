@@ -18,7 +18,6 @@ export const handleError: HandleClientError = async ({
   message,
   status,
 }) => {
-  // Raw error messages can embed URLs with share tokens, so only name and status are sent.
   posthog.capture("client_error", {
     error_name: error instanceof Error ? error.name : "UnknownError",
     status,

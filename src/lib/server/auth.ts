@@ -32,7 +32,6 @@ export const {
 } = SvelteKitAuth({
   adapter,
   providers: [
-    // Email linking is only safe for Google because signIn requires email_verified.
     Google({ allowDangerousEmailAccountLinking: true }),
     Discord,
     Twitch,
