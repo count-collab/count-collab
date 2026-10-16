@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.6.0...count-collab-v0.7.0) (2026-06-30)
+
+
+### Features
+
+* add PostHog configuration to MCP settings for enhanced analytics integration ([f61bd0c](https://github.com/count-collab/count-collab/commit/f61bd0c56bea27a530587a3767fef4602bf0515a))
+* add user and anonymous statistics retrieval for counters ([e795fff](https://github.com/count-collab/count-collab/commit/e795fffdd569c4d72dd4f4a98700b9c4332421ca))
+* change prod port to 3000 ([edf7cde](https://github.com/count-collab/count-collab/commit/edf7cdeaa4dbb6d40f332df9c991755bcff3bf2d))
+* enhance admin statistics page with pagination and URL state management ([ecb0e5d](https://github.com/count-collab/count-collab/commit/ecb0e5de489f0df6c0cdc9fa7bd6e5a91c7a85cf))
+* enhance seedCounters function to include real user ID in history and improve history entry selection logic ([4595f1d](https://github.com/count-collab/count-collab/commit/4595f1d6615f881767b9ff3822c3553a9cffd9a7))
+
+
+### Bug Fixes
+
+* add traefik labels ([49f3fc3](https://github.com/count-collab/count-collab/commit/49f3fc38997de27dc419b090673a7385b37a78a0))
+* canonical urls for counters ([b4bebf0](https://github.com/count-collab/count-collab/commit/b4bebf0905b863377c42b9a6cc45e3f2eec8f38c))
+
 ## [0.6.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.5.0...count-collab-v0.6.0) (2026-05-11)
 
 ### Features
