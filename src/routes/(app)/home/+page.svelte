@@ -5,7 +5,12 @@
   import DashboardCard from "$lib/components/DashboardCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
-  import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
+  import {
+    onCounterCreated,
+    onCounterUpdated,
+    onStatsUpdated,
+  } from "$lib/stores/counters";
+  import { subscribeRoom } from "$lib/stores/socket";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -46,9 +51,19 @@
     heroHeight = heroEl.offsetHeight;
   });
 
+  // Private-counter actions bump the total locally until the next load replaces it
+  let liveActions = $state(0);
+  const globalSum = $derived(data.globalSum + liveActions);
+  $effect(() => {
+    data.globalSum;
+    liveActions = 0;
+  });
+
   $effect(() => {
     if (!browser) return;
 
+    // Own counters arrive through the user room joined at connect time
+    const leaveFeed = subscribeRoom("feed");
     const unsubUpdate = onCounterUpdated(() => {
       invalidate("counters:list");
       invalidate("counters:user");
@@ -58,10 +73,15 @@
       invalidate("counters:list");
       invalidate("counters:user");
     });
+    const unsubStats = onStatsUpdated(() => {
+      liveActions += 1;
+    });
 
     return () => {
       unsubUpdate();
       unsubCreated();
+      unsubStats();
+      leaveFeed();
     };
   });
 </script>
@@ -114,7 +134,7 @@
         <p
           class="text-5xl sm:text-7xl font-extrabold text-blue-600 dark:text-blue-400"
         >
-          <RollingNumber value={data.globalSum} />
+          <RollingNumber value={globalSum} />
         </p>
         <p
           class="text-base text-slate-500 dark:text-slate-400 text-center inline-flex items-center justify-center gap-1 w-full"

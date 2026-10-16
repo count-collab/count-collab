@@ -19,7 +19,6 @@
   } = $props();
 
   interface EventUser {
-    name: string | null;
     username: string | null;
     image: string | null;
   }

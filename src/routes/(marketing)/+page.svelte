@@ -6,14 +6,55 @@
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
   import { faqItems } from "$lib/data/faq";
-  import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
+  import {
+    onCounterCreated,
+    onCounterUpdated,
+    onStatsUpdated,
+  } from "$lib/stores/counters";
+  import { subscribeRoom } from "$lib/stores/socket";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
 
+  const teamHighlights = [
+    {
+      icon: "people-outline",
+      title: "One Team, Everything Shared",
+      description:
+        "Counters and dashboards owned by a team are available to every member automatically.",
+    },
+    {
+      icon: "shield-outline",
+      title: "Roles That Carry Over",
+      description:
+        "Viewer, incrementer, editor, admin, or owner — a member's team role applies to everything the team owns.",
+    },
+    {
+      icon: "share-social-outline",
+      title: "Invite or Share a Link",
+      description:
+        "Invite by username or share a join link with a role you choose. Reset it any time.",
+    },
+    {
+      icon: "lock-closed-outline",
+      title: "Private by Default",
+      description:
+        "Team counters start out private, and team pages are only visible to members.",
+    },
+  ];
+
+  // Private-counter actions bump the total locally until the next load replaces it
+  let liveActions = $state(0);
+  const globalSum = $derived(data.globalSum + liveActions);
+  $effect(() => {
+    data.globalSum;
+    liveActions = 0;
+  });
+
   $effect(() => {
     if (!browser) return;
 
+    const leaveFeed = subscribeRoom("feed");
     const unsubUpdate = onCounterUpdated(() => {
       invalidate("counters:list");
     });
@@ -21,10 +62,15 @@
     const unsubCreated = onCounterCreated(() => {
       invalidate("counters:list");
     });
+    const unsubStats = onStatsUpdated(() => {
+      liveActions += 1;
+    });
 
     return () => {
       unsubUpdate();
       unsubCreated();
+      unsubStats();
+      leaveFeed();
     };
   });
 
@@ -62,7 +108,7 @@
 
 <MetaTags
   title="Count Collab — Free Real-Time Shared Counters for Teams & Friends"
-  description="Create counters, share the link, and count together in real time. Free collaborative counter platform with dashboards, activity history, and member roles. No sign-up required."
+  description="Create counters, share the link, and count together in real time. Free collaborative counter platform with dashboards, teams, activity history, and member roles. No sign-up required."
   path="/"
 />
 
@@ -105,8 +151,8 @@
     >
       Count Collab is a free, real-time collaborative counter platform. Create a
       counter, share the link, and let anyone increment it instantly — no
-      sign-up required. Organize counters into dashboards, track activity
-      history, and collaborate with your team.
+      sign-up required. Organize counters into dashboards, share them with
+      your whole team at once, and track activity history.
     </p>
 
     <!-- Social proof stats -->
@@ -114,7 +160,7 @@
       <p
         class="text-5xl sm:text-7xl font-extrabold text-blue-600 dark:text-blue-400"
       >
-        <RollingNumber value={data.globalSum} />
+        <RollingNumber value={globalSum} />
       </p>
       <p
         class="text-base text-slate-500 dark:text-slate-400 inline-flex items-center gap-1"
@@ -440,10 +486,84 @@
             Member Roles
           </h3>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Invite collaborators as viewer, incrementer, editor, or admin — full
-            access control.
+            Invite collaborators as viewer, incrementer, editor, or admin — per
+            counter or for a whole team.
           </p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEAMS -->
+  <section id="teams" class="px-4 py-20 sm:py-24 max-w-6xl mx-auto">
+    <div
+      class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-50 via-indigo-50 to-white dark:from-blue-950/40 dark:via-indigo-950/30 dark:to-slate-900 border border-blue-200/60 dark:border-blue-800/30 p-8 sm:p-12"
+    >
+      <div
+        class="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-indigo-300/20 dark:bg-indigo-500/10 blur-3xl"
+        aria-hidden="true"
+      ></div>
+      <div class="relative grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <div>
+          <p
+            class="mb-4 inline-block rounded-full bg-blue-100 dark:bg-blue-900 px-4 py-1 text-sm font-medium text-blue-700 dark:text-blue-300 tracking-wide"
+          >
+            New &middot; Teams
+          </p>
+          <h2
+            class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-slate-100"
+          >
+            Share everything at once with Teams
+          </h2>
+          <p
+            class="mt-4 text-lg text-slate-500 dark:text-slate-400 leading-relaxed"
+          >
+            Stop sharing counters one by one. Create a team, invite your people
+            once, and every counter and dashboard the team owns is instantly
+            available to them — with exactly the right permissions.
+          </p>
+          <div class="mt-8 flex flex-wrap gap-4">
+            <a
+              href="/create?type=team"
+              class="group inline-flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-white font-semibold shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+            >
+              Create a Team
+              <span
+                class="inline-block transition-transform group-hover:translate-x-0.5"
+                >&rarr;</span
+              >
+            </a>
+            <a
+              href="/features#teams"
+              class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-7 py-3.5 font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition-all hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+            >
+              Learn More
+            </a>
+          </div>
+        </div>
+        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {#each teamHighlights as highlight (highlight.title)}
+            <li
+              class="p-5 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 shadow-sm"
+            >
+              <div
+                class="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400"
+              >
+                <ion-icon
+                  name={highlight.icon}
+                  style="font-size: 20px;"
+                  aria-hidden="true"
+                ></ion-icon>
+              </div>
+              <h3 class="font-bold text-slate-900 dark:text-slate-100">
+                {highlight.title}
+              </h3>
+              <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                {highlight.description}
+              </p>
+            </li>
+          {/each}
+        </ul>
       </div>
     </div>
   </section>

@@ -4,13 +4,14 @@
   import { page } from "$app/stores";
   import CounterBadges from "$lib/components/CounterBadges.svelte";
   import { counterUrl } from "$lib/counter";
-  import type { Counter, CounterVisibilityMode } from "$lib/db/schema";
+  import type { CounterVisibilityMode, PublicCounter } from "$lib/db/schema";
   import { onCounterUpdated } from "$lib/stores/counters";
+  import { subscribeRoom } from "$lib/stores/socket";
   import RollingNumber from "./RollingNumber.svelte";
   import Sparkline from "./Sparkline.svelte";
 
   type Props = {
-    counter: Counter;
+    counter: PublicCounter & { teamName?: string | null };
     showBadges?: boolean;
     followed?: boolean;
   };
@@ -19,6 +20,9 @@
 
   const userId = $derived($page.data.session?.user?.id);
   const isOwner = $derived(userId != null && counter.ownerId === userId);
+  const ownership = $derived(
+    followed ? null : counter.teamName ? "team" : isOwner ? "owner" : "shared",
+  );
   const visibilityBadgeClasses: Record<CounterVisibilityMode, string> = {
     public:
       "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/60 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-700/60",
@@ -44,7 +48,7 @@
     }, 350);
   }
 
-  function getVisibilityMode(counter: Counter): CounterVisibilityMode {
+  function getVisibilityMode(counter: PublicCounter): CounterVisibilityMode {
     return counter.visibilityMode ?? (counter.isPublic ? "public" : "private");
   }
 
@@ -68,12 +72,17 @@
   $effect(() => {
     if (!browser) return;
 
+    // Room membership is what delivers the incrementer name for this card
+    const leaveRoom = subscribeRoom("counter", counter.id);
     const unsubscribe = onCounterUpdated((payload) => {
       if (payload.counterId !== counter.id) return;
       showLastAction(payload.username, payload.amount);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      leaveRoom();
+    };
   });
 </script>
 
@@ -124,7 +133,8 @@
       {#if showBadges}
         <CounterBadges
           {visibilityMode}
-          ownership={followed ? null : isOwner ? "owner" : "shared"}
+          {ownership}
+          teamName={counter.teamName}
           containerClass="flex gap-1.5"
           visibilityBadgeBaseClass="text-xs font-medium px-2 py-0.5 rounded-full"
           {visibilityBadgeClasses}

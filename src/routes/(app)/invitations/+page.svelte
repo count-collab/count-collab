@@ -54,10 +54,7 @@ import { invalidate, invalidateAll } from "$app/navigation";
     loadingIds = new Set(loadingIds);
 
     try {
-      const endpoint =
-        invitation.type === "counter"
-          ? `/api/invitations/counter/${invitation.resourceId}`
-          : `/api/invitations/dashboard/${invitation.resourceId}`;
+      const endpoint = `/api/invitations/${invitation.type}/${invitation.resourceId}`;
 
       const res = await fetch(endpoint, { method: "POST" });
       if (!res.ok) throw new Error("Failed to accept invitation");
@@ -80,10 +77,7 @@ import { invalidate, invalidateAll } from "$app/navigation";
     loadingIds = new Set(loadingIds);
 
     try {
-      const endpoint =
-        invitation.type === "counter"
-          ? `/api/invitations/counter/${invitation.resourceId}`
-          : `/api/invitations/dashboard/${invitation.resourceId}`;
+      const endpoint = `/api/invitations/${invitation.type}/${invitation.resourceId}`;
 
       const res = await fetch(endpoint, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to decline invitation");
@@ -140,12 +134,16 @@ import { invalidate, invalidateAll } from "$app/navigation";
               class="flex items-center justify-center w-10 h-10 rounded-lg shrink-0 {invitation.type ===
               'counter'
                 ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}"
+                : invitation.type === 'team'
+                  ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}"
             >
               <ion-icon
                 name={invitation.type === "counter"
                   ? "trending-up-outline"
-                  : "grid-outline"}
+                  : invitation.type === "team"
+                    ? "people-outline"
+                    : "grid-outline"}
                 style="font-size: 20px;"
               ></ion-icon>
             </div>

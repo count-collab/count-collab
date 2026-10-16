@@ -6,6 +6,7 @@
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
   import { onCounterCreated, onCounterUpdated } from "$lib/stores/counters";
+  import { subscribeRoom } from "$lib/stores/socket";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
@@ -108,6 +109,7 @@
   $effect(() => {
     if (!browser) return;
 
+    const leaveFeed = subscribeRoom("feed");
     const unsubUpdate = onCounterUpdated(() => {
       invalidate("counters:list");
     });
@@ -119,6 +121,7 @@
     return () => {
       unsubUpdate();
       unsubCreated();
+      leaveFeed();
     };
   });
 </script>

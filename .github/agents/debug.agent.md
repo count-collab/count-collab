@@ -31,6 +31,10 @@ You are a visual debugging specialist for the Count Collab project. Your job is 
    - `/dashboards` — Browse public dashboards
    - `/d/[id]` — Individual dashboard page
    - `/my-counters` — User's own counters (requires auth)
+   - `/my/teams` — User's teams (requires auth)
+   - `/t/[id]` — Team page (members only, else 404)
+   - `/t/[id]/join?token=` — Join team via link
+   - `/admin/teams` — Admin team management
    - `/settings` — User settings (requires auth)
    - `/login` — Login page
    - `/admin` — Admin dashboard (requires admin role)

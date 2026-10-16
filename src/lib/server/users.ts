@@ -1,10 +1,12 @@
 import {
   type AnyColumn,
+  and,
   asc,
   count as countFn,
   desc,
   eq,
   ilike,
+  isNull,
   or,
   sql,
 } from "drizzle-orm";
@@ -15,9 +17,14 @@ import {
   counters,
   dashboards,
   roles,
+  teamMembers,
+  teams,
   users,
 } from "$lib/db/schema";
 import { logEvent } from "$lib/server/events";
+import { SoleTeamOwnerError } from "$lib/server/team-limits";
+import { deleteTeamInTx, getSoleOwnedTeams } from "$lib/server/teams";
+import { emitTeamMembershipChanged } from "$lib/utils/socket";
 
 function escapeLikePattern(input: string): string {
   return input.replace(/[%_\\]/g, "\\$&");
@@ -25,7 +32,6 @@ function escapeLikePattern(input: string): string {
 
 type UserWithRole = {
   id: string;
-  name: string | null;
   email: string | null;
   image: string | null;
   username: string | null;
@@ -48,7 +54,6 @@ export async function listUsers(
   const whereClause = searchQuery
     ? or(
         ilike(users.username, `%${escapeLikePattern(searchQuery)}%`),
-        ilike(users.name, `%${escapeLikePattern(searchQuery)}%`),
         ilike(users.email, `%${escapeLikePattern(searchQuery)}%`),
       )
     : undefined;
@@ -70,7 +75,6 @@ export async function listUsers(
     db
       .select({
         id: users.id,
-        name: users.name,
         email: users.email,
         image: users.image,
         username: users.username,
@@ -107,37 +111,101 @@ export async function updateUserRole(
 }
 
 /**
- * Delete a user and cascade their data.
+ * Delete a user and cascade their data in one transaction.
+ * Teams where the user is the only owner are deleted only when nobody else is in them;
+ * otherwise throws SoleTeamOwnerError and nothing is changed.
  */
 export async function deleteUser(
   userId: string,
   deletedByUserId?: string | null,
 ): Promise<boolean> {
-  // Fetch user info before deletion for event logging
-  const [existing] = await db
-    .select({ name: users.name, username: users.username, email: users.email })
-    .from(users)
-    .where(eq(users.id, userId));
+  const outcome = await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ username: users.username, email: users.email })
+      .from(users)
+      .where(eq(users.id, userId));
 
-  // Delete all counters owned by this user (cascades to counter_history and counter_members)
-  await db.delete(counters).where(eq(counters.ownerId, userId));
+    // Held owner rows serialize with concurrent role changes and removals in those teams
+    await tx
+      .select({ id: teamMembers.id })
+      .from(teamMembers)
+      .where(and(eq(teamMembers.userId, userId), eq(teamMembers.role, "owner")))
+      .for("update");
 
-  const result = await db.delete(users).where(eq(users.id, userId)).returning();
+    let soleOwnedTeams = await getSoleOwnedTeams(userId, tx);
+    if (soleOwnedTeams.length > 0) {
+      // Lock first, then re-read, so a join that is mid-commit is counted
+      for (const team of soleOwnedTeams) {
+        await tx
+          .select({ id: teams.id })
+          .from(teams)
+          // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+          .where(eq(teams.id, team.id as any))
+          .for("update");
+      }
+      soleOwnedTeams = await getSoleOwnedTeams(userId, tx);
+    }
 
-  if (result.length > 0) {
+    const blocking = soleOwnedTeams.filter((team) => team.memberCount > 1);
+    if (blocking.length > 0) {
+      throw new SoleTeamOwnerError(
+        blocking.map(({ id, name, memberCount }) => ({ id, name, memberCount })),
+      );
+    }
+
+    // Only the user is left in these teams, so nobody else loses data
+    const deletedTeams: { teamId: string; remainingMemberIds: string[] }[] = [];
+    for (const team of soleOwnedTeams) {
+      const deleted = await deleteTeamInTx(
+        tx,
+        team.id,
+        deletedByUserId ?? userId,
+      );
+      if (deleted.deleted) {
+        deletedTeams.push({
+          teamId: team.id,
+          remainingMemberIds: deleted.memberIds.filter((id) => id !== userId),
+        });
+      }
+    }
+
+    // Personal resources only; team resources survive with ownerId set null by the FK
+    await tx
+      .delete(dashboards)
+      .where(and(eq(dashboards.ownerId, userId), isNull(dashboards.teamId)));
+    await tx
+      .delete(counters)
+      .where(and(eq(counters.ownerId, userId), isNull(counters.teamId)));
+
+    const result = await tx
+      .delete(users)
+      .where(eq(users.id, userId))
+      .returning();
+
+    return { deleted: result.length > 0, existing, deletedTeams };
+  });
+
+  for (const { teamId, remainingMemberIds } of outcome.deletedTeams) {
+    emitTeamMembershipChanged(remainingMemberIds, {
+      teamId,
+      reason: "team_deleted",
+    });
+  }
+
+  if (outcome.deleted) {
     logEvent({
       eventType: "user_deleted",
       userId: deletedByUserId ?? userId,
       entityId: userId,
       entityType: "user",
       metadata: {
-        user_name: existing?.username ?? existing?.name ?? null,
-        email: existing?.email ?? null,
+        user_name: outcome.existing?.username ?? null,
+        email: outcome.existing?.email ?? null,
       },
     });
   }
 
-  return result.length > 0;
+  return outcome.deleted;
 }
 
 /**
@@ -145,7 +213,7 @@ export async function deleteUser(
  */
 export async function getUserByUsername(username: string) {
   const [user] = await db
-    .select()
+    .select({ id: users.id, username: users.username })
     .from(users)
     .where(eq(users.username, username));
   return user ?? null;
@@ -184,6 +252,7 @@ export async function getAdminStats(): Promise<{
   userCount: number;
   counterCount: number;
   dashboardCount: number;
+  teamCount: number;
 }> {
   const [userRow] = await db
     .select({ count: sql<number>`count(*)::int` })
@@ -194,11 +263,15 @@ export async function getAdminStats(): Promise<{
   const [dashboardRow] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(dashboards);
+  const [teamRow] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(teams);
 
   return {
     userCount: userRow?.count ?? 0,
     counterCount: counterRow?.count ?? 0,
     dashboardCount: dashboardRow?.count ?? 0,
+    teamCount: teamRow?.count ?? 0,
   };
 }
 
@@ -245,7 +318,6 @@ export async function getUserDetail(
   const [user] = await db
     .select({
       id: users.id,
-      name: users.name,
       email: users.email,
       image: users.image,
       username: users.username,

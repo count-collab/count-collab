@@ -25,6 +25,7 @@ async function cleanupInactiveCounters() {
       .where(
         and(
           isNull(counters.ownerId),
+          isNull(counters.teamId),
           ne(counters.visibilityMode, "private"),
           lt(
             counters.lastActivityAt,

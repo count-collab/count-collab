@@ -92,6 +92,27 @@
       "when": 1778368711738,
       "tag": "0012_icy_nocturne",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1791301463007,
+      "tag": "0013_teams",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1791391104858,
+      "tag": "0014_dashboard_grid_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1791400000000,
+      "tag": "0015_backfill_team_admin_permissions",
+      "breakpoints": true
     }
   ]
 }

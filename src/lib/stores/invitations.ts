@@ -3,7 +3,7 @@ import { getSocket } from "./socket";
 
 export type InvitationPayload = {
   userId: string;
-  type: "counter" | "dashboard";
+  type: "counter" | "dashboard" | "team";
   entityId: string;
   entityTitle: string;
   role: string;

@@ -14,7 +14,7 @@ You are a database specialist for the Count Collab project. Your job is to write
 - **Config**: `drizzle.config.ts` at project root
 - **Connection**: `src/lib/db/index.ts` — uses `DATABASE_URL` env var
 - **Runtime**: Bun
-- **Server logic**: `src/lib/server/counters.ts`, `members.ts`, `users.ts`, `permissions.ts`, `dashboards.ts`, `dashboard-items.ts`, `dashboard-authorize.ts`, `followers.ts`, `grid-relayout.ts`, `cache.ts`, `crypto.ts`
+- **Server logic**: `src/lib/server/counters.ts`, `members.ts`, `users.ts`, `permissions.ts`, `dashboards.ts`, `dashboard-items.ts`, `dashboard-authorize.ts`, `followers.ts`, `grid-relayout.ts`, `cache.ts`, `crypto.ts`, `teams.ts`, `team-members.ts`, `team-authorize.ts`, `transfer.ts`, `invitations.ts`
 - **Seed scripts**: `scripts/seed-counters.ts`, `scripts/seed-roles.ts`
 - **Utility scripts**: `scripts/backfill-share-tokens.ts`, `scripts/delete-counters.ts`, `scripts/promote-admin.ts`, `scripts/cleanup-inactive-counters.ts`
 
@@ -46,6 +46,14 @@ You are a database specialist for the Count Collab project. Your job is to write
 - `dashboardItems` — dashboardId + counterId, positionX/Y, sizeColumns/Rows
 - `dashboardMembers` — dashboardId + userId (unique index), role (viewer/editor/admin), invitedAt
 - `dashboardFollowers` — dashboardId + userId (unique index), followedAt
+
+### Team Tables
+
+- `teams` — id (UUID), name, description, joinToken (unique, null = link disabled), joinRole (viewer/incrementer/editor), createdBy FK, timestamps
+- `teamMembers` — teamId + userId (unique index), role (viewer/incrementer/editor/admin/owner), joinedAt
+- `teamInvitations` — teamId + userId (unique index), invitedBy, role, createdAt
+- `counters.teamId` / `dashboards.teamId` — nullable FK → teams, `ON DELETE RESTRICT` (team deletion is app-level in `deleteTeam()`)
+- Personal ownership = `ownerId = user AND teamId IS NULL` (team resources keep `ownerId` as creator only)
 
 ## Constraints
 

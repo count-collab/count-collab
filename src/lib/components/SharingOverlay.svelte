@@ -1,12 +1,16 @@
 <script lang="ts">
-  import { fade } from "svelte/transition";
+  import FullscreenOverlay from "$lib/components/FullscreenOverlay.svelte";
+  import RoleDialog from "$lib/components/RoleDialog.svelte";
+  import {
+    counterRoleDescriptions,
+    dashboardRoleDescriptions,
+  } from "$lib/roles";
 
   type Member = {
     id: number;
     userId: string;
     role: string;
     username: string | null;
-    name: string | null;
     image: string | null;
   };
 
@@ -15,7 +19,6 @@
     userId: string;
     role: string;
     username: string | null;
-    name: string | null;
     image: string | null;
     inviterUsername: string | null;
     createdAt: string | Date;
@@ -32,8 +35,10 @@
     members: Member[];
     invitations: Invitation[];
     canManage: boolean;
-    isMember: boolean;
+    isDirectMember: boolean;
     currentUserId: string | null;
+    team?: { id: string; name: string } | null;
+    teamLinked?: boolean;
     onupdate: () => void;
   };
 
@@ -48,8 +53,10 @@
     members,
     invitations,
     canManage,
-    isMember,
+    isDirectMember,
     currentUserId,
+    team = null,
+    teamLinked = false,
     onupdate,
   }: Props = $props();
 
@@ -74,6 +81,39 @@
   function getRoleLabel(role: string): string {
     const found = roleOptions.find((r) => r.value === role);
     return found?.label ?? role;
+  }
+
+  const roleDescriptions: Record<string, string> = $derived(
+    type === "counter" ? counterRoleDescriptions : dashboardRoleDescriptions,
+  );
+  const roleDialogRoles = $derived(
+    roleOptions.map((r) => ({
+      ...r,
+      description: roleDescriptions[r.value] ?? "",
+    })),
+  );
+
+  let showRoleDialog = $state(false);
+  let roleDialogMember = $state<{
+    kind: "member" | "invitation";
+    userId: string;
+    username: string;
+    role: string;
+  } | null>(null);
+  let roleDialogError = $state<string | null>(null);
+
+  function openRoleDialog(
+    kind: "member" | "invitation",
+    person: Member | Invitation,
+  ) {
+    roleDialogMember = {
+      kind,
+      userId: person.userId,
+      username: person.username ?? "Unknown",
+      role: person.role,
+    };
+    roleDialogError = null;
+    showRoleDialog = true;
   }
 
   // Copy link state
@@ -126,7 +166,11 @@
   }
 
   // Invitation management
-  async function handleUpdateInvitationRole(userId: string, role: string) {
+  async function handleUpdateInvitationRole(
+    userId: string,
+    role: string,
+  ): Promise<boolean> {
+    roleDialogError = null;
     try {
       const response = await fetch(
         `/${typePrefix}/${entityId}/invitations/${userId}`,
@@ -136,11 +180,16 @@
           body: JSON.stringify({ role }),
         },
       );
-      if (response.ok) {
-        onupdate();
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        roleDialogError = body.error ?? "Failed to update role.";
+        return false;
       }
+      onupdate();
+      return true;
     } catch {
-      // silently fail
+      roleDialogError = "Network error. Please try again.";
+      return false;
     }
   }
 
@@ -161,7 +210,11 @@
   }
 
   // Member management
-  async function handleUpdateMemberRole(userId: string, role: string) {
+  async function handleUpdateMemberRole(
+    userId: string,
+    role: string,
+  ): Promise<boolean> {
+    roleDialogError = null;
     try {
       const response = await fetch(
         `/${typePrefix}/${entityId}/members/${userId}`,
@@ -171,11 +224,16 @@
           body: JSON.stringify({ role }),
         },
       );
-      if (response.ok) {
-        onupdate();
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        roleDialogError = body.error ?? "Failed to update role.";
+        return false;
       }
+      onupdate();
+      return true;
     } catch {
-      // silently fail
+      roleDialogError = "Network error. Please try again.";
+      return false;
     }
   }
 
@@ -230,16 +288,6 @@
     open = false;
   }
 
-  // Body scroll lock
-  $effect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
-  });
-
   const visibilityBadgeClasses: Record<string, string> = {
     public:
       "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -256,40 +304,12 @@
   };
 </script>
 
-<svelte:window
-  onkeydown={(e) => {
-    if (open && e.key === "Escape") close();
-  }}
-/>
-
-{#if open}
-  <div
-    class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-slate-900"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Sharing"
-    transition:fade={{ duration: 150 }}
-  >
-    <!-- Header bar -->
-    <div
-      class="flex items-center justify-between px-4 py-4 border-b border-slate-200 dark:border-slate-700"
-    >
-      <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
-        Sharing
-      </h2>
-      <button
-        type="button"
-        onclick={close}
-        class="p-1.5 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-        aria-label="Close"
-      >
-        <ion-icon name="close-outline" style="font-size: 24px;"></ion-icon>
-      </button>
-    </div>
-
-    <!-- Scrollable content -->
-    <div class="flex-1 overflow-y-auto pb-24">
-      <div class="max-w-2xl mx-auto px-4 py-6 space-y-8">
+<FullscreenOverlay
+  bind:open
+  title="Sharing"
+  onclose={close}
+  footer={canManage ? doneFooter : undefined}
+>
         <!-- Section 1: Shareable Link -->
         <section class="space-y-4">
           <h3 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -440,37 +460,47 @@
                       <p
                         class="text-sm font-medium text-slate-900 dark:text-slate-100"
                       >
-                        {invitation.username ?? invitation.name ?? "Unknown"}
+                        {invitation.username ?? "Unknown"}
                       </p>
-                      {#if invitation.inviterUsername}
-                        <p class="text-xs text-slate-400 dark:text-slate-500">
-                          Invited by @{invitation.inviterUsername}
-                        </p>
-                      {/if}
+                      <p class="text-xs text-slate-400 dark:text-slate-500">
+                        {#if invitation.inviterUsername}
+                          Invited by @{invitation.inviterUsername}<span
+                            aria-hidden="true"
+                            class="mx-1">·</span
+                          >
+                        {/if}{getRoleLabel(invitation.role)}
+                      </p>
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
-                    <select
-                      value={invitation.role}
-                      onchange={(e) =>
-                        handleUpdateInvitationRole(
-                          invitation.userId,
-                          e.currentTarget.value,
-                        )}
-                      class="h-9 rounded-md border border-slate-300 px-3 text-sm bg-white text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400"
+                    <button
+                      type="button"
+                      onclick={() => openRoleDialog("invitation", invitation)}
+                      class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-colors"
+                      aria-label="Edit role for invitation to {invitation.username ??
+                        'user'}"
+                      title="Edit role for invitation to {invitation.username ??
+                        'user'}"
                     >
-                      {#each roleOptions as opt}
-                        <option value={opt.value}>{opt.label}</option>
-                      {/each}
-                    </select>
+                      <ion-icon
+                        name="pencil"
+                        class="block"
+                        style="font-size: 18px;"
+                        aria-hidden="true"
+                      ></ion-icon>
+                    </button>
                     <button
                       type="button"
                       onclick={() => handleRevokeInvitation(invitation.userId)}
-                      class="p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      class="inline-flex items-center justify-center p-1.5 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                       aria-label="Revoke invitation for {invitation.username ??
                         'user'}"
                     >
-                      <ion-icon name="close-outline" style="font-size: 18px;"
+                      <ion-icon
+                        name="close-outline"
+                        class="block"
+                        style="font-size: 18px;"
+                        aria-hidden="true"
                       ></ion-icon>
                     </button>
                   </div>
@@ -488,6 +518,30 @@
             >
               Members
             </h3>
+            {#if team}
+              <div
+                class="flex items-center gap-3 rounded-lg bg-slate-50 dark:bg-slate-800 px-3 py-3"
+              >
+                <div
+                  class="w-8 h-8 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                >
+                  <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+                </div>
+                <p class="text-sm text-slate-700 dark:text-slate-300">
+                  Members of
+                  {#if teamLinked}
+                    <a
+                      href="/t/{team.id}"
+                      class="font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                      >{team.name}</a
+                    >
+                  {:else}
+                    <span class="font-medium">{team.name}</span>
+                  {/if}
+                  have access via their team role
+                </p>
+              </div>
+            {/if}
             {#if members.length > 0}
               <ul class="divide-y divide-slate-200 dark:divide-slate-700">
                 {#each members as member (member.id)}
@@ -506,33 +560,48 @@
                           {(member.username ?? "?")[0]}
                         </div>
                       {/if}
-                      <p
-                        class="text-sm font-medium text-slate-900 dark:text-slate-100"
-                      >
-                        {member.username ?? member.name ?? "Unknown"}
-                      </p>
+                      <div>
+                        <p
+                          class="text-sm font-medium text-slate-900 dark:text-slate-100"
+                        >
+                          {member.username ?? "Unknown"}
+                        </p>
+                        {#if canManage}
+                          <p class="text-xs text-slate-400 dark:text-slate-500">
+                            {getRoleLabel(member.role)}
+                          </p>
+                        {/if}
+                      </div>
                     </div>
                     <div class="flex items-center gap-2">
                       {#if canManage}
-                        <select
-                          value={member.role}
-                          onchange={(e) =>
-                            handleUpdateMemberRole(
-                              member.userId,
-                              e.currentTarget.value,
-                            )}
-                          class="h-9 rounded-md border border-slate-300 px-3 text-sm bg-white text-slate-900 focus:border-blue-500 focus:outline-none dark:bg-slate-700 dark:text-slate-100 dark:border-slate-600 dark:focus:border-blue-400"
+                        <button
+                          type="button"
+                          onclick={() => openRoleDialog("member", member)}
+                          class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 dark:text-slate-500 dark:hover:text-blue-400 dark:hover:bg-slate-800 transition-colors"
+                          aria-label="Edit role for {member.username ?? 'user'}"
+                          title="Edit role for {member.username ?? 'user'}"
                         >
-                          {#each roleOptions as opt}
-                            <option value={opt.value}>{opt.label}</option>
-                          {/each}
-                        </select>
+                          <ion-icon
+                            name="pencil"
+                            class="block"
+                            style="font-size: 18px;"
+                            aria-hidden="true"
+                          ></ion-icon>
+                        </button>
                         <button
                           type="button"
                           onclick={() => handleRemoveMember(member.userId)}
-                          class="text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                          class="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:text-slate-500 dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+                          aria-label="Remove {member.username ?? 'user'}"
+                          title="Remove {member.username ?? 'user'}"
                         >
-                          Remove
+                          <ion-icon
+                            name="trash-outline"
+                            class="block"
+                            style="font-size: 18px;"
+                            aria-hidden="true"
+                          ></ion-icon>
                         </button>
                       {:else}
                         <span
@@ -545,7 +614,7 @@
                   </li>
                 {/each}
               </ul>
-            {:else}
+            {:else if !team}
               <p class="text-sm text-slate-500 dark:text-slate-400">
                 No members yet.
               </p>
@@ -554,7 +623,7 @@
         {/if}
 
         <!-- Section 5: Leave -->
-        {#if isMember && !canManage}
+        {#if isDirectMember && !canManage}
           <section class="space-y-4">
             {#if showLeaveConfirm}
               <div
@@ -593,24 +662,31 @@
             {/if}
           </section>
         {/if}
-      </div>
-    </div>
+</FullscreenOverlay>
 
-    <!-- Fixed bottom bar -->
-    {#if canManage}
-      <div
-        class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3"
-      >
-        <div class="max-w-2xl mx-auto flex items-center justify-end">
-          <button
-            type="button"
-            onclick={close}
-            class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
-          >
-            Done
-          </button>
-        </div>
-      </div>
-    {/if}
-  </div>
+{#if roleDialogMember}
+  {@const target = roleDialogMember}
+  <RoleDialog
+    bind:open={showRoleDialog}
+    title="Change role for {target.username}"
+    currentRole={target.role}
+    roles={roleDialogRoles}
+    error={roleDialogError}
+    onselect={(role) =>
+      target.kind === "invitation"
+        ? handleUpdateInvitationRole(target.userId, role)
+        : handleUpdateMemberRole(target.userId, role)}
+  />
 {/if}
+
+{#snippet doneFooter()}
+  <div class="flex items-center justify-end">
+    <button
+      type="button"
+      onclick={close}
+      class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+    >
+      Done
+    </button>
+  </div>
+{/snippet}

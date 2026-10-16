@@ -2,7 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { counterGoals } from "$lib/db/schema";
-import { canEditCounter } from "$lib/server/authorize";
+import { canEditCounter, canViewPrivateCounter } from "$lib/server/authorize";
 import { getCounter } from "$lib/server/counters";
 import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
@@ -10,7 +10,7 @@ import { parseAndValidateBody } from "$lib/server/request";
 import { counterIdSchema, createGoalSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
   const idValidation = counterIdSchema.safeParse(params.id);
   if (!idValidation.success) {
     throw error(400, "Invalid counter ID format");
@@ -19,6 +19,14 @@ export const GET: RequestHandler = async ({ params }) => {
   const counter = await getCounter(params.id);
   if (!counter) {
     throw error(404, "Counter not found");
+  }
+
+  if (counter.visibilityMode === "private") {
+    const session = await locals.auth();
+    const userId = session?.user?.id;
+    if (!userId || !(await canViewPrivateCounter(userId, counter.id))) {
+      throw error(404, "Counter not found");
+    }
   }
 
   const goals = await db
@@ -79,7 +87,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         counter_id: params.id,
         goal_amount: amount,
         goal_description: description,
-        user_name: session.user.username ?? session.user.name ?? null,
+        user_name: session.user.username ?? null,
       },
     });
     return json(goal, { status: 201 });

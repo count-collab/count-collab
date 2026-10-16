@@ -20,6 +20,20 @@ The hook is located at `.githooks/pre-commit` and is automatically configured vi
 
 **Note:** The hook is already configured when you clone the repository. No additional setup is needed unless you're setting up on a new machine or updating the hook configuration.
 
+### Reverse proxy / environment
+
+Rate limiting keys on `event.getClientAddress()`; raw `X-Forwarded-For` is never read by app code. adapter-node resolves the address from the socket unless told which proxy headers to trust, so behind a proxy configure:
+
+| Variable          | Why                                                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ORIGIN`          | Public URL (e.g. `https://example.com`). Used for the CSRF origin check and URL building. Required in production.                         |
+| `PROTOCOL_HEADER` | Optional. Header with the original protocol (e.g. `x-forwarded-proto`) when `ORIGIN` is not set.                                          |
+| `HOST_HEADER`     | Optional. Header with the original host (e.g. `x-forwarded-host`) when `ORIGIN` is not set.                                               |
+| `ADDRESS_HEADER`  | Header the proxy sets with the client IP (e.g. `x-forwarded-for`). Without it every user behind the proxy shares one rate-limit bucket.   |
+| `XFF_DEPTH`       | Number of trusted proxies in front of the app when `ADDRESS_HEADER` is `x-forwarded-for`. The address is taken that many hops from the right, so spoofed left-hand entries are ignored. |
+
+Only set `ADDRESS_HEADER` if the app is reachable exclusively through a proxy that overwrites or appends that header; otherwise clients can spoof it. The deploy action writes `ORIGIN` and, via the optional `address-header` / `xff-depth` inputs, `ADDRESS_HEADER` and `XFF_DEPTH`.
+
 ## Database
 
 ### Database Setup

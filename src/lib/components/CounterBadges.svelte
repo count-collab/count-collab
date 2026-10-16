@@ -1,11 +1,12 @@
 <script lang="ts">
   import type { CounterVisibilityMode } from "$lib/db/schema";
 
-  type BadgeOwnership = "owner" | "shared" | null;
+  type BadgeOwnership = "owner" | "shared" | "team" | null;
 
   type Props = {
     visibilityMode: CounterVisibilityMode;
     ownership?: BadgeOwnership;
+    teamName?: string | null;
     containerClass?: string;
     visibilityBadgeBaseClass?: string;
     visibilityLabels?: Record<CounterVisibilityMode, string>;
@@ -17,6 +18,7 @@
   const {
     visibilityMode,
     ownership = null,
+    teamName = null,
     containerClass = "flex flex-wrap items-center gap-2",
     visibilityBadgeBaseClass = "text-xs px-2 py-0.5 rounded-full",
     visibilityLabels = {
@@ -53,6 +55,12 @@
 
   {#if ownership === "owner"}
     <span class={ownerBadgeClass}>Owner</span>
+  {:else if ownership === "team" && teamName}
+    <span class="{sharedBadgeClass} inline-flex items-center gap-1">
+      <ion-icon name="people-outline" aria-hidden="true"></ion-icon>
+      <span class="sr-only">Team:</span>
+      {teamName}
+    </span>
   {:else if ownership === "shared"}
     <span class={sharedBadgeClass}>Shared</span>
   {/if}

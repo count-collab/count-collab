@@ -1,15 +1,18 @@
 import { and, count as countFn, eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import {
-  type Counter,
   counterFollowers,
   counters,
-  type Dashboard,
   dashboardFollowers,
   dashboards,
+  type PublicCounter,
+  type PublicDashboard,
 } from "$lib/db/schema";
 import { logEvent } from "$lib/server/events";
 import { logger } from "$lib/server/logger";
+
+// Lets callers run follower removal inside their own transaction
+type Executor = Pick<typeof db, "delete">;
 
 // ── Counter Followers ───────────────────────────────────────────
 
@@ -94,7 +97,22 @@ export async function getCounterFollowerCount(
   return row?.count ?? 0;
 }
 
-export async function getFollowedCounters(userId: string): Promise<Counter[]> {
+/** Remove every follower of a counter and return how many were removed. */
+export async function removeCounterFollowers(
+  counterId: string,
+  executor: Executor = db,
+): Promise<number> {
+  const removed = await executor
+    .delete(counterFollowers)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    .where(eq(counterFollowers.counterId, counterId as any))
+    .returning({ id: counterFollowers.id });
+  return removed.length;
+}
+
+export async function getFollowedCounters(
+  userId: string,
+): Promise<PublicCounter[]> {
   const rows = await db
     .select({
       id: counters.id,
@@ -103,7 +121,6 @@ export async function getFollowedCounters(userId: string): Promise<Counter[]> {
       count: counters.count,
       isPublic: counters.isPublic,
       visibilityMode: counters.visibilityMode,
-      shareToken: counters.shareToken,
       ownerId: counters.ownerId,
       createdAt: counters.createdAt,
       updatedAt: counters.updatedAt,
@@ -113,7 +130,7 @@ export async function getFollowedCounters(userId: string): Promise<Counter[]> {
     .where(eq(counterFollowers.userId, userId))
     .orderBy(counterFollowers.followedAt);
 
-  return rows as Counter[];
+  return rows as PublicCounter[];
 }
 
 // ── Dashboard Followers ─────────────────────────────────────────
@@ -199,16 +216,28 @@ export async function getDashboardFollowerCount(
   return row?.count ?? 0;
 }
 
+/** Remove every follower of a dashboard and return how many were removed. */
+export async function removeDashboardFollowers(
+  dashboardId: string,
+  executor: Executor = db,
+): Promise<number> {
+  const removed = await executor
+    .delete(dashboardFollowers)
+    // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch
+    .where(eq(dashboardFollowers.dashboardId, dashboardId as any))
+    .returning({ id: dashboardFollowers.id });
+  return removed.length;
+}
+
 export async function getFollowedDashboards(
   userId: string,
-): Promise<Dashboard[]> {
+): Promise<PublicDashboard[]> {
   const rows = await db
     .select({
       id: dashboards.id,
       title: dashboards.title,
       description: dashboards.description,
       visibilityMode: dashboards.visibilityMode,
-      shareToken: dashboards.shareToken,
       ownerId: dashboards.ownerId,
       createdAt: dashboards.createdAt,
       updatedAt: dashboards.updatedAt,
@@ -218,5 +247,5 @@ export async function getFollowedDashboards(
     .where(eq(dashboardFollowers.userId, userId))
     .orderBy(dashboardFollowers.followedAt);
 
-  return rows as Dashboard[];
+  return rows as PublicDashboard[];
 }

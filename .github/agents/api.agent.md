@@ -15,6 +15,8 @@ You are an API specialist for the Count Collab SvelteKit project. Your job is to
 - **Logging**: Structured logger at `src/lib/server/logger.ts`
 - **Authorization**: `src/lib/server/authorize.ts` for counter-level permission checks
 - **Dashboard Authorization**: `src/lib/server/dashboard-authorize.ts` for dashboard-level permission checks
+- **Team Authorization**: `src/lib/server/team-authorize.ts` (team roles) + `src/lib/roles.ts` (`canAssignTeamRole`, role mapping). Team-owned resources: see `docs/teams.md`
+- **Team logic**: `src/lib/server/teams.ts`, `team-members.ts`, `transfer.ts`, team invitations in `invitations.ts` (all return `{ ok, status, message }` results)
 - **Server utilities**: `src/lib/server/request.ts` for request helpers
 
 ## Route Structure
@@ -23,15 +25,23 @@ You are an API specialist for the Count Collab SvelteKit project. Your job is to
 src/routes/
 ├── +page.server.ts           # Landing page (public counters)
 ├── api/
-│   ├── counters/              # Counter creation (POST) + [id]/ CRUD
+│   ├── counters/              # Counter creation (POST, optional teamId) + [id]/ CRUD
 │   │   ├── [id]/              # Counter CRUD (GET/PATCH/DELETE)
 │   │   │   ├── follow/        # Counter follow/unfollow
-│   │   │   └── sparkline/     # Counter sparkline data
-│   ├── dashboards/            # Dashboard creation (POST)
+│   │   │   ├── sparkline/     # Counter sparkline data
+│   │   │   └── transfer/      # Move counter to/from a team
+│   ├── dashboards/            # Dashboard creation (POST, optional teamId)
 │   │   └── [id]/              # Dashboard CRUD
 │   │       ├── follow/        # Dashboard follow/unfollow
 │   │       ├── items/         # Dashboard item management
-│   │       └── search-counters/ # Counter search for dashboard
+│   │       ├── search-counters/ # Counter search for dashboard (?q, ?scope=all|mine|others, ?limit)
+│   │       └── transfer/      # Move dashboard (+ owned counters) to/from a team
+│   ├── teams/                 # GET own teams / POST create team
+│   │   └── [id]/              # GET/PATCH/DELETE team (DELETE needs confirmName)
+│   │       ├── join/          # POST join via token
+│   │       └── join-link/     # POST enable/rotate, PATCH role, DELETE disable
+│   ├── invitations/           # Pending invitations (counter/dashboard/team)
+│   │   └── team/[teamId]/     # Accept / decline team invitation
 │   ├── og/[id]/               # Open Graph image generation
 │   ├── username/check/        # Username availability
 │   └── version/               # Build version
@@ -44,8 +54,16 @@ src/routes/
 ├── d/[id]/                   # Dashboard detail page
 │   └── members/               # Dashboard member management
 ├── dashboards/               # Browse public dashboards
+├── t/[id]/
+│   ├── [[slug]]/+page.server.ts # Team page (members only, else 404)
+│   ├── join/                  # Join via link page
+│   ├── members/               # Team members (GET list, POST invite)
+│   │   └── [userId]/          # PATCH role / DELETE remove or leave
+│   └── invitations/[userId]/  # PATCH role / DELETE cancel invite
+├── my/teams/                 # User's teams
 ├── admin/                    # Admin dashboard & management
 │   ├── counters/              # Admin counter management
+│   ├── teams/                 # Admin team management
 │   └── users/[userId]/        # Admin user management
 ├── login/                    # Auth login page
 ├── my-counters/              # User's counters

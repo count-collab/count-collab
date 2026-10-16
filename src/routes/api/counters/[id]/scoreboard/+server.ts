@@ -2,11 +2,12 @@ import { error, json } from "@sveltejs/kit";
 import { count, desc, eq } from "drizzle-orm";
 import { db } from "$lib/db";
 import { counterHistory, users } from "$lib/db/schema";
+import { canViewPrivateCounter } from "$lib/server/authorize";
 import { getCounter } from "$lib/server/counters";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
   const idValidation = counterIdSchema.safeParse(params.id);
   if (!idValidation.success) {
     throw error(400, "Invalid counter ID format");
@@ -15,6 +16,14 @@ export const GET: RequestHandler = async ({ params }) => {
   const counter = await getCounter(params.id);
   if (!counter) {
     throw error(404, "Counter not found");
+  }
+
+  if (counter.visibilityMode === "private") {
+    const session = await locals.auth();
+    const userId = session?.user?.id;
+    if (!userId || !(await canViewPrivateCounter(userId, counter.id))) {
+      throw error(404, "Counter not found");
+    }
   }
 
   const scoreboard = await db

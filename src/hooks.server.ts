@@ -1,114 +1,13 @@
 import type { Handle, HandleServerError } from "@sveltejs/kit";
-import { redirect } from "@sveltejs/kit";
 import { sequence } from "@sveltejs/kit/hooks";
-import { eq } from "drizzle-orm";
-import { db, verifyDatabaseConnection } from "$lib/db";
-import { counters } from "$lib/db/schema";
+import { verifyDatabaseConnection } from "$lib/db";
+import { ipRateLimitHandle, userRateLimitHandle } from "$lib/server/api-rate-limit";
 import { authHandle } from "$lib/server/auth";
 import { logger } from "$lib/server/logger";
-import { getUserRole } from "$lib/server/permissions";
 import { getPostHogClient } from "$lib/server/posthog";
-import type { RateLimitConfig } from "$lib/server/ratelimit";
-import {
-  checkRateLimit,
-  getClientIp,
-  getRateLimitConfig,
-  RATE_LIMIT_CONFIG,
-  trackCounterIncrement,
-} from "$lib/server/ratelimit";
-
-async function getCounterVisibilityForIncrementPath(
-  pathname: string,
-  token: string | null,
-): Promise<"private" | "non_private" | "unknown"> {
-  const match = pathname.match(/^\/api\/counters\/([a-f0-9-]+)$/);
-  if (!match) return "unknown";
-
-  try {
-    const [counter] = await db
-      .select({
-        visibilityMode: counters.visibilityMode,
-        shareToken: counters.shareToken,
-      })
-      .from(counters)
-      // biome-ignore lint/suspicious/noExplicitAny: UUID type mismatch with string
-      .where(eq(counters.id, match[1] as any));
-
-    if (!counter) {
-      return "unknown";
-    }
-
-    if (counter.visibilityMode === "private") {
-      logger.warn("Increment route classified as private by visibility mode", {
-        pathname,
-      });
-      return "private";
-    }
-
-    // Private links should always bypass global increment IP cooldown.
-    if (token && counter.shareToken && token === counter.shareToken) {
-      logger.warn("Increment route classified as private by share token", {
-        pathname,
-      });
-      return "private";
-    }
-
-    logger.warn("Increment route classified as non-private", {
-      pathname,
-      visibilityMode: counter.visibilityMode,
-      hasShareToken: !!counter.shareToken,
-      hasToken: !!token,
-    });
-    return "non_private";
-  } catch (err) {
-    logger.warn("Unable to resolve counter visibility for rate-limit routing", {
-      pathname,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return "unknown";
-  }
-}
-
-const posthogProxyHandle: Handle = async ({ event, resolve }) => {
-  const { pathname } = event.url;
-
-  if (pathname.startsWith("/ingest")) {
-    const useAssetHost =
-      pathname.startsWith("/ingest/static/") ||
-      pathname.startsWith("/ingest/array/");
-    const hostname = useAssetHost
-      ? "eu-assets.i.posthog.com"
-      : "eu.i.posthog.com";
-
-    const url = new URL(event.request.url);
-    url.protocol = "https:";
-    url.hostname = hostname;
-    url.port = "443";
-    url.pathname = pathname.replace(/^\/ingest/, "");
-
-    const headers = new Headers(event.request.headers);
-    headers.set("host", hostname);
-    headers.set("accept-encoding", "");
-
-    const clientIp =
-      event.request.headers.get("x-forwarded-for") || event.getClientAddress();
-    if (clientIp) {
-      headers.set("x-forwarded-for", clientIp);
-    }
-
-    const response = await fetch(url.toString(), {
-      method: event.request.method,
-      headers,
-      body: event.request.body,
-      // @ts-expect-error - duplex is required for streaming request bodies
-      duplex: "half",
-    });
-
-    return response;
-  }
-
-  return resolve(event);
-};
+import { posthogProxyHandle } from "$lib/server/posthog-proxy";
+import { loggingHandle } from "$lib/server/request-logging";
+import { securityHeadersHandle } from "$lib/server/security-headers";
 
 let dbInitialized = false;
 
@@ -129,13 +28,6 @@ async function initializeDatabase() {
   }
 }
 
-function isWriteRoute(pathname: string): string | null {
-  if (pathname === "/api/counters") return "/api/counters";
-  if (pathname.match(/^\/api\/counters\/[a-f0-9-]+$/))
-    return "/api/counters/[id]";
-  return null;
-}
-
 const noindex = process.env.NOINDEX === "true";
 
 const noindexHandle: Handle = async ({ event, resolve }) => {
@@ -146,134 +38,10 @@ const noindexHandle: Handle = async ({ event, resolve }) => {
   return response;
 };
 
-const loggingHandle: Handle = async ({ event, resolve }) => {
-  const start = performance.now();
-  const { method } = event.request;
-  const route = event.route.id ?? event.request.url;
-
-  logger.info(`--> ${method} ${event.url.pathname}`, {
-    route,
-    query: event.url.search || undefined,
-  });
-
-  try {
-    const response = await resolve(event);
-    const duration = (performance.now() - start).toFixed(2);
-
-    const level =
-      response.status >= 500
-        ? "error"
-        : response.status >= 400
-          ? "warn"
-          : "info";
-
-    logger[level](`<-- ${method} ${event.url.pathname} ${response.status}`, {
-      route,
-      status: response.status,
-      durationMs: duration,
-    });
-
-    return response;
-  } catch (err) {
-    const duration = (performance.now() - start).toFixed(2);
-
-    logger.error(`<-- ${method} ${event.url.pathname} UNHANDLED`, {
-      route,
-      durationMs: duration,
-      error: err instanceof Error ? err.message : String(err),
-    });
-
-    throw err;
-  }
-};
-
-const appHandle: Handle = async ({ event, resolve }) => {
+const dbInitHandle: Handle = async ({ event, resolve }) => {
   if (!dbInitialized) {
     await initializeDatabase();
   }
-
-  // Check rate limiting for write operations
-  if (event.request.method === "POST") {
-    const writeRoute = isWriteRoute(event.url.pathname);
-    if (writeRoute) {
-      // Skip rate limiting for admin users
-      let isAdmin = false;
-      let isAuthenticated = false;
-      if (writeRoute === "/api/counters/[id]") {
-        const session = await event.locals.auth();
-        if (session?.user?.id) {
-          isAuthenticated = true;
-          const role = await getUserRole(session.user.id);
-          isAdmin = role === "admin";
-        }
-      }
-
-      if (!isAdmin) {
-        const clientIp = getClientIp(event.request);
-
-        let config: RateLimitConfig | undefined;
-        if (writeRoute === "/api/counters/[id]") {
-          const visibility = await getCounterVisibilityForIncrementPath(
-            event.url.pathname,
-            event.url.searchParams.get("token"),
-          );
-
-          if (visibility === "non_private") {
-            // Use DB-backed global settings for non-private counter increments
-            const dbConfig = await getRateLimitConfig(isAuthenticated);
-            config = dbConfig.increment;
-          } else if (visibility === "unknown") {
-            logger.debug(
-              "Skipping global increment rate limit due to unknown counter visibility",
-              {
-                pathname: event.url.pathname,
-              },
-            );
-          }
-        } else {
-          config =
-            RATE_LIMIT_CONFIG[writeRoute as keyof typeof RATE_LIMIT_CONFIG];
-        }
-
-        if (config) {
-          const rateLimitCheck = checkRateLimit(clientIp, writeRoute, config);
-
-          if (rateLimitCheck) {
-            logger.warn("Rate limit exceeded, returning 429", {
-              ip: clientIp,
-              route: writeRoute,
-              retryAfter: rateLimitCheck.retryAfter,
-            });
-
-            return new Response(
-              JSON.stringify({
-                error: "Too many requests",
-                retryAfterSeconds: rateLimitCheck.retryAfter,
-              }),
-              {
-                status: 429,
-                headers: {
-                  "Content-Type": "application/json",
-                  "Retry-After": String(rateLimitCheck.retryAfter),
-                },
-              },
-            );
-          }
-
-          // Track counter increments for abuse detection
-          if (writeRoute === "/api/counters/[id]") {
-            const match = event.url.pathname.match(
-              /^\/api\/counters\/([a-f0-9-]+)$/,
-            );
-            if (match) {
-              trackCounterIncrement(clientIp, match[1]);
-            }
-          }
-        }
-      }
-    }
-  }
-
   return resolve(event);
 };
 
@@ -296,7 +64,11 @@ const usernameGuard: Handle = async ({ event, resolve }) => {
     );
 
     if (needsSetup && !isSkipped) {
-      throw redirect(303, "/setup");
+      // Returned (not thrown) so outer handles still decorate the response.
+      return new Response(null, {
+        status: 303,
+        headers: { Location: "/setup" },
+      });
     }
   }
 
@@ -304,11 +76,14 @@ const usernameGuard: Handle = async ({ event, resolve }) => {
 };
 
 export const handle: Handle = sequence(
+  securityHeadersHandle,
   posthogProxyHandle,
+  ipRateLimitHandle,
   noindexHandle,
   loggingHandle,
   authHandle,
-  appHandle,
+  dbInitHandle,
+  userRateLimitHandle,
   usernameGuard,
 );
 
@@ -322,7 +97,8 @@ export const handleError: HandleServerError = async ({
     distinctId: "server",
     event: "server_error",
     properties: {
-      error: error instanceof Error ? error.message : String(error),
+      // Raw messages can embed URLs with share tokens, so only the error class is sent.
+      error: error instanceof Error ? error.name : "UnknownError",
       status,
       message,
     },

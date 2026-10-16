@@ -19,6 +19,9 @@
   let dashboardCreationLimitUnauth = $state(s.dashboardCreationLimitUnauth);
   let dashboardCreationWindowUnauth = $state(s.dashboardCreationWindowUnauth);
 
+  let teamCreationLimitAuth = $state(s.teamCreationLimitAuth);
+  let teamCreationWindowAuth = $state(s.teamCreationWindowAuth);
+
   let incrementCooldownMsAuth = $state(s.incrementCooldownMsAuth);
   let incrementCooldownMsUnauth = $state(s.incrementCooldownMsUnauth);
 
@@ -51,6 +54,8 @@
           dashboardCreationWindowAuth,
           dashboardCreationLimitUnauth,
           dashboardCreationWindowUnauth,
+          teamCreationLimitAuth,
+          teamCreationWindowAuth,
           incrementCooldownMsAuth,
           incrementCooldownMsUnauth,
         }),
@@ -208,6 +213,47 @@
         />
         <Slider
           bind:value={dashboardCreationWindowUnauth}
+          min={10}
+          max={300}
+          step={10}
+          unit="s"
+          label="Time window"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- Team Creation Rate Limits -->
+  <section
+    class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6"
+  >
+    <div class="flex items-center gap-2 mb-6">
+      <ion-icon
+        name="people-circle-outline"
+        class="text-violet-600 dark:text-violet-400"
+        style="font-size: 20px;"
+      ></ion-icon>
+      <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        Team Creation
+      </h2>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="space-y-4">
+        <h3
+          class="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide"
+        >
+          Authenticated Users
+        </h3>
+        <Slider
+          bind:value={teamCreationLimitAuth}
+          min={1}
+          max={20}
+          step={1}
+          label="Max teams"
+        />
+        <Slider
+          bind:value={teamCreationWindowAuth}
           min={10}
           max={300}
           step={10}

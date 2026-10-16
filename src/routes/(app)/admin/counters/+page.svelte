@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from "$app/navigation";
   import AdminTable from "$lib/components/AdminTable.svelte";
-  import ChangeOwnerModal from "$lib/components/ChangeOwnerModal.svelte";
+  import ChangeOwnerOverlay from "$lib/components/ChangeOwnerOverlay.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
   import { slugify } from "$lib/counter";
@@ -156,7 +156,7 @@
 />
 
 {#if changeOwnerCounter}
-  <ChangeOwnerModal
+  <ChangeOwnerOverlay
     bind:open={changeOwnerOpen}
     counterId={changeOwnerCounter.id}
     counterTitle={changeOwnerCounter.title}

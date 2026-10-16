@@ -11,7 +11,6 @@ import { logger } from "$lib/server/logger";
 
 type MemberWithUser = DashboardMember & {
   username: string | null;
-  name: string | null;
   image: string | null;
 };
 
@@ -109,7 +108,6 @@ export async function getDashboardMembers(
       role: dashboardMembers.role,
       invitedAt: dashboardMembers.invitedAt,
       username: users.username,
-      name: users.name,
       image: users.image,
     })
     .from(dashboardMembers)

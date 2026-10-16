@@ -1,9 +1,26 @@
 <script lang="ts">
   import DashboardCard from "$lib/components/DashboardCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import OwnerFilter from "$lib/components/OwnerFilter.svelte";
+  import {
+    collectTeams,
+    matchesOwnerFilter,
+    type OwnerFilterValue,
+  } from "$lib/utils/owner-filter";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
+
+  let ownerFilter = $state<OwnerFilterValue>("all");
+  const teams = $derived(collectTeams(data.sharedDashboards.items));
+  const ownedItems = $derived(
+    data.ownedDashboards.items.filter((d) => matchesOwnerFilter(d, ownerFilter)),
+  );
+  const sharedItems = $derived(
+    data.sharedDashboards.items.filter((d) =>
+      matchesOwnerFilter(d, ownerFilter),
+    ),
+  );
 </script>
 
 <MetaTags
@@ -13,6 +30,10 @@
 />
 
 <div class="space-y-10">
+  {#if teams.length > 0}
+    <OwnerFilter bind:value={ownerFilter} {teams} />
+  {/if}
+
   <!-- Owned dashboards -->
   <section>
     <div class="flex items-center gap-2 mb-4">
@@ -20,7 +41,7 @@
       <span
         class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400"
       >
-        {data.ownedDashboards.total}
+        {ownerFilter === "all" ? data.ownedDashboards.total : ownedItems.length}
       </span>
     </div>
     {#if data.ownedDashboards.items.length === 0}
@@ -43,9 +64,13 @@
           Get started
         </a>
       </div>
+    {:else if ownedItems.length === 0}
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        No owned dashboards match this filter.
+      </p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {#each data.ownedDashboards.items as dashboard (dashboard.id)}
+        {#each ownedItems as dashboard (dashboard.id)}
           <DashboardCard {dashboard} showBadges />
         {/each}
       </div>
@@ -59,7 +84,7 @@
       <span
         class="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300"
       >
-        {data.sharedDashboards.total}
+        {ownerFilter === "all" ? data.sharedDashboards.total : sharedItems.length}
       </span>
     </div>
     {#if data.sharedDashboards.items.length === 0}
@@ -75,9 +100,13 @@
           No one has shared a dashboard with you yet
         </p>
       </div>
+    {:else if sharedItems.length === 0}
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        No shared dashboards match this filter.
+      </p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {#each data.sharedDashboards.items as dashboard (dashboard.id)}
+        {#each sharedItems as dashboard (dashboard.id)}
           <DashboardCard {dashboard} showBadges />
         {/each}
       </div>

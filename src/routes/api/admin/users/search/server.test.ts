@@ -122,13 +122,13 @@ describe("GET /api/admin/users/search", () => {
     expect(body.users).toHaveLength(2);
     expect(body.users[0]).toEqual({
       id: "user-1",
-      name: "Alice",
       username: "alice",
       email: "alice@example.com",
       image: "https://example.com/alice.png",
     });
-    // Verify extra fields like 'role' are not leaked
+    // Verify extra fields like 'role' and the full name are not leaked
     expect(body.users[0]).not.toHaveProperty("role");
+    expect(body.users[0]).not.toHaveProperty("name");
     expect(mockListUsers).toHaveBeenCalledWith(20, "ali");
   });
 

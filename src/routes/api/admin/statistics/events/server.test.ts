@@ -27,7 +27,6 @@ vi.mock("$lib/db/schema", () => ({
   },
   users: {
     id: "id",
-    name: "name",
     username: "username",
     image: "image",
   },
@@ -104,7 +103,6 @@ const SAMPLE_EVENT = {
   entityType: "counter",
   metadata: { action: "increment" },
   createdAt: "2025-05-01T12:00:00Z",
-  userName: "Test User",
   userUsername: "testuser",
   userImage: "https://example.com/avatar.png",
 };
@@ -149,6 +147,26 @@ describe("GET /api/admin/statistics/events", () => {
     ).rejects.toMatchObject({ status: 400 });
   });
 
+  it.each([
+    "team_created",
+    "team_deleted",
+    "team_member_added",
+    "team_member_removed",
+    "resource_transferred",
+  ])("accepts filter.eventType=%s", async (eventType) => {
+    mockHasPermission.mockResolvedValue(true);
+    setupDbQueries(0, []);
+
+    const response = await GET(
+      makeEvent(
+        { "filter.eventType": eventType },
+        { locals: makeLocals(USER_ID) },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
   it("returns events without eventType filter", async () => {
     mockHasPermission.mockResolvedValue(true);
     setupDbQueries(1, [SAMPLE_EVENT]);
@@ -175,13 +193,50 @@ describe("GET /api/admin/statistics/events", () => {
           metadata: { action: "increment" },
           createdAt: "2025-05-01T12:00:00Z",
           user: {
-            name: "Test User",
             username: "testuser",
             image: "https://example.com/avatar.png",
           },
         },
       ],
     });
+  });
+
+  it("replaces historic full names in metadata.user_name with the joined username", async () => {
+    mockHasPermission.mockResolvedValue(true);
+    setupDbQueries(1, [
+      { ...SAMPLE_EVENT, metadata: { user_name: "Test Full Name" } },
+    ]);
+
+    const response = await GET(makeEvent({}, { locals: makeLocals(USER_ID) }));
+    const body = await response.json();
+
+    expect(body.events[0].metadata.user_name).toBe("testuser");
+    expect(JSON.stringify(body)).not.toContain("Test Full Name");
+  });
+
+  it("drops non-username metadata.user_name on user_deleted events", async () => {
+    mockHasPermission.mockResolvedValue(true);
+    setupDbQueries(2, [
+      {
+        ...SAMPLE_EVENT,
+        id: "evt-1",
+        eventType: "user_deleted",
+        metadata: { user_name: "Test Full Name", email: "x@example.com" },
+      },
+      {
+        ...SAMPLE_EVENT,
+        id: "evt-2",
+        eventType: "user_deleted",
+        metadata: { user_name: "gone_user" },
+      },
+    ]);
+
+    const response = await GET(makeEvent({}, { locals: makeLocals(USER_ID) }));
+    const body = await response.json();
+
+    expect(body.events[0].metadata.user_name).toBeNull();
+    expect(body.events[1].metadata.user_name).toBe("gone_user");
+    expect(JSON.stringify(body)).not.toContain("Test Full Name");
   });
 
   it("returns events filtered by eventType", async () => {

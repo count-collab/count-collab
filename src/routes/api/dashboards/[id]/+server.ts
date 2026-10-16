@@ -9,8 +9,10 @@ import {
   getDashboard,
   updateDashboard,
 } from "$lib/server/dashboards";
+import { withoutShareToken } from "$lib/server/public-columns";
 import { parseAndValidateBody } from "$lib/server/request";
-import { emitDashboardUpdated } from "$lib/utils/socket";
+import { hasValidShareToken } from "$lib/server/share-token";
+import { emitDashboardUpdated, emitRoomRevoked } from "$lib/utils/socket";
 import {
   dashboardIdSchema,
   updateDashboardSchema,
@@ -30,23 +32,22 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
   if (dashboard.visibilityMode === "private") {
     const token = url.searchParams.get("token");
-    const hasValidToken =
-      !!token && !!dashboard.shareToken && token === dashboard.shareToken;
 
-    if (!hasValidToken) {
+    if (!hasValidShareToken(dashboard, token)) {
       const session = await locals.auth();
       if (!session?.user?.id) {
-        throw error(403, "Sign in to view this private dashboard");
+        throw error(404, "Dashboard not found");
       }
 
       const canView = await canViewDashboard(session.user.id, params.id);
       if (!canView) {
-        throw error(403, "You don't have access to this dashboard");
+        throw error(404, "Dashboard not found");
       }
     }
   }
 
-  return json(dashboard);
+  // Only managers receive the share token (via the page load), never this endpoint
+  return json(withoutShareToken(dashboard));
 };
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
@@ -74,20 +75,28 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     return validation.response;
   }
 
-  const { title, description, visibility } = validation.data;
+  const { title, description, visibility, gridColumns } = validation.data;
   const dashboard = await updateDashboard(params.id, {
     title,
     description,
     visibilityMode: visibility,
+    gridColumns,
   });
 
   if (!dashboard) {
     throw error(404, "Dashboard not found");
   }
 
-  emitDashboardUpdated(dashboard.id);
+  emitDashboardUpdated(dashboard.id, {
+    visibilityMode: dashboard.visibilityMode,
+    ownerId: dashboard.ownerId,
+    teamId: dashboard.teamId,
+  });
 
-  return json(dashboard);
+  // Sockets that joined while the dashboard was public must re-authorize
+  if (visibility === "private") emitRoomRevoked("dashboard", dashboard.id);
+
+  return json(withoutShareToken(dashboard));
 };
 
 export const DELETE: RequestHandler = async ({ params, locals }) => {

@@ -16,6 +16,7 @@ Users can create dashboards publicly or privately, invite collaborators, and fol
 | `title`          | text                                             | Required                              |
 | `description`    | text                                             | Optional                              |
 | `visibilityMode` | `"public"` \| `"public_readonly"` \| `"private"` | Same modes as counters                |
+| `gridColumns`    | integer (2–5)                                    | Desktop column count, default 5       |
 | `shareToken`     | text (unique)                                    | Auto-generated for private dashboards |
 | `ownerId`        | FK → users                                       | On delete: set null                   |
 | `createdAt`      | timestamp with timezone                          |                                       |
@@ -59,6 +60,8 @@ Unique constraint on (`dashboardId`, `userId`).
 | Delete dashboard                           | ✓     | ✓     | ✗      | ✗      |
 | Invite members / change visibility         | ✓     | ✓     | ✗      | ✗      |
 
+Dashboards owned by a team (`teamId` set) grant roles to team members as described in [teams.md](teams.md); the creator's `ownerId` then has no owner privileges.
+
 ### Counter Permissions on Dashboards
 
 Dashboard roles **do not** affect how a user interacts with individual counters. The counter's own permission model always applies:
@@ -95,8 +98,9 @@ Private dashboards get an auto-generated share token. The dashboard is accessibl
 
 ### Desktop
 
-- **5-column grid**
-- Counter cards sized from **1×1** to **5×4** (columns × rows)
+- **2–5 column grid** (default 5), configurable under **Dashboard Settings → Layout**
+- Counter cards sized from **1×1** to **N×4** (columns × rows), where N is the dashboard's column count
+- Reducing the column count shrinks counters wider than the grid and moves counters that no longer fit to the next free spot
 - Gaps are allowed — no auto-packing
 - Empty cells have a **dashed border** and display an **"add counter" button on hover** (visible to editors and admins only)
 

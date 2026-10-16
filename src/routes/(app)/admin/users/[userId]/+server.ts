@@ -1,5 +1,6 @@
 import { error, json } from "@sveltejs/kit";
 import { hasPermission } from "$lib/server/permissions";
+import { SoleTeamOwnerError } from "$lib/server/team-limits";
 import { deleteUser, updateUserRole } from "$lib/server/users";
 import type { RequestHandler } from "./$types";
 
@@ -50,7 +51,15 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     throw error(400, "Cannot delete your own account");
   }
 
-  const deleted = await deleteUser(params.userId, session.user.id);
+  let deleted: boolean;
+  try {
+    deleted = await deleteUser(params.userId, session.user.id);
+  } catch (err) {
+    if (err instanceof SoleTeamOwnerError) {
+      return json({ error: err.message, teams: err.teams }, { status: 409 });
+    }
+    throw err;
+  }
   if (!deleted) {
     throw error(404, "User not found");
   }

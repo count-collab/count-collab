@@ -19,6 +19,7 @@ type Listener<T> = (payload: T) => void;
 
 const updateListeners = new Set<Listener<CounterUpdatePayload>>();
 const createdListeners = new Set<Listener<CounterCreatedPayload>>();
+const statsListeners = new Set<() => void>();
 
 let registered = false;
 
@@ -40,6 +41,12 @@ function ensureConnection(): Socket | null {
         listener(payload);
       }
     });
+
+    socket.on("stats:updated", () => {
+      for (const listener of statsListeners) {
+        listener();
+      }
+    });
   }
 
   return socket;
@@ -59,6 +66,21 @@ export function onCounterUpdated(
 
   return () => {
     updateListeners.delete(listener);
+  };
+}
+
+/**
+ * Subscribe to global-stats changes caused by counters the viewer may not see
+ * (private counters). Carries no counter data.
+ */
+export function onStatsUpdated(listener: () => void): () => void {
+  if (!browser) return () => {};
+
+  ensureConnection();
+  statsListeners.add(listener);
+
+  return () => {
+    statsListeners.delete(listener);
   };
 }
 

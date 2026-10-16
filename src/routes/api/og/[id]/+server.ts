@@ -3,12 +3,28 @@ import { createRequire } from "node:module";
 import { Resvg } from "@resvg/resvg-js";
 import { error } from "@sveltejs/kit";
 import satori from "satori";
+import { createCache } from "$lib/server/cache";
 import { getCounter } from "$lib/server/counters";
 import { counterIdSchema } from "$lib/utils/validation";
 import type { RequestHandler } from "./$types";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
+
+// Keyed by id + updatedAt + count, so any change to the counter renders a fresh image.
+const imageCache = createCache<{ png: Uint8Array }>({
+  ttlMs: 5 * 60 * 1000,
+  maxSize: 200,
+});
+
+function pngResponse(png: Uint8Array): Response {
+  return new Response(png as unknown as Blob, {
+    headers: {
+      "Content-Type": "image/png",
+      "Cache-Control": "public, max-age=60, s-maxage=60",
+    },
+  });
+}
 
 const require = createRequire(import.meta.url);
 
@@ -51,6 +67,10 @@ export const GET: RequestHandler = async ({ params }) => {
   if (counter.visibilityMode === "private") {
     throw error(404, "Counter not found");
   }
+
+  const cacheKey = `${counter.id}:${counter.updatedAt?.getTime() ?? 0}:${counter.count}`;
+  const cached = imageCache.get(cacheKey);
+  if (cached) return pngResponse(cached.png);
 
   const font = loadFont();
   const fontBold = loadBoldFont();
@@ -176,11 +196,7 @@ export const GET: RequestHandler = async ({ params }) => {
     fitTo: { mode: "width", value: WIDTH },
   });
   const png = resvg.render().asPng();
+  imageCache.set(cacheKey, { png });
 
-  return new Response(png as unknown as Blob, {
-    headers: {
-      "Content-Type": "image/png",
-      "Cache-Control": "public, max-age=60, s-maxage=60",
-    },
-  });
+  return pngResponse(png);
 };

@@ -1,4 +1,5 @@
 import adapter from "@sveltejs/adapter-node";
+import { cspConfig } from "./src/lib/server/csp.js";
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -10,6 +11,7 @@ const config = {
     paths: {
       relative: false,
     },
+    csp: cspConfig,
   },
 };
 

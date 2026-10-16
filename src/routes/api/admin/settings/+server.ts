@@ -69,6 +69,10 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     set.dashboardCreationLimitUnauth = data.dashboardCreationLimitUnauth;
   if (data.dashboardCreationWindowUnauth !== undefined)
     set.dashboardCreationWindowUnauth = data.dashboardCreationWindowUnauth;
+  if (data.teamCreationLimitAuth !== undefined)
+    set.teamCreationLimitAuth = data.teamCreationLimitAuth;
+  if (data.teamCreationWindowAuth !== undefined)
+    set.teamCreationWindowAuth = data.teamCreationWindowAuth;
   if (data.incrementCooldownMsAuth !== undefined)
     set.incrementCooldownMsAuth = data.incrementCooldownMsAuth;
   if (data.incrementCooldownMsUnauth !== undefined)

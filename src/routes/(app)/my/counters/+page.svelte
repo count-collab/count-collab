@@ -1,10 +1,26 @@
 <script lang="ts">
   import CounterCard from "$lib/components/CounterCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import OwnerFilter from "$lib/components/OwnerFilter.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
+  import {
+    collectTeams,
+    matchesOwnerFilter,
+    type OwnerFilterValue,
+  } from "$lib/utils/owner-filter";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
+
+  let ownerFilter = $state<OwnerFilterValue>("all");
+  const teams = $derived(collectTeams(data.sharedCounters.items));
+  // Owned counters are always personal, so the filter passes all of them or none.
+  const ownedMatchesFilter = $derived(
+    matchesOwnerFilter({ teamId: null }, ownerFilter),
+  );
+  const sharedItems = $derived(
+    data.sharedCounters.items.filter((c) => matchesOwnerFilter(c, ownerFilter)),
+  );
 </script>
 
 <MetaTags
@@ -14,6 +30,10 @@
 />
 
 <div class="space-y-10">
+  {#if teams.length > 0}
+    <OwnerFilter bind:value={ownerFilter} {teams} />
+  {/if}
+
   <!-- Owned counters -->
   <section>
     <div class="flex items-center gap-2 mb-4">
@@ -21,7 +41,7 @@
       <span
         class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400"
       >
-        {data.ownedCounters.total}
+        {ownedMatchesFilter ? data.ownedCounters.total : 0}
       </span>
     </div>
     {#if data.ownedCounters.items.length === 0}
@@ -44,6 +64,10 @@
           Get started
         </a>
       </div>
+    {:else if !ownedMatchesFilter}
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        No owned counters match this filter.
+      </p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {#each data.ownedCounters.items as counter (counter.id)}
@@ -63,7 +87,7 @@
       <span
         class="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300"
       >
-        {data.sharedCounters.total}
+        {ownerFilter === "all" ? data.sharedCounters.total : sharedItems.length}
       </span>
     </div>
     {#if data.sharedCounters.items.length === 0}
@@ -79,9 +103,13 @@
           No one has shared a counter with you yet
         </p>
       </div>
+    {:else if sharedItems.length === 0}
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        No shared counters match this filter.
+      </p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {#each data.sharedCounters.items as counter (counter.id)}
+        {#each sharedItems as counter (counter.id)}
           <CounterCard {counter} showBadges />
         {/each}
       </div>

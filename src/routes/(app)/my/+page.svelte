@@ -2,10 +2,40 @@
   import CounterCard from "$lib/components/CounterCard.svelte";
   import DashboardCard from "$lib/components/DashboardCard.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import OwnerFilter from "$lib/components/OwnerFilter.svelte";
   import { counterUrl } from "$lib/counter";
+  import {
+    collectTeams,
+    matchesOwnerFilter,
+    type OwnerFilterValue,
+  } from "$lib/utils/owner-filter";
   import type { PageData } from "./$types";
 
   const { data }: { data: PageData } = $props();
+
+  let ownerFilter = $state<OwnerFilterValue>("all");
+  const teams = $derived(
+    collectTeams([
+      ...data.sharedCounters.items,
+      ...data.sharedDashboards.items,
+    ]),
+  );
+  const ownedCounterItems = $derived(
+    data.ownedCounters.items.filter((c) => matchesOwnerFilter(c, ownerFilter)),
+  );
+  const sharedCounterItems = $derived(
+    data.sharedCounters.items
+      .filter((c) => matchesOwnerFilter(c, ownerFilter))
+      .slice(0, 2),
+  );
+  const ownedDashboardItems = $derived(
+    data.ownedDashboards.items.filter((d) => matchesOwnerFilter(d, ownerFilter)),
+  );
+  const sharedDashboardItems = $derived(
+    data.sharedDashboards.items
+      .filter((d) => matchesOwnerFilter(d, ownerFilter))
+      .slice(0, 2),
+  );
 
   function relativeTime(date: Date): string {
     const now = Date.now();
@@ -160,6 +190,9 @@
   </section>
 
   <!-- Counters preview -->
+  {#if teams.length > 0}
+    <OwnerFilter bind:value={ownerFilter} {teams} />
+  {/if}
   <section>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Counters</h2>
@@ -174,18 +207,22 @@
       <p class="text-sm text-slate-500 dark:text-slate-400">
         No counters yet. <a href="/create?type=counter" class="text-blue-600 dark:text-blue-400 hover:underline">Create your first counter</a>
       </p>
+    {:else if ownedCounterItems.length === 0 && sharedCounterItems.length === 0}
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        No counters match this filter.
+      </p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {#each data.ownedCounters.items as counter (counter.id)}
+        {#each ownedCounterItems as counter (counter.id)}
           <CounterCard {counter} showBadges />
         {/each}
       </div>
-      {#if data.sharedCounters.items.length > 0}
+      {#if sharedCounterItems.length > 0}
         <p class="text-xs font-medium text-violet-600 dark:text-violet-400 mt-4 mb-2 uppercase tracking-wide">
           Shared with you
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {#each data.sharedCounters.items.slice(0, 2) as counter (counter.id)}
+          {#each sharedCounterItems as counter (counter.id)}
             <CounterCard {counter} showBadges />
           {/each}
         </div>
@@ -208,18 +245,22 @@
       <p class="text-sm text-slate-500 dark:text-slate-400">
         No dashboards yet. <a href="/create?type=dashboard" class="text-blue-600 dark:text-blue-400 hover:underline">Create your first dashboard</a>
       </p>
+    {:else if ownedDashboardItems.length === 0 && sharedDashboardItems.length === 0}
+      <p class="text-sm text-slate-500 dark:text-slate-400">
+        No dashboards match this filter.
+      </p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {#each data.ownedDashboards.items as dashboard (dashboard.id)}
+        {#each ownedDashboardItems as dashboard (dashboard.id)}
           <DashboardCard {dashboard} showBadges />
         {/each}
       </div>
-      {#if data.sharedDashboards.items.length > 0}
+      {#if sharedDashboardItems.length > 0}
         <p class="text-xs font-medium text-violet-600 dark:text-violet-400 mt-4 mb-2 uppercase tracking-wide">
           Shared with you
         </p>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {#each data.sharedDashboards.items.slice(0, 2) as dashboard (dashboard.id)}
+          {#each sharedDashboardItems as dashboard (dashboard.id)}
             <DashboardCard {dashboard} showBadges />
           {/each}
         </div>

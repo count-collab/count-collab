@@ -3,10 +3,17 @@
   import posthog from "posthog-js";
   import { page } from "$app/state";
   import MetaTags from "$lib/components/MetaTags.svelte";
+  import { safeRedirectPath } from "$lib/utils/redirect";
+
+  let { data } = $props();
+
+  let callbackUrl = $derived(safeRedirectPath(data.redirectTo, "/my"));
 
   const errorMessages: Record<string, string> = {
     OAuthAccountNotLinked:
       "This email is already associated with another provider. Please sign in with the original provider.",
+    AccessDenied:
+      "Sign-in was denied. Your provider email must be verified. Verify it with your provider and try again.",
     OAuthCallbackError:
       "Something went wrong during sign-in. Please try again.",
     OAuthSignin: "Could not start the sign-in flow. Please try again.",
@@ -69,7 +76,7 @@
         type="button"
         onclick={() => {
           posthog.capture("user_signed_in", { provider: provider.id });
-          signIn(provider.id, { callbackUrl: "/my" });
+          signIn(provider.id, { callbackUrl });
         }}
         class="w-full flex items-center justify-center gap-3 rounded-lg px-5 py-3 font-semibold transition {provider.bg} {provider.text}"
       >
