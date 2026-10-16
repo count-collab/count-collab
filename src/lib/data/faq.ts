@@ -17,7 +17,7 @@ export const faqItems: FaqItem[] = [
   {
     question: "Do I need an account to use Count Collab?",
     answer:
-      "No account is required to create or use public counters. However, signing up unlocks additional features like private counters, member roles, dashboards, and the ability to manage who can access your counters.",
+      "No account is required to create or use public counters. However, signing up unlocks additional features like private counters, member roles, dashboards, teams, and the ability to manage who can access your counters.",
   },
   {
     question: "How does real-time sync work?",
@@ -33,6 +33,26 @@ export const faqItems: FaqItem[] = [
     question: "What are dashboards?",
     answer:
       "Dashboards let you group multiple counters into a single organized view. Create a dashboard, add counters to it, and share the dashboard link so your team can monitor everything in one place.",
+  },
+  {
+    question: "What are teams?",
+    answer:
+      "Teams let you share many counters and dashboards with the same group of people at once. Instead of inviting everyone to each counter individually, you create a team, add your members once, and every counter and dashboard owned by the team is automatically available to them. Teams require a free account.",
+  },
+  {
+    question: "How do roles work in a team?",
+    answer:
+      "Team members have the same roles as counters — viewer, incrementer, editor, and admin — plus owner. A member's team role applies to every counter and dashboard the team owns: viewers can watch, incrementers can count, editors can create and edit team counters and dashboards, admins manage members, and owners have full control including deleting the team. Teams can have multiple owners.",
+  },
+  {
+    question: "How do I add people to a team?",
+    answer:
+      "Team admins can invite people by their username, and the invitation shows up in their notifications. Alternatively, enable a join link and share it — anyone with an account who opens it joins with the role you picked (up to editor). You can reset the link at any time to stop it from working.",
+  },
+  {
+    question: "Can I move my existing counters into a team?",
+    answer:
+      "Yes. You can move counters and dashboards you own into any team where you are an editor or higher, or create them directly in a team. When moving a dashboard, you can bring the counters on it along. Team counters start out private, and team pages are only visible to team members.",
   },
   {
     question: "Can multiple people update the same counter at once?",

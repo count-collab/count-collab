@@ -19,7 +19,7 @@
 
 <MetaTags
   title="FAQ — Count Collab"
-  description="Find answers to frequently asked questions about Count Collab: pricing, accounts, real-time sync, privacy, dashboards, and more."
+  description="Find answers to frequently asked questions about Count Collab: pricing, accounts, real-time sync, privacy, dashboards, teams, and more."
   path="/faq"
 />
 

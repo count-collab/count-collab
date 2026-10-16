@@ -4,7 +4,7 @@
 
 <MetaTags
   title="Features — Count Collab"
-  description="Explore all the features of Count Collab: real-time sync, shareable links, dashboards, activity history, member roles, and more."
+  description="Explore all the features of Count Collab: real-time sync, shareable links, dashboards, teams, activity history, member roles, and more."
   path="/features"
 />
 
@@ -95,6 +95,36 @@
           management with role-based access, and can be shared with your team.
           Perfect for tracking multiple metrics in one place — like monitoring
           event stations, team KPIs, or project milestones.
+        </p>
+      </div>
+    </div>
+
+    <!-- Teams -->
+    <div id="teams" class="flex flex-col md:flex-row gap-6 items-start">
+      <div
+        class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400"
+      >
+        <ion-icon
+          name="people-circle-outline"
+          style="font-size: 28px;"
+          aria-hidden="true"
+        ></ion-icon>
+      </div>
+      <div>
+        <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
+          Teams
+        </h2>
+        <p class="mt-2 text-slate-600 dark:text-slate-400 leading-relaxed">
+          Stop sharing counters one by one. Create a team, add your people once,
+          and every counter and dashboard the team owns is instantly available
+          to all of its members. Team roles — <strong>viewer</strong>,
+          <strong>incrementer</strong>, <strong>editor</strong>,
+          <strong>admin</strong>, and <strong>owner</strong> — carry over to
+          everything the team owns, so permissions stay consistent. Invite
+          members by username or share a join link with a role of your choice,
+          move your existing counters and dashboards into a team whenever you
+          like, and keep things private: team counters start out private and
+          team pages are only visible to members.
         </p>
       </div>
     </div>
@@ -192,8 +222,8 @@
           Get started in seconds without creating an account or providing an
           email address. Create public counters, share them, and start counting
           immediately. When you're ready for more — private counters, member
-          roles, and personal dashboards — create an account to unlock these
-          features.
+          roles, personal dashboards, and teams — create an account to unlock
+          these features.
         </p>
       </div>
     </div>
@@ -220,6 +250,7 @@
           count), <strong>editor</strong> (can update counter details), or
           <strong>admin</strong> (full management access). This role-based access
           control ensures the right level of permissions for every team member.
+          Assign roles on a single counter or dashboard, or once for a whole team.
         </p>
       </div>
     </div>
