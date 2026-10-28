@@ -27,9 +27,8 @@ runs:
       run: bun install --frozen-lockfile
       shell: bash
 
-    # npm audit instead of bun audit: bun audit fails with a TLS error in some environments
     - name: Audit production dependencies
-      run: npm audit --omit=dev --audit-level=critical
+      run: bun audit --production --audit-level=critical
       shell: bash
 
     - name: Write .env for type generation
