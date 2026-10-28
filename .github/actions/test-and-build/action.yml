@@ -20,14 +20,15 @@ runs:
 
     - name: Setup Bun
       uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version: 1.4.4
 
     - name: Install dependencies
       run: bun install --frozen-lockfile
       shell: bash
 
-    # npm audit instead of bun audit: bun audit fails with a TLS error in some environments
     - name: Audit production dependencies
-      run: npm audit --omit=dev --audit-level=critical
+      run: bun audit --production --audit-level=critical
       shell: bash
 
     - name: Write .env for type generation

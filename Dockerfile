@@ -1,4 +1,4 @@
-FROM node:25-alpine
+FROM node:24-alpine
 
 # Set image label
 LABEL org.opencontainers.image.source=https://github.com/count-collab/count-collab
@@ -6,7 +6,7 @@ LABEL org.opencontainers.image.source=https://github.com/count-collab/count-coll
 WORKDIR /app
 
 # Install bun
-RUN npm install -g bun
+RUN npm install -g bun@1.4.4
 
 # Copy package files
 COPY package.json bun.lock ./
