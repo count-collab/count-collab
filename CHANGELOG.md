@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.8.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.7.0...count-collab-v0.8.0) (2026-10-28)
+
+
+### Features
+
+* add "New" badge to Teams link in navigation for better visibility ([7671e4e](https://github.com/count-collab/count-collab/commit/7671e4e046cea4406ad0865581d9e7cf90ff8ff2))
+* add event metadata sanitization functions for user name handling ([65c4d19](https://github.com/count-collab/count-collab/commit/65c4d19c80ca65497c12986ddb97eb91ee44150b))
+* add stats update functionality and resolve room token logic for private counters ([d67f6e4](https://github.com/count-collab/count-collab/commit/d67f6e4c06e9e3bece793e26346a7cd1819bed87))
+* implement session user transformation to whitelist fields for client ([65c4d19](https://github.com/count-collab/count-collab/commit/65c4d19c80ca65497c12986ddb97eb91ee44150b))
+* implement TeamSettingsOverlay component with functionality for team management ([65c4d19](https://github.com/count-collab/count-collab/commit/65c4d19c80ca65497c12986ddb97eb91ee44150b))
+* **teams:** add team functionality, UI adjustments ([#26](https://github.com/count-collab/count-collab/issues/26)) ([65c4d19](https://github.com/count-collab/count-collab/commit/65c4d19c80ca65497c12986ddb97eb91ee44150b))
+* **teams:** enhance FAQ and features pages with team-related information and descriptions ([7dfc6d3](https://github.com/count-collab/count-collab/commit/7dfc6d3a3381b4d99f7a2ce902764781c5bce49c))
+* ui tweaks ([f03c652](https://github.com/count-collab/count-collab/commit/f03c652a944335f7d405d0722e1f49f0717889da))
+* update Bun version to 1.4.4 in workflows and package files ([1467261](https://github.com/count-collab/count-collab/commit/1467261832feb53e67f95d3f661b907b9d772f5a))
+
+
+### Bug Fixes
+
+* adjust text formatting for better readability in counter messages and marketing page layout ([2c5ea74](https://github.com/count-collab/count-collab/commit/2c5ea7489270291d08bef8129b14f56179e2f40e))
+* ensure cookieless mode is always enabled in PostHog initialization ([e85fccb](https://github.com/count-collab/count-collab/commit/e85fccb7ca7dc019b2403b866bd316b86e5b6869))
+* **hooks:** remove comment on raw error messages to enhance clarity ([53f6021](https://github.com/count-collab/count-collab/commit/53f60212b6a8b2eddc4d83e65e718a330f6ae10b))
+* revert to using bun audit for production dependencies due to TLS issues with npm ([3312d8e](https://github.com/count-collab/count-collab/commit/3312d8e0be0984487def2e0c74833ed789f3c549))
+* update error handling to return 404 for unauthorized access to dashboards ([2930d7b](https://github.com/count-collab/count-collab/commit/2930d7bd23dc87501fc4a706a96542f2017be3fb))
+
 ## [0.7.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.6.0...count-collab-v0.7.0) (2026-06-30)
 
 
