@@ -24,7 +24,7 @@
     </h1>
 
     <!-- Mobile -->
-    <div class="flex items-center gap-2 md:hidden">
+    <div class="flex items-center gap-2 lg:hidden">
       <ThemeToggle />
       <button
         type="button"
@@ -42,7 +42,7 @@
     </div>
 
     <!-- Desktop nav -->
-    <div class="hidden md:flex items-center gap-6 flex-1 ml-8">
+    <div class="hidden lg:flex items-center gap-5 flex-1 ml-8">
       <a
         href="/features"
         class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
@@ -52,6 +52,11 @@
         href="/use-cases"
         class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
         >Use Cases</a
+      >
+      <a
+        href="/tally-counter"
+        class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
+        >Tally Counter</a
       >
       <a
         href="/how-it-works"
@@ -94,7 +99,7 @@
   <!-- Mobile menu -->
   {#if mobileMenuOpen}
     <div
-      class="md:hidden absolute left-0 right-0 top-full z-50 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg dark:shadow-slate-900/50"
+      class="lg:hidden absolute left-0 right-0 top-full z-50 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg dark:shadow-slate-900/50"
     >
       <div class="px-4 py-3 space-y-1">
         <a
@@ -112,6 +117,14 @@
         >
           <ion-icon name="people-outline" style="font-size: 18px;"></ion-icon>
           <span>Use Cases</span>
+        </a>
+        <a
+          href="/tally-counter"
+          onclick={() => (mobileMenuOpen = false)}
+          class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+        >
+          <ion-icon name="list-outline" style="font-size: 18px;"></ion-icon>
+          <span>Tally Counter</span>
         </a>
         <a
           href="/how-it-works"

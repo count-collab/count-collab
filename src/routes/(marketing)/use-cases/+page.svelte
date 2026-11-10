@@ -4,7 +4,7 @@
 
 <MetaTags
   title="Use Cases — Count Collab"
-  description="Discover how teams use Count Collab for event attendance, fitness tracking, inventory management, game scoreboards, community goals, and education."
+  description="Discover how teams use Count Collab for tally counting, event attendance, fitness tracking, inventory management, game scoreboards, community goals, and education."
   path="/use-cases"
 />
 
@@ -24,6 +24,45 @@
   </div>
 
   <div class="space-y-12">
+    <div
+      id="tally-counter"
+      class="p-8 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 shadow-sm"
+    >
+      <div class="flex items-start gap-4">
+        <span
+          class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+        >
+          <ion-icon
+            name="list-outline"
+            style="font-size: 24px;"
+            aria-hidden="true"
+          ></ion-icon>
+        </span>
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
+            Online Tally Counter
+          </h2>
+          <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
+            Keep a shared tally of visitors, votes, questions, or collected
+            items. Create a counter, share its link with your team, and see each
+            update appear in real time so everyone is working from the same
+            total.
+          </p>
+          <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
+            <strong>Perfect for:</strong> event check-ins, classroom participation,
+            group goals, quick headcounts
+          </p>
+          <a
+            href="/tally-counter"
+            class="mt-4 inline-flex items-center gap-2 font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-900 dark:text-emerald-300 dark:decoration-emerald-700 dark:hover:text-emerald-200"
+          >
+            Explore the online tally counter
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- Event Attendance -->
     <div
       class="p-8 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 shadow-sm"
