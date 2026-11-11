@@ -37,13 +37,6 @@
           </li>
           <li>
             <a
-              href="/tally-counter"
-              class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition"
-              >Tally Counter</a
-            >
-          </li>
-          <li>
-            <a
               href="/how-it-works"
               class="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition"
               >How It Works</a

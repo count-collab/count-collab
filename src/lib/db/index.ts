@@ -19,7 +19,7 @@ export async function verifyDatabaseConnection(): Promise<boolean> {
     return true;
   } catch (err) {
     logger.error("Database connection verification failed", {
-      error: err instanceof Error ? err.message : String(err),
+      error: err,
       databaseUrl: databaseUrl.replace(/:[^@]*@/, ":***@"),
     });
     return false;

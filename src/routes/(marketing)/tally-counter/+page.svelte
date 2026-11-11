@@ -1,33 +1,22 @@
 <script lang="ts">
   import MetaTags from "$lib/components/MetaTags.svelte";
-
-  const tallyGroups = [
-    "||||/",
-    "||||/",
-    "||||/",
-    "||||/",
-    "||||/",
-    "||||/",
-    "||||/",
-    "||||/",
-    "||",
-  ];
+  import TallyClickerIllustration from "$lib/components/TallyClickerIllustration.svelte";
 </script>
 
 <MetaTags
   title="Free Online Tally Counter - Count Together | Count Collab"
-  description="Use a free online tally counter to keep a shared count with your team. Create a counter, share one link, and see every update in real time."
+  description="The simplicity of a tally clicker or paper tally, now shared online. Create a free tally counter, share one link, and count together in real time."
   path="/tally-counter"
 />
 
-<div class="overflow-hidden">
-  <section class="border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
+<div class="overflow-hidden bg-slate-50 dark:bg-slate-900">
+  <section>
     <div
-      class="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1fr_0.85fr] lg:gap-20 lg:px-8"
+      class="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 sm:py-24 lg:grid-cols-[1fr_0.85fr] lg:gap-20 lg:px-8"
     >
       <div>
         <p
-          class="mb-5 font-mono text-sm font-semibold uppercase text-emerald-700 dark:text-emerald-400"
+          class="mb-5 font-mono text-sm font-semibold uppercase text-blue-600 dark:text-blue-400"
         >
           Count Collab / Online tally
         </p>
@@ -39,16 +28,18 @@
         <p
           class="mt-6 max-w-xl text-lg leading-relaxed text-slate-600 dark:text-slate-300"
         >
-          Keep a running count from any device. Create a shared counter, send one
-          link, and watch every update appear for everyone instantly.
+          All the simplicity of a handheld clicker or a tally on paper, with
+          everyone on the same count. Create a free online tally counter, share
+          one link, and keep counting together from any device.
         </p>
         <div class="mt-8 flex flex-wrap items-center gap-4">
           <a
             href="/create?type=counter"
-            class="inline-flex min-h-12 items-center gap-2 rounded-lg bg-emerald-700 px-6 py-3 font-semibold text-white transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400"
+            class="inline-flex min-h-12 items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
           >
             Create a tally counter
-            <ion-icon name="arrow-forward-outline" aria-hidden="true"></ion-icon>
+            <ion-icon name="arrow-forward-outline" aria-hidden="true"
+            ></ion-icon>
           </a>
           <a
             href="/how-it-works"
@@ -62,100 +53,80 @@
         </p>
       </div>
 
-      <div
-        class="relative rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5 dark:border-slate-700 dark:bg-slate-800 dark:shadow-black/20"
-      >
-        <div class="flex items-center justify-between gap-4 border-b border-slate-200 pb-4 dark:border-slate-700">
-          <p class="font-mono text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-            Example tally
-          </p>
-          <span class="rounded bg-emerald-50 px-2 py-1 font-mono text-xs text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-            CHECK-INS
-          </span>
-        </div>
-        <div class="py-6">
-          <p class="text-base font-medium text-slate-600 dark:text-slate-300">
-            Workshop check-ins
-          </p>
-          <p class="mt-1 font-mono text-6xl font-bold tabular-nums text-slate-950 dark:text-white">
-            42
-          </p>
-        </div>
-        <div
-          class="grid grid-cols-4 gap-3 border-t border-slate-200 pt-5 dark:border-slate-700"
-          role="img"
-          aria-label="42 tally marks, grouped by five"
-        >
-          {#each tallyGroups as group, index (index)}
-            <span
-              class="rounded-md bg-slate-50 px-2 py-3 text-center font-mono text-base font-semibold tracking-normal text-emerald-700 dark:bg-slate-900 dark:text-emerald-400"
-              aria-hidden="true">{group}</span
-            >
-          {/each}
-        </div>
-        <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">
-          A visual example. Your shared counter updates live.
-        </p>
-      </div>
+      <TallyClickerIllustration />
     </div>
   </section>
 
-  <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+  <section class="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
     <div class="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
       <div>
-        <p class="font-mono text-sm font-semibold uppercase text-emerald-700 dark:text-emerald-400">
+        <p
+          class="font-mono text-sm font-semibold uppercase text-blue-600 dark:text-blue-400"
+        >
           One count, shared
         </p>
         <h2 class="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
-          Replace the paper tally sheet
+          From clickers and tally sheets to one shared count
         </h2>
       </div>
-      <div class="space-y-5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
+      <div
+        class="space-y-5 text-base leading-relaxed text-slate-600 dark:text-slate-300"
+      >
         <p>
-          A tally counter is useful whenever people need to keep a simple total:
-          visitors through a door, questions asked in a session, items collected,
-          or progress toward a group goal. Count Collab makes that tally easy to
-          share, so nobody has to keep the only copy of the number.
+          A thumb on a clicker, a mark on a sheet, a tap on a screen: a tally
+          counter keeps a running total, one at a time. Use it for visitors
+          through a door, questions in a session, items collected, or progress
+          toward a group goal.
         </p>
         <p>
-          Open the same counter on multiple devices and each change syncs in real
-          time. For a public counter, anyone with the link can join without
-          installing an app or signing up.
+          Count Collab brings that familiar idea online, so the total doesn't
+          stay in one person's hand or notebook. Open the same counter on
+          multiple devices and each change syncs in real time. For a public
+          counter, anyone with the link can join without installing an app or
+          signing up.
         </p>
       </div>
     </div>
   </section>
 
-  <section class="border-y border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-    <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+  <section
+    class="mx-auto max-w-6xl space-y-16 px-4 py-20 sm:space-y-20 sm:px-6 sm:py-24 lg:px-8"
+    aria-labelledby="tally-uses-heading tally-steps-heading"
+  >
+    <div>
       <div class="mb-10 max-w-2xl">
-        <p class="font-mono text-sm font-semibold uppercase text-emerald-700 dark:text-emerald-400">
+        <p
+          class="font-mono text-sm font-semibold uppercase text-blue-600 dark:text-blue-400"
+        >
           Made for everyday counting
         </p>
-        <h2 class="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
+        <h2
+          id="tally-uses-heading"
+          class="mt-3 text-3xl font-bold text-slate-950 dark:text-white"
+        >
           A simple tally, useful anywhere
         </h2>
       </div>
       <div class="grid gap-8 md:grid-cols-3">
-        <article class="border-t-2 border-emerald-600 pt-5 dark:border-emerald-400">
+        <article class="border-t-2 border-blue-600 pt-5 dark:border-blue-400">
           <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">
             Events and attendance
           </h3>
           <p class="mt-2 leading-relaxed text-slate-600 dark:text-slate-400">
-            Keep a shared headcount at the entrance, across rooms, or between
-            event staff.
+            Bring the hand clicker idea to your whole crew. Keep a shared
+            headcount at the entrance, across rooms, or between event staff.
           </p>
         </article>
-        <article class="border-t-2 border-emerald-600 pt-5 dark:border-emerald-400">
+        <article class="border-t-2 border-blue-600 pt-5 dark:border-blue-400">
           <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">
             Classroom participation
           </h3>
           <p class="mt-2 leading-relaxed text-slate-600 dark:text-slate-400">
-            Track questions, votes, or participation with a count the class can
-            follow.
+            Turn a classroom tally into a count everyone can follow. Track
+            questions, votes, or participation as they happen.
           </p>
         </article>
-        <article class="border-t-2 border-emerald-600 pt-5 dark:border-emerald-400">
+        <article class="border-t-2 border-blue-600 pt-5 dark:border-blue-400">
           <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">
             Team goals and collections
           </h3>
@@ -165,37 +136,60 @@
         </article>
       </div>
     </div>
-  </section>
-
-  <section class="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
     <div class="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
       <div>
-        <p class="font-mono text-sm font-semibold uppercase text-emerald-700 dark:text-emerald-400">
+        <p
+          class="font-mono text-sm font-semibold uppercase text-blue-600 dark:text-blue-400"
+        >
           Get started in three steps
         </p>
-        <h2 class="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
+        <h2
+          id="tally-steps-heading"
+          class="mt-3 text-3xl font-bold text-slate-950 dark:text-white"
+        >
           Create, share, count
         </h2>
       </div>
       <ol class="grid gap-6 sm:grid-cols-3">
         <li class="border-l-2 border-slate-200 pl-4 dark:border-slate-700">
-          <span class="font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-400">01</span>
-          <h3 class="mt-2 font-bold text-slate-900 dark:text-slate-100">Name your counter</h3>
-          <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+          <span
+            class="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400"
+            >01</span
+          >
+          <h3 class="mt-2 font-bold text-slate-900 dark:text-slate-100">
+            Name your counter
+          </h3>
+          <p
+            class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400"
+          >
             Set up a counter for the thing you want to track.
           </p>
         </li>
         <li class="border-l-2 border-slate-200 pl-4 dark:border-slate-700">
-          <span class="font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-400">02</span>
-          <h3 class="mt-2 font-bold text-slate-900 dark:text-slate-100">Share one link</h3>
-          <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+          <span
+            class="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400"
+            >02</span
+          >
+          <h3 class="mt-2 font-bold text-slate-900 dark:text-slate-100">
+            Share one link
+          </h3>
+          <p
+            class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400"
+          >
             Send it to the people helping you keep the tally.
           </p>
         </li>
         <li class="border-l-2 border-slate-200 pl-4 dark:border-slate-700">
-          <span class="font-mono text-sm font-semibold text-emerald-700 dark:text-emerald-400">03</span>
-          <h3 class="mt-2 font-bold text-slate-900 dark:text-slate-100">Watch it update</h3>
-          <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+          <span
+            class="font-mono text-sm font-semibold text-blue-600 dark:text-blue-400"
+            >03</span
+          >
+          <h3 class="mt-2 font-bold text-slate-900 dark:text-slate-100">
+            Watch it update
+          </h3>
+          <p
+            class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400"
+          >
             See every change reflected for everyone viewing the counter.
           </p>
         </li>
@@ -203,20 +197,29 @@
     </div>
   </section>
 
-  <section class="bg-slate-950 text-white dark:bg-black">
-    <div class="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 px-4 py-14 sm:px-6 md:flex-row md:items-center lg:px-8">
+  <section>
+    <div
+      class="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 px-4 py-20 sm:px-6 sm:py-24 md:flex-row md:items-center lg:px-8"
+    >
       <div>
-        <p class="font-mono text-sm font-semibold uppercase text-emerald-400">
+        <p
+          class="font-mono text-sm font-semibold uppercase text-blue-600 dark:text-blue-400"
+        >
           Start your tally
         </p>
-        <h2 class="mt-3 text-3xl font-bold">Make the count a team effort.</h2>
-        <p class="mt-3 max-w-xl leading-relaxed text-slate-300">
-          Create a counter and share it with the people counting alongside you.
+        <h2 class="mt-3 text-3xl font-bold text-slate-950 dark:text-white">
+          Make the count a team effort.
+        </h2>
+        <p
+          class="mt-3 max-w-xl leading-relaxed text-slate-600 dark:text-slate-300"
+        >
+          No clicker to pass around. No tallies to add up later. Just one
+          counter shared with the people counting alongside you.
         </p>
       </div>
       <a
         href="/create?type=counter"
-        class="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-lg bg-emerald-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+        class="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
       >
         Create a tally counter
         <ion-icon name="arrow-forward-outline" aria-hidden="true"></ion-icon>
@@ -224,9 +227,14 @@
     </div>
   </section>
 
-  <p class="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-500 dark:text-slate-400 sm:px-6 lg:px-8">
+  <p
+    class="mx-auto max-w-6xl px-4 py-8 text-sm text-slate-500 dark:text-slate-400 sm:px-6 lg:px-8"
+  >
     Looking for more ideas? Browse our
-    <a class="font-semibold text-emerald-800 underline underline-offset-4 dark:text-emerald-300" href="/use-cases">
+    <a
+      class="font-semibold text-blue-600 underline underline-offset-4 dark:text-blue-400"
+      href="/use-cases"
+    >
       shared counter use cases
     </a>.
   </p>

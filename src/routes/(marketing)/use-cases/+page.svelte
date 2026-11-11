@@ -4,7 +4,7 @@
 
 <MetaTags
   title="Use Cases — Count Collab"
-  description="Discover how teams use Count Collab for tally counting, event attendance, fitness tracking, inventory management, game scoreboards, community goals, and education."
+  description="Discover how teams use Count Collab for tally counting, event attendance, fitness tracking, game scoreboards, community goals, and education."
   path="/use-cases"
 />
 
@@ -18,7 +18,7 @@
     <p
       class="mt-4 text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto"
     >
-      From fitness challenges to inventory tracking — see how teams and
+      From fitness challenges to event attendance — see how teams and
       communities use shared counters every day.
     </p>
   </div>
@@ -108,31 +108,6 @@
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
             <strong>Perfect for:</strong> workout challenges, hydration tracking,
             step goals, study sessions, reading goals
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Inventory & Stock -->
-    <div
-      class="p-8 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 shadow-sm"
-    >
-      <div class="flex items-start gap-4">
-        <span class="text-4xl">📦</span>
-        <div>
-          <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Inventory &amp; Stock Tracking
-          </h2>
-          <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
-            Keep a running tally of supplies, equipment, or stock across your
-            team — no spreadsheet needed. Team members increment or decrement
-            the counter as items are added or used. Group multiple inventory
-            counters into a dashboard for a complete stock overview. Real-time
-            sync ensures the count is always accurate.
-          </p>
-          <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
-            <strong>Perfect for:</strong> warehouse stock, office supplies, event
-            materials, food inventory
           </p>
         </div>
       </div>

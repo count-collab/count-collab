@@ -54,11 +54,6 @@
         >Use Cases</a
       >
       <a
-        href="/tally-counter"
-        class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
-        >Tally Counter</a
-      >
-      <a
         href="/how-it-works"
         class="text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition"
         >How It Works</a
@@ -117,14 +112,6 @@
         >
           <ion-icon name="people-outline" style="font-size: 18px;"></ion-icon>
           <span>Use Cases</span>
-        </a>
-        <a
-          href="/tally-counter"
-          onclick={() => (mobileMenuOpen = false)}
-          class="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-        >
-          <ion-icon name="list-outline" style="font-size: 18px;"></ion-icon>
-          <span>Tally Counter</span>
         </a>
         <a
           href="/how-it-works"
