@@ -3,7 +3,6 @@ import {
   getCounter,
   getCounterCount,
   getGlobalActionCount,
-  listPublicCounters,
 } from "$lib/server/counters";
 
 const COFFEE_COUNTER_ID = "600cdb27-5261-4004-a1c3-458727c4501e";
@@ -17,18 +16,15 @@ export const load: PageServerLoad = async ({ depends, parent, url }) => {
     redirect(303, "/home");
   }
 
-  depends("counters:list");
+  depends("marketing:homepage-stats");
 
-  const [popularResult, globalSum, counterCount, coffeeCounter] =
-    await Promise.all([
-      listPublicCounters(6),
-      getGlobalActionCount(),
-      getCounterCount(),
-      getCounter(COFFEE_COUNTER_ID),
-    ]);
+  const [globalSum, counterCount, coffeeCounter] = await Promise.all([
+    getGlobalActionCount(),
+    getCounterCount(),
+    getCounter(COFFEE_COUNTER_ID),
+  ]);
 
   return {
-    popularCounters: popularResult.items,
     globalSum,
     counterCount,
     coffeesCount: coffeeCounter?.count ?? 0,
