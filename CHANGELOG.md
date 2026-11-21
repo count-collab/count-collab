@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.8.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.7.0...count-collab-v0.8.0) (2026-11-21)
+
+
+### Features
+
+* add "New" badge to Teams link in navigation for better visibility ([7671e4e](https://github.com/count-collab/count-collab/commit/7671e4e046cea4406ad0865581d9e7cf90ff8ff2))
+* add event metadata sanitization functions for user name handling ([65c4d19](https://github.com/count-collab/count-collab/commit/65c4d19c80ca65497c12986ddb97eb91ee44150b))
+* add stats update functionality and resolve room token logic for private counters ([d67f6e4](https://github.com/count-collab/count-collab/commit/d67f6e4c06e9e3bece793e26346a7cd1819bed87))
+* add Tally Counter page and integrate into navigation and sitemap ([8b3e009](https://github.com/count-collab/count-collab/commit/8b3e0093e89dcdad5d87ab8ff5058d99264f6208))
+* **counter:** replace anonymus counter stats with all activity stats ([16a47cb](https://github.com/count-collab/count-collab/commit/16a47cb23c5ed009d5f3e7a6f3b5af4dc628070d))
+* enhance Tally Counter page with new illustration and improved layout; ([949e19d](https://github.com/count-collab/count-collab/commit/949e19d5a49a72433d26098f28afabafcaa4e421))
+* implement session user transformation to whitelist fields for client ([65c4d19](https://github.com/count-collab/count-collab/commit/65c4d19c80ca65497c12986ddb97eb91ee44150b))
+* implement TeamSettingsOverlay component with functionality for team management ([65c4d19](https://github.com/count-collab/count-collab/commit/65c4d19c80ca65497c12986ddb97eb91ee44150b))
+* **marketing:** add teams page ([ed37608](https://github.com/count-collab/count-collab/commit/ed37608c374b52652d24776997e44fcc8d4a48ea))
+* **navigation:** improve mobile navigation ([f50b367](https://github.com/count-collab/count-collab/commit/f50b367547ef6a6f47d5c71b29c74d5e8ca90a06))
+* **navigation:** move theme toggle into menu on desktop ([6da701e](https://github.com/count-collab/count-collab/commit/6da701e541f3c6996e35c0264ed75da9178f33ab))
+* **stats:** update date format to dd.mm ([0d8b272](https://github.com/count-collab/count-collab/commit/0d8b2726ed4743dc43a07294fdc056a60984d841))
+* **teams:** add team functionality, UI adjustments ([#26](https://github.com/count-collab/count-collab/issues/26)) ([65c4d19](https://github.com/count-collab/count-collab/commit/65c4d19c80ca65497c12986ddb97eb91ee44150b))
+* **teams:** enhance FAQ and features pages with team-related information and descriptions ([7dfc6d3](https://github.com/count-collab/count-collab/commit/7dfc6d3a3381b4d99f7a2ce902764781c5bce49c))
+* ui tweaks ([f03c652](https://github.com/count-collab/count-collab/commit/f03c652a944335f7d405d0722e1f49f0717889da))
+* update Bun version to 1.4.4 in workflows and package files ([1467261](https://github.com/count-collab/count-collab/commit/1467261832feb53e67f95d3f661b907b9d772f5a))
+* update FAQ and marketing pages for clarity and improved user understanding ([0013952](https://github.com/count-collab/count-collab/commit/0013952ee7f6e556f05f57e97cca330a1e396fd8))
+
+
+### Bug Fixes
+
+* adjust text formatting for better readability in counter messages and marketing page layout ([2c5ea74](https://github.com/count-collab/count-collab/commit/2c5ea7489270291d08bef8129b14f56179e2f40e))
+* empty counter title creation and setup validation with zod ([94b9552](https://github.com/count-collab/count-collab/commit/94b9552514410a245b9709e61b46b2e6998abef4))
+* ensure cookieless mode is always enabled in PostHog initialization ([e85fccb](https://github.com/count-collab/count-collab/commit/e85fccb7ca7dc019b2403b866bd316b86e5b6869))
+* **hooks:** remove comment on raw error messages to enhance clarity ([53f6021](https://github.com/count-collab/count-collab/commit/53f60212b6a8b2eddc4d83e65e718a330f6ae10b))
+* revert to using bun audit for production dependencies due to TLS issues with npm ([3312d8e](https://github.com/count-collab/count-collab/commit/3312d8e0be0984487def2e0c74833ed789f3c549))
+* update error handling to return 404 for unauthorized access to dashboards ([2930d7b](https://github.com/count-collab/count-collab/commit/2930d7bd23dc87501fc4a706a96542f2017be3fb))
+
 ## [0.7.0](https://github.com/count-collab/count-collab/compare/count-collab-v0.6.0...count-collab-v0.7.0) (2026-06-30)
 
 
