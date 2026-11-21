@@ -24,8 +24,8 @@ vi.mock("$lib/db", () => ({
 }));
 vi.mock("$lib/server/counters", () => ({
   getCounter: mockGetCounter,
-  getCounterAnonymousStats: vi.fn(),
   getCounterHistory: vi.fn(),
+  getCounterStats: vi.fn(),
   getCounterUserStats: vi.fn(),
 }));
 vi.mock("$lib/server/authorize", () => ({

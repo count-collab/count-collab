@@ -761,13 +761,13 @@ export async function getCounterUserStats(
   };
 }
 
-type CounterAnonymousStats = CounterTimeStats & {
+type CounterActivityStats = CounterTimeStats & {
   dailyBreakdown: DailyBreakdown[];
 };
 
-export async function getCounterAnonymousStats(
+export async function getCounterStats(
   counterId: string,
-): Promise<CounterAnonymousStats> {
+): Promise<CounterActivityStats> {
   const [totals] = await db.execute<{
     thisWeek: number;
     thisMonth: number;
@@ -783,7 +783,6 @@ export async function getCounterAnonymousStats(
       COUNT(*) AS total
     FROM counter_history
     WHERE counter_id = ${counterId}::uuid
-      AND changed_by IS NULL
   `);
 
   const dailyRows = await db.execute<{
@@ -795,7 +794,6 @@ export async function getCounterAnonymousStats(
       COUNT(*) AS actions
     FROM counter_history
     WHERE counter_id = ${counterId}::uuid
-      AND changed_by IS NULL
     GROUP BY date_trunc('day', changed_at)
     ORDER BY "date" ASC
   `);
