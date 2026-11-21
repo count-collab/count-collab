@@ -5,6 +5,8 @@
     getThemePreference,
   } from "$lib/stores/theme.svelte";
 
+  let { variant = "icon" }: { variant?: "icon" | "menu" } = $props();
+
   const iconName = $derived.by(() => {
     const pref = getThemePreference();
     if (pref === "light") return "sunny-outline";
@@ -26,9 +28,14 @@
 <button
   type="button"
   onclick={cycleTheme}
-  class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"
+  class={variant === "menu"
+    ? "flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-left text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800 transition cursor-pointer"
+    : "inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition cursor-pointer"}
   title={tooltipLabel}
   aria-label={tooltipLabel}
 >
   <ion-icon name={iconName} style="font-size: 20px;"></ion-icon>
+  {#if variant === "menu"}
+    <span>{tooltipLabel}</span>
+  {/if}
 </button>
