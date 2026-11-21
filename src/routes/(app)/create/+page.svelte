@@ -3,7 +3,6 @@
   import posthog from "posthog-js";
 import { untrack } from "svelte";
   import { fly } from "svelte/transition";
-  import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import MetaTags from "$lib/components/MetaTags.svelte";
@@ -51,8 +50,6 @@ import { untrack } from "svelte";
   let ownerTeamId = $state(initialTeamId);
   let errors = $state<Record<string, string>>({});
   let isSubmitting = $state(false);
-  const canGoBack = browser && window.history.length > 1;
-
   // Step management
   // A team passed via ?teamId (e.g. from the team page) already decides the owner
   const showOwnerStep = $derived(
@@ -343,16 +340,21 @@ import { untrack } from "svelte";
   </svg>
 {/snippet}
 
+{#snippet backButton()}
+  <button
+    type="button"
+    onclick={goBack}
+    class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+  >
+    <ion-icon name="arrow-back-outline" aria-hidden="true"></ion-icon>
+    Back
+  </button>
+{/snippet}
+
 {#snippet stepFooter(canContinue: boolean)}
   <div class="flex items-center justify-end gap-4">
-    {#if canGoBack}
-      <button
-        type="button"
-        onclick={() => history.back()}
-        class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-      >
-        Cancel
-      </button>
+    {#if canStepBack}
+      {@render backButton()}
     {/if}
     <button
       type="button"
@@ -366,18 +368,17 @@ import { untrack } from "svelte";
 {/snippet}
 
 <div class="w-full max-w-2xl mx-auto px-4 flex flex-col justify-center flex-1">
-  <!-- Top bar: back button + step dots -->
-  <div class="flex items-center pt-2 mb-8">
-    <button
-      type="button"
-      onclick={goBack}
-      class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 flex items-center gap-1 {canStepBack
-        ? ''
-        : 'invisible'}"
-    >
-      &larr; Back
-    </button>
-    <div class="flex justify-center gap-2 flex-1">
+  <div
+    class="flex items-center justify-center gap-3 pt-2 mb-8 text-xs font-medium text-slate-500 dark:text-slate-400"
+    role="progressbar"
+    aria-label="Creation progress"
+    aria-valuemin="1"
+    aria-valuemax={totalSteps}
+    aria-valuenow={displayStep}
+    aria-valuetext={`Step ${displayStep} of ${totalSteps}`}
+  >
+    <span aria-hidden="true">Step {displayStep} of {totalSteps}</span>
+    <div class="flex justify-center gap-2" aria-hidden="true">
       {#each Array(totalSteps) as _, i}
         <span
           class="inline-block h-2.5 w-2.5 rounded-full {displayStep === i + 1
@@ -388,7 +389,6 @@ import { untrack } from "svelte";
         ></span>
       {/each}
     </div>
-    <div class="w-12"></div>
   </div>
 
   <!-- Wizard steps -->
@@ -873,14 +873,8 @@ import { untrack } from "svelte";
               </div>
 
               <div class="flex items-center justify-end gap-4">
-                {#if canGoBack}
-                  <button
-                    type="button"
-                    onclick={() => history.back()}
-                    class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                  >
-                    Cancel
-                  </button>
+                {#if canStepBack}
+                  {@render backButton()}
                 {/if}
 
                 <button
@@ -979,14 +973,8 @@ import { untrack } from "svelte";
               </div>
 
               <div class="flex items-center justify-end gap-4">
-                {#if canGoBack}
-                  <button
-                    type="button"
-                    onclick={() => history.back()}
-                    class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                  >
-                    Cancel
-                  </button>
+                {#if canStepBack}
+                  {@render backButton()}
                 {/if}
 
                 <button

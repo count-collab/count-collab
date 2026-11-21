@@ -299,6 +299,31 @@ describe("Create page", () => {
       });
       expect(continueButton().disabled).toBe(false);
     });
+
+    it("places Back beside Continue and returns to the previous wizard step", async () => {
+      renderPage();
+
+      await fireEvent.click(screen.getByRole("button", { name: /^Counter/ }));
+      await waitForStep(/How should your counter be accessible/);
+      await fireEvent.click(screen.getByRole("button", { name: /^Public/ }));
+      await waitForStep("How should your counter change?");
+
+      const backButton = screen.getByRole("button", { name: /^Back$/ });
+      const nextButton = continueButton();
+      expect(backButton.parentElement?.firstElementChild).toBe(backButton);
+      expect(backButton.parentElement?.lastElementChild).toBe(nextButton);
+      expect(backButton.querySelector("ion-icon")?.getAttribute("name")).toBe(
+        "arrow-back-outline",
+      );
+      expect(
+        screen
+          .getByRole("progressbar", { name: "Creation progress" })
+          .getAttribute("aria-valuetext"),
+      ).toBe("Step 3 of 4");
+
+      await fireEvent.click(backButton);
+      await waitForStep(/How should your counter be accessible/);
+    });
   });
 
   describe("team branch", () => {
@@ -314,9 +339,7 @@ describe("Create page", () => {
         url: "/api/teams",
         body: { name: "New Team" },
       });
-      expect(screen.getByRole("button", { name: /Back/ }).className).toContain(
-        "invisible",
-      );
+      expect(screen.queryByRole("button", { name: /^Back$/ })).toBeNull();
 
       const roleOptions = within(screen.getByLabelText("Role"))
         .getAllByRole("option")
