@@ -55,6 +55,18 @@ test("mobile navigation keeps primary actions visible and supports keyboard dism
   await expect(menu).toHaveAttribute("aria-expanded", "false");
 });
 
+test("keeps the desktop theme switch visible to signed-out visitors", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto("/counters");
+  await page.locator("#svelte-announcer").waitFor({ state: "attached" });
+
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await expect(nav.getByRole("button", { name: /Theme:/ })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Sign in" })).toBeVisible();
+});
+
 test.describe("signed-in navigation", () => {
   let user: TestUser;
   let createdRoleId: number | undefined;
@@ -153,10 +165,26 @@ test.describe("signed-in navigation", () => {
 
     await page.setViewportSize({ width: 1200, height: 800 });
     const account = nav.getByRole("button", { name: user.username });
+    await expect(nav.getByRole("button", { name: /Theme:/ })).toHaveCount(0);
     await account.focus();
     await page.keyboard.press("Enter");
     await expect(account).toHaveAttribute("aria-expanded", "true");
     await expect(nav.getByRole("link", { name: "Admin" })).toBeVisible();
+    const desktopTheme = nav.getByRole("button", { name: /Theme:/ });
+    await expect(desktopTheme).toBeVisible();
+    const typography = (element: Element) => {
+      const style = getComputedStyle(element);
+      return [style.fontFamily, style.fontSize, style.fontWeight, style.lineHeight];
+    };
+    expect(await desktopTheme.evaluate(typography)).toEqual(
+      await nav.getByRole("link", { name: "Settings" }).evaluate(typography),
+    );
+    const previousTheme = await desktopTheme.getAttribute("aria-label");
+    await desktopTheme.click();
+    await expect(desktopTheme).not.toHaveAttribute(
+      "aria-label",
+      previousTheme ?? "",
+    );
     await page.keyboard.press("Escape");
     await expect(account).toHaveAttribute("aria-expanded", "false");
     await expect(account).toBeFocused();

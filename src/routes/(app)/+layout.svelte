@@ -173,7 +173,10 @@
         <button
           bind:this={mobileMenuButton}
           type="button"
-          onclick={() => (mobileMenuOpen = !mobileMenuOpen)}
+          onclick={() => {
+            accountMenuOpen = false;
+            mobileMenuOpen = !mobileMenuOpen;
+          }}
           class="relative inline-flex items-center justify-center w-11 h-11 rounded-lg text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
           aria-label="Toggle menu"
           aria-expanded={mobileMenuOpen}
@@ -267,7 +270,10 @@
             <button
               bind:this={accountMenuButton}
               type="button"
-              onclick={() => (accountMenuOpen = !accountMenuOpen)}
+              onclick={() => {
+                mobileMenuOpen = false;
+                accountMenuOpen = !accountMenuOpen;
+              }}
               aria-expanded={accountMenuOpen}
               aria-controls="account-navigation"
               class="flex items-center gap-2 py-1 hover:opacity-80 transition cursor-pointer"
@@ -331,6 +337,7 @@
                   Admin
                 </a>
               {/if}
+              <ThemeToggle variant="desktop-menu" />
               <div
                 class="border-t border-slate-100 dark:border-slate-700 my-1"
               ></div>
@@ -352,9 +359,8 @@
           >
             Sign in
           </a>
+          <ThemeToggle />
         {/if}
-
-        <ThemeToggle />
       </div>
     </div>
   </div>
