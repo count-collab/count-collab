@@ -1,12 +1,17 @@
-import { render, screen } from "@testing-library/svelte";
+import { render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import PersonalStats from "./PersonalStats.svelte";
 
-const { MockChart } = vi.hoisted(() => ({
+const { MockChart, chartCreated } = vi.hoisted(() => ({
+  chartCreated: vi.fn(),
   MockChart: class MockChart {
     static register: (...args: unknown[]) => void = vi.fn();
     destroy: () => void = vi.fn();
     update: () => void = vi.fn();
+
+    constructor(_canvas: HTMLCanvasElement, config: unknown) {
+      chartCreated(config);
+    }
   },
 }));
 
@@ -130,5 +135,27 @@ describe("PersonalStats", () => {
     });
 
     expect(container.querySelectorAll("canvas")).toHaveLength(1);
+  });
+
+  it("uses DD.MM dates in both chart tooltips", async () => {
+    const breakdown = [
+      { date: "2026-10-17T12:00:00", actions: 23 },
+      { date: "2026-04-06T12:00:00", actions: 3 },
+    ];
+    render(PersonalStats, {
+      props: {
+        userStats: { ...sampleUserStats, dailyBreakdown: breakdown },
+        counterStats: { ...baseCounterStats, dailyBreakdown: breakdown },
+      },
+    });
+
+    await waitFor(() => {
+      expect(chartCreated).toHaveBeenCalledTimes(2);
+    });
+    for (const [config] of chartCreated.mock.calls) {
+      expect(config).toMatchObject({
+        data: { labels: ["17.10", "06.04"] },
+      });
+    }
   });
 });
