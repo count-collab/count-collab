@@ -43,10 +43,10 @@
         </h2>
         <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
           Click "Create a Counter" and give it a name and optional description.
-          Choose your visibility setting: <strong>public</strong> (anyone can
-          view and increment), <strong>public read-only</strong> (anyone views,
-          only members increment), or <strong>private</strong> (members-only access).
-          No account required for public counters — start counting in seconds.
+          Choose <strong>public</strong> (anyone can view and change the count),
+          <strong>public read-only</strong> (anyone can view; members with
+          counting access can change it), or <strong>private</strong> (members can
+          access). No account required for public counters — start counting in seconds.
         </p>
       </div>
     </div>
@@ -70,9 +70,9 @@
         <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
           Every counter gets a unique URL you can share with anyone. Copy the
           link and send it via email, messaging apps, or social media. For
-          private counters, a secure share token is included in the link so
-          recipients can access it without needing an account. No app downloads,
-          no setup — just click and count.
+          private counters, a valid share-token link grants access to view and
+          change the count, even without signing in. Sharing the link grants
+          access.
         </p>
       </div>
     </div>
@@ -94,11 +94,11 @@
           Count Together in Real Time
         </h2>
         <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
-          Everyone with the link can increment or decrement the counter. Every
-          update syncs instantly via WebSocket — all participants see changes
-          the moment they happen. No manual refresh, no delays. The activity log
-          shows who changed what and when, and sparkline trend charts visualize
-          counter activity at a glance.
+          Anyone can change a public counter; members with counting access can
+          change public read-only counters. Private counters are accessible to
+          members and anyone with a valid share-token link, who can change the
+          count. Each counter counts up or down as configured. Updates sync
+          instantly so everyone sees changes as they happen.
         </p>
       </div>
     </div>

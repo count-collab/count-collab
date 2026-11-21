@@ -3,7 +3,6 @@
   import posthog from "posthog-js";
 import { untrack } from "svelte";
   import { fly } from "svelte/transition";
-  import { browser } from "$app/environment";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
   import MetaTags from "$lib/components/MetaTags.svelte";
@@ -16,6 +15,7 @@ import { untrack } from "svelte";
   } from "$lib/db/schema";
   import { canAssignTeamRole, teamRoleLabels, teamRoleOrder } from "$lib/roles";
   import { rateLimit } from "$lib/stores/ratelimit";
+  import { createCounterSchema } from "$lib/utils/counter-validation";
   import type { PageProps } from "./$types";
 
   let { data }: PageProps = $props();
@@ -51,8 +51,6 @@ import { untrack } from "svelte";
   let ownerTeamId = $state(initialTeamId);
   let errors = $state<Record<string, string>>({});
   let isSubmitting = $state(false);
-  const canGoBack = browser && window.history.length > 1;
-
   // Step management
   // A team passed via ?teamId (e.g. from the team page) already decides the owner
   const showOwnerStep = $derived(
@@ -258,11 +256,38 @@ import { untrack } from "svelte";
     await goto(`/t/${createdTeam.id}/${slugify(createdTeam.name)}`);
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
     if (isSubmitting) return;
-    isSubmitting = true;
     errors = {};
 
+    const payload = {
+      title,
+      description,
+      visibility,
+      counterMode: creationType === "counter" ? counterMode : undefined,
+      teamId: ownerKind === "team" ? ownerTeamId : undefined,
+    };
+
+    if (creationType === "counter") {
+      const validation = createCounterSchema.safeParse(payload);
+      if (!validation.success) {
+        for (const issue of validation.error.issues) {
+          const field = issue.path[0];
+          const key =
+            field === "title" || field === "description" || field === "teamId"
+              ? field
+              : "general";
+          errors[key] ??= issue.message;
+        }
+        return;
+      }
+    } else if (!title.trim()) {
+      errors = { title: "Title is required" };
+      return;
+    }
+
+    isSubmitting = true;
     const apiPath =
       creationType === "dashboard" ? "/api/dashboards" : "/api/counters";
 
@@ -270,13 +295,7 @@ import { untrack } from "svelte";
       const response = await fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          visibility,
-          counterMode: creationType === "counter" ? counterMode : undefined,
-          teamId: ownerKind === "team" ? ownerTeamId : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -343,16 +362,21 @@ import { untrack } from "svelte";
   </svg>
 {/snippet}
 
+{#snippet backButton()}
+  <button
+    type="button"
+    onclick={goBack}
+    class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-5 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+  >
+    <ion-icon name="arrow-back-outline" aria-hidden="true"></ion-icon>
+    Back
+  </button>
+{/snippet}
+
 {#snippet stepFooter(canContinue: boolean)}
   <div class="flex items-center justify-end gap-4">
-    {#if canGoBack}
-      <button
-        type="button"
-        onclick={() => history.back()}
-        class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-      >
-        Cancel
-      </button>
+    {#if canStepBack}
+      {@render backButton()}
     {/if}
     <button
       type="button"
@@ -366,18 +390,17 @@ import { untrack } from "svelte";
 {/snippet}
 
 <div class="w-full max-w-2xl mx-auto px-4 flex flex-col justify-center flex-1">
-  <!-- Top bar: back button + step dots -->
-  <div class="flex items-center pt-2 mb-8">
-    <button
-      type="button"
-      onclick={goBack}
-      class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 flex items-center gap-1 {canStepBack
-        ? ''
-        : 'invisible'}"
-    >
-      &larr; Back
-    </button>
-    <div class="flex justify-center gap-2 flex-1">
+  <div
+    class="flex items-center justify-center gap-3 pt-2 mb-8 text-xs font-medium text-slate-500 dark:text-slate-400"
+    role="progressbar"
+    aria-label="Creation progress"
+    aria-valuemin="1"
+    aria-valuemax={totalSteps}
+    aria-valuenow={displayStep}
+    aria-valuetext={`Step ${displayStep} of ${totalSteps}`}
+  >
+    <span aria-hidden="true">Step {displayStep} of {totalSteps}</span>
+    <div class="flex justify-center gap-2" aria-hidden="true">
       {#each Array(totalSteps) as _, i}
         <span
           class="inline-block h-2.5 w-2.5 rounded-full {displayStep === i + 1
@@ -388,7 +411,6 @@ import { untrack } from "svelte";
         ></span>
       {/each}
     </div>
-    <div class="w-12"></div>
   </div>
 
   <!-- Wizard steps -->
@@ -841,17 +863,19 @@ import { untrack } from "svelte";
               </div>
             {/if}
 
-            <form onsubmit={handleSubmit} class="space-y-6">
+            <form onsubmit={handleSubmit} class="space-y-6" novalidate>
               <div class="space-y-1">
                 <input
                   type="text"
                   required
                   bind:value={title}
                   placeholder="Give it a name..."
+                  aria-invalid={errors.title ? "true" : undefined}
+                  aria-describedby={errors.title ? "create-title-error" : undefined}
                   class="w-full bg-transparent border-0 border-b-2 border-slate-300 dark:border-slate-600 text-2xl font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-0 py-2 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-0"
                 />
                 {#if errors.title}
-                  <p class="text-sm text-red-600 dark:text-red-400">
+                  <p id="create-title-error" class="text-sm text-red-600 dark:text-red-400">
                     {errors.title}
                   </p>
                 {/if}
@@ -873,14 +897,8 @@ import { untrack } from "svelte";
               </div>
 
               <div class="flex items-center justify-end gap-4">
-                {#if canGoBack}
-                  <button
-                    type="button"
-                    onclick={() => history.back()}
-                    class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                  >
-                    Cancel
-                  </button>
+                {#if canStepBack}
+                  {@render backButton()}
                 {/if}
 
                 <button
@@ -979,14 +997,8 @@ import { untrack } from "svelte";
               </div>
 
               <div class="flex items-center justify-end gap-4">
-                {#if canGoBack}
-                  <button
-                    type="button"
-                    onclick={() => history.back()}
-                    class="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                  >
-                    Cancel
-                  </button>
+                {#if canStepBack}
+                  {@render backButton()}
                 {/if}
 
                 <button

@@ -27,16 +27,16 @@
     dailyBreakdown: DailyBreakdown[];
   };
 
-  type AnonymousStatsData = TimeStats & {
+  type CounterStatsData = TimeStats & {
     dailyBreakdown: DailyBreakdown[];
   };
 
   let {
     userStats = null,
-    anonymousStats,
+    counterStats,
   }: {
     userStats: UserStatsData | null;
-    anonymousStats: AnonymousStatsData;
+    counterStats: CounterStatsData;
   } = $props();
 
   const fmt = new Intl.NumberFormat();
@@ -54,17 +54,17 @@
     { label: `This Year (${yearLabel})`, value: userStats?.totals.thisYear ?? 0 },
   ]);
 
-  const anonPills = $derived<StatPill[]>([
-    { label: "This Week", value: anonymousStats.thisWeek },
-    { label: `This Month (${monthLabel})`, value: anonymousStats.thisMonth },
-    { label: `This Quarter (Q${quarterNum})`, value: anonymousStats.thisQuarter },
-    { label: `This Year (${yearLabel})`, value: anonymousStats.thisYear },
+  const counterPills = $derived<StatPill[]>([
+    { label: "This Week", value: counterStats.thisWeek },
+    { label: `This Month (${monthLabel})`, value: counterStats.thisMonth },
+    { label: `This Quarter (Q${quarterNum})`, value: counterStats.thisQuarter },
+    { label: `This Year (${yearLabel})`, value: counterStats.thisYear },
   ]);
 
   let userCanvas: HTMLCanvasElement | undefined = $state();
   let userChartRef: { current: Chart | undefined } = { current: undefined };
-  let anonCanvas: HTMLCanvasElement | undefined = $state();
-  let anonChartRef: { current: Chart | undefined } = { current: undefined };
+  let counterCanvas: HTMLCanvasElement | undefined = $state();
+  let counterChartRef: { current: Chart | undefined } = { current: undefined };
 
   const theme = $derived(
     browser && document.documentElement.classList.contains("dark")
@@ -98,7 +98,7 @@
     const d = new Date(date);
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
-    return `${mm}/${dd}`;
+    return `${dd}.${mm}`;
   }
 
   function destroyChart(ref: { current: Chart | undefined }) {
@@ -190,19 +190,19 @@
   });
 
   $effect(() => {
-    anonymousStats;
-    anonCanvas;
-    if (!browser || !anonCanvas) return;
+    counterStats;
+    counterCanvas;
+    if (!browser || !counterCanvas) return;
     renderSparkline(
-      anonCanvas,
-      anonChartRef,
-      anonymousStats.dailyBreakdown ?? [],
+      counterCanvas,
+      counterChartRef,
+      counterStats.dailyBreakdown ?? [],
     );
   });
 
   onDestroy(() => {
     destroyChart(userChartRef);
-    destroyChart(anonChartRef);
+    destroyChart(counterChartRef);
   });
 </script>
 
@@ -257,12 +257,12 @@
     <h3
       class="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 flex items-center gap-1.5 mb-3"
     >
-      <ion-icon name="eye-off-outline" style="font-size: 16px;"></ion-icon>
-      Anonymous
+      <ion-icon name="people-outline" style="font-size: 16px;"></ion-icon>
+      All Activity
     </h3>
 
     <div class="grid grid-cols-2 gap-2 mb-3">
-      {#each anonPills as pill}
+      {#each counterPills as pill}
         <div
           class="rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-3 py-2"
         >
@@ -280,16 +280,19 @@
       {/each}
     </div>
 
-    {#if anonymousStats.dailyBreakdown.length > 1}
+    {#if counterStats.dailyBreakdown.length > 1}
       <div class="h-16 mb-2">
-        <canvas bind:this={anonCanvas}></canvas>
+        <canvas bind:this={counterCanvas}></canvas>
       </div>
     {/if}
 
     <p
       class="text-xs text-slate-400 dark:text-slate-500"
     >
-      {fmt.format(anonymousStats.total)} total actions
+      {fmt.format(counterStats.total)} total actions
+    </p>
+    <p class="text-xs text-slate-400 dark:text-slate-500">
+      Includes signed-in users and guests
     </p>
   </div>
 </div>

@@ -26,6 +26,7 @@ export const GET: RequestHandler = async ({ url }) => {
   <url><loc>${origin}/dashboards</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
   <url><loc>${origin}/features</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
   <url><loc>${origin}/use-cases</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
+  <url><loc>${origin}/tally-counter</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
   <url><loc>${origin}/how-it-works</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
   <url><loc>${origin}/faq</loc><lastmod>${buildInfo.buildTime}</lastmod></url>
   ${counterEntries}

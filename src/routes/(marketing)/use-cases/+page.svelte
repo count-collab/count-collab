@@ -4,7 +4,7 @@
 
 <MetaTags
   title="Use Cases — Count Collab"
-  description="Discover how teams use Count Collab for event attendance, fitness tracking, inventory management, game scoreboards, community goals, and education."
+  description="Discover how teams use Count Collab for tally counting, event attendance, fitness tracking, game scoreboards, community goals, and education."
   path="/use-cases"
 />
 
@@ -18,12 +18,51 @@
     <p
       class="mt-4 text-lg text-slate-500 dark:text-slate-400 max-w-2xl mx-auto"
     >
-      From fitness challenges to inventory tracking — see how teams and
+      From fitness challenges to event attendance — see how teams and
       communities use shared counters every day.
     </p>
   </div>
 
   <div class="space-y-12">
+    <div
+      id="tally-counter"
+      class="p-8 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 shadow-sm"
+    >
+      <div class="flex items-start gap-4">
+        <span
+          class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+        >
+          <ion-icon
+            name="list-outline"
+            style="font-size: 24px;"
+            aria-hidden="true"
+          ></ion-icon>
+        </span>
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
+            Online Tally Counter
+          </h2>
+          <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
+            For a quick in-person vote, create one counter for each response,
+            share its link with tally keepers, and update it as votes arrive.
+            Live totals give the group a running result without reconciling
+            separate sheets.
+          </p>
+          <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
+            <strong>Perfect for:</strong> event check-ins, classroom participation,
+            group goals, quick headcounts
+          </p>
+          <a
+            href="/tally-counter"
+            class="mt-4 inline-flex items-center gap-2 font-semibold text-emerald-800 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-900 dark:text-emerald-300 dark:decoration-emerald-700 dark:hover:text-emerald-200"
+          >
+            Explore the online tally counter
+            <span aria-hidden="true">&rarr;</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
     <!-- Event Attendance -->
     <div
       class="p-8 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 shadow-sm"
@@ -35,11 +74,10 @@
             Event Attendance
           </h2>
           <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
-            Track headcount at events, conferences, and meetups with a shared
-            counter that everyone on the door can update in real time. Multiple
-            door staff can increment simultaneously and see the same live total.
-            Create separate counters for different rooms or areas and group them
-            into a single dashboard for a complete venue overview.
+            At a conference, create a counter for each entrance, share the
+            matching counter link with door staff, and group the counters on an
+            event dashboard. Coordinators can see each entrance's live total in
+            one place and review attendance across the venue.
           </p>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
             <strong>Perfect for:</strong> conferences, meetups, venues, festivals,
@@ -60,40 +98,14 @@
             Fitness &amp; Habit Tracking
           </h2>
           <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
-            Count workouts, water glasses, steps, or any daily habit with
-            friends, and stay accountable together. Each participant increments
-            the shared counter when they complete their task. The activity
-            history shows who contributed and when, turning daily habits into a
-            collaborative challenge.
+            For a walking group, use one counter for completed group walks,
+            share its link with members, and update it after each outing. The
+            live total makes progress visible between meetups, so everyone can
+            see how far the shared goal has advanced.
           </p>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
             <strong>Perfect for:</strong> workout challenges, hydration tracking,
             step goals, study sessions, reading goals
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Inventory & Stock -->
-    <div
-      class="p-8 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 shadow-sm"
-    >
-      <div class="flex items-start gap-4">
-        <span class="text-4xl">📦</span>
-        <div>
-          <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">
-            Inventory &amp; Stock Tracking
-          </h2>
-          <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
-            Keep a running tally of supplies, equipment, or stock across your
-            team — no spreadsheet needed. Team members increment or decrement
-            the counter as items are added or used. Group multiple inventory
-            counters into a dashboard for a complete stock overview. Real-time
-            sync ensures the count is always accurate.
-          </p>
-          <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
-            <strong>Perfect for:</strong> warehouse stock, office supplies, event
-            materials, food inventory
           </p>
         </div>
       </div>
@@ -110,11 +122,9 @@
             Game Scoreboards
           </h2>
           <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
-            Create real-time scoreboards for board games, trivia nights, and
-            competitions. Each player or team gets their own counter, and scores
-            update live for everyone to see. Group player counters into a
-            dashboard for a complete leaderboard view. No app needed — just
-            share the link and everyone can follow along.
+            For trivia, create a counter per team and group them on a scoreboard
+            dashboard, then share the dashboard with players. Add points after
+            each round; live totals show the standings before the next question.
           </p>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
             <strong>Perfect for:</strong> board game nights, trivia competitions,
@@ -135,11 +145,11 @@
             Community Goals
           </h2>
           <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
-            Rally your community, organization, or online following around a
-            shared counting goal and watch progress accumulate in real time.
-            Whether it's a charity drive counting donations, a community
-            tracking volunteer hours, or a group chasing a collective milestone,
-            shared counters make the progress visible to everyone.
+            For a neighborhood cleanup, count filled bags with one shared
+            counter, or create one per cleanup zone and group them on a
+            dashboard. Share counter links with volunteers so updates appear in
+            the live totals, giving coordinators a view of progress across
+            zones.
           </p>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
             <strong>Perfect for:</strong> fundraisers, volunteer tracking, community
@@ -160,11 +170,10 @@
             Classroom &amp; Education
           </h2>
           <p class="mt-3 text-slate-600 dark:text-slate-400 leading-relaxed">
-            Teachers can track participation points, student progress, or
-            classroom votes in real time with a shared counter. Students see
-            updates instantly, creating a more engaging and interactive learning
-            environment. Private counters with member roles let teachers control
-            who can modify scores while students observe.
+            For a classroom practice round, assign member roles, create a
+            counter for each group's correctly answered questions, and arrange
+            the counters on a dashboard. Share counter links for updates; live
+            totals let the class compare progress between rounds.
           </p>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-500">
             <strong>Perfect for:</strong> participation tracking, live polls, student

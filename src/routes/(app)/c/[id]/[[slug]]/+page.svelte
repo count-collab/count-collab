@@ -750,11 +750,11 @@ import { untrack } from "svelte";
       {/if}
     </div>
   {/if}
-  {#if data.userStats || data.anonymousStats.total > 0}
+  {#if data.userStats || data.counterStats.total > 0}
     <div class="mt-4">
       <PersonalStats
         userStats={data.userStats}
-        anonymousStats={data.anonymousStats}
+        counterStats={data.counterStats}
       />
     </div>
   {/if}

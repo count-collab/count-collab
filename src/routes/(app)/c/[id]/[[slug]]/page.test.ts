@@ -72,12 +72,13 @@ function makePageData(overrides: Record<string, unknown> = {}) {
     initialCooldownSeconds: 0,
     cooldownDuration: 5,
     userStats: null,
-    anonymousStats: {
+    counterStats: {
       thisWeek: 0,
       thisMonth: 0,
       thisQuarter: 0,
       thisYear: 0,
       total: 0,
+      dailyBreakdown: [],
     },
     title: "Test Counter | Count Collab",
     description: "A test counter",
@@ -99,6 +100,26 @@ describe("Counter detail page", () => {
       props: { data: makePageData() as never },
     });
     expect(container.textContent).toContain("Test Counter");
+  });
+
+  it("shows all activity to signed-out visitors when the counter has activity", () => {
+    render(Page, {
+      props: {
+        data: makePageData({
+          counterStats: {
+            thisWeek: 2,
+            thisMonth: 2,
+            thisQuarter: 2,
+            thisYear: 2,
+            total: 2,
+            dailyBreakdown: [],
+          },
+        }) as never,
+      },
+    });
+
+    expect(screen.getByText("All Activity")).toBeTruthy();
+    expect(screen.getByText("2 total actions")).toBeTruthy();
   });
 
   it("displays the created-at date", () => {

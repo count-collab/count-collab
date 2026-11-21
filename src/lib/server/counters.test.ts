@@ -59,6 +59,7 @@ import {
   createCounter,
   getCounterCount,
   getCounterSparkline,
+  getCounterStats,
   getGlobalActionCount,
   getOwnedCounterCount,
   getOwnedCounters,
@@ -103,6 +104,46 @@ const dialect = new PgDialect();
 function toSql(clause: unknown): string {
   return dialect.sqlToQuery(clause as SQL).sql;
 }
+
+describe("counter activity stats", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExecute.mockReset();
+  });
+
+  it("queries all actors for both time totals and the daily breakdown", async () => {
+    mockExecute
+      .mockResolvedValueOnce([
+        { thisWeek: "3", thisMonth: "4", thisQuarter: "5", thisYear: "6", total: "7" },
+      ])
+      .mockResolvedValueOnce([
+        { date: "2026-04-06", actions: "2" },
+        { date: "2026-04-07", actions: "5" },
+      ]);
+
+    const stats = await getCounterStats("counter-id");
+
+    expect(stats).toEqual({
+      thisWeek: 3,
+      thisMonth: 4,
+      thisQuarter: 5,
+      thisYear: 6,
+      total: 7,
+      dailyBreakdown: [
+        { date: "2026-04-06", actions: 2 },
+        { date: "2026-04-07", actions: 5 },
+      ],
+    });
+    expect(mockExecute).toHaveBeenCalledTimes(2);
+    for (const [query] of mockExecute.mock.calls) {
+      const compiled = dialect.sqlToQuery(query as SQL);
+      expect(compiled.sql).toMatch(/WHERE counter_id = \$1::uuid/);
+      expect(compiled.sql).not.toMatch(/changed_by/i);
+      expect(compiled.params).toEqual(["counter-id"]);
+    }
+  });
+
+});
 
 describe("createCounter", () => {
   beforeEach(() => {

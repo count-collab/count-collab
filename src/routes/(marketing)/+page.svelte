@@ -1,7 +1,6 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import { invalidate } from "$app/navigation";
-  import CounterCard from "$lib/components/CounterCard.svelte";
   import FaqAccordion from "$lib/components/FaqAccordion.svelte";
   import MetaTags from "$lib/components/MetaTags.svelte";
   import RollingNumber from "$lib/components/RollingNumber.svelte";
@@ -56,11 +55,11 @@
 
     const leaveFeed = subscribeRoom("feed");
     const unsubUpdate = onCounterUpdated(() => {
-      invalidate("counters:list");
+      invalidate("marketing:homepage-stats");
     });
 
     const unsubCreated = onCounterCreated(() => {
-      invalidate("counters:list");
+      invalidate("marketing:homepage-stats");
     });
     const unsubStats = onStatsUpdated(() => {
       liveActions += 1;
@@ -134,25 +133,24 @@
     <p
       class="mb-4 inline-block rounded-full bg-blue-100 dark:bg-blue-900 px-4 py-1 text-sm font-medium text-blue-700 dark:text-blue-300 tracking-wide"
     >
-      Free &middot; No sign-up &middot; Real-time sync
+      Public counters &middot; No account needed &middot; Live updates
     </p>
     <h1
       class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100 leading-tight"
     >
-      Count together,
+      One shared tally,
       <span
         class="bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent"
       >
-        in real time
+        updated live
       </span>
     </h1>
     <p
       class="mt-6 text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed"
     >
-      Count Collab is a free, real-time collaborative counter platform. Create a
-      counter, share the link, and let anyone increment it instantly — no
-      sign-up required. Organize counters into dashboards, share them with
-      your whole team at once, and track activity history.
+      Create an online counter or tally, share it, and keep one total together.
+      It updates live for everyone with access. Public counters can be created
+      and used without an account.
     </p>
 
     <!-- Social proof stats -->
@@ -231,7 +229,9 @@
           Create a Counter
         </h3>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Give it a name and choose public or private visibility. That's it.
+          Choose public (anyone can view and change the count), public read-only
+          (anyone can view; members with counting access can change it), or
+          private (members can access).
         </p>
       </div>
       <div
@@ -255,8 +255,8 @@
           Share the Link
         </h3>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Every counter gets a unique URL. Send it to anyone — no app download
-          required.
+          Share the counter URL. For private counters, a valid share-token link
+          grants access to view and change the count, even without signing in.
         </p>
       </div>
       <div
@@ -280,8 +280,10 @@
           Count Together
         </h3>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Everyone with the link can increment in real time. Changes sync
-          instantly across all devices.
+          Who can change the count depends on visibility: anyone for public,
+          members with counting access for public read-only, and members with
+          counting access or anyone with a valid share-token link for private.
+          Each counter counts up or down as configured; changes sync instantly.
         </p>
       </div>
       <div
@@ -466,8 +468,10 @@
             No Account Required
           </h3>
           <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Start counting in seconds. Sign up later to unlock member roles and
-            private counters.
+            Create and use public counters without an account. Signing in is
+            required to create or manage private counters, use member roles,
+            personal dashboards, or teams. Recipients with a valid
+            private-counter share link can access it without signing in.
           </p>
         </div>
         <div
@@ -534,7 +538,7 @@
               >
             </a>
             <a
-              href="/features#teams"
+              href="/teams"
               class="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-7 py-3.5 font-semibold text-slate-700 dark:text-slate-300 shadow-sm transition-all hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
             >
               Learn More
@@ -658,43 +662,6 @@
       </div>
     </div>
   </section>
-
-  <!-- POPULAR COUNTERS -->
-  {#if data.popularCounters.length > 0}
-    <section class="px-4 py-20 sm:py-24 bg-slate-50/50 dark:bg-slate-900/50">
-      <div class="max-w-6xl mx-auto">
-        <div class="text-center mb-12">
-          <h2
-            class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-slate-100"
-          >
-            Popular Counters
-          </h2>
-          <p class="mt-4 text-lg text-slate-500 dark:text-slate-400">
-            See what the community is counting right now.
-          </p>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {#each data.popularCounters as counter, i (counter.id)}
-            <div class="animate-fade-up" style="animation-delay: {i * 60}ms">
-              <CounterCard {counter} />
-            </div>
-          {/each}
-        </div>
-        <div class="text-center mt-8">
-          <a
-            href="/counters"
-            class="group inline-flex items-center gap-1 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition"
-          >
-            View all
-            <span
-              class="inline-block transition-transform group-hover:translate-x-0.5"
-              >&rarr;</span
-            >
-          </a>
-        </div>
-      </div>
-    </section>
-  {/if}
 
   <!-- FAQ -->
   <section id="faq" class="px-4 py-20 sm:py-24 max-w-3xl mx-auto">

@@ -15,8 +15,8 @@ import {
 } from "$lib/server/authorize";
 import {
   getCounter,
-  getCounterAnonymousStats,
   getCounterHistory,
+  getCounterStats,
   getCounterUserStats,
 } from "$lib/server/counters";
 import {
@@ -200,9 +200,9 @@ export const load: PageServerLoad = async ({
         .limit(20)
     : [];
 
-  const [userStats, anonymousStats] = await Promise.all([
+  const [userStats, counterStats] = await Promise.all([
     userId ? getCounterUserStats(params.id, userId) : null,
-    getCounterAnonymousStats(params.id),
+    getCounterStats(params.id),
   ]);
 
   depends(`counter:${params.id}`);
@@ -252,7 +252,7 @@ export const load: PageServerLoad = async ({
         actionCount: Number(s.actionCount),
       })),
     userStats,
-    anonymousStats,
+    counterStats,
     // Only expose the share token to users who can manage the counter
     shareToken: canManage ? (counter.shareToken ?? null) : null,
     hasValidToken,

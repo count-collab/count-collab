@@ -5,6 +5,7 @@
   import Switch from "$lib/components/Switch.svelte";
   import TransferOwnershipSection from "$lib/components/TransferOwnershipSection.svelte";
   import type { CounterMode, CounterVisibilityMode } from "$lib/db/schema";
+  import { updateCounterSchema } from "$lib/utils/counter-validation";
 
   type Goal = {
     id: number;
@@ -67,6 +68,10 @@
   let isSaving = $state(false);
   let saveError = $state("");
   let goalErrors = $state<Set<number>>(new Set());
+  const titleError = $derived.by(() => {
+    const result = updateCounterSchema.shape.title.safeParse(title);
+    return result.success ? "" : result.error.issues[0].message;
+  });
 
   // Initialize local state from counter prop when overlay opens
   $effect(() => {
@@ -144,7 +149,23 @@
   }
 
   async function handleSave() {
-    if (!canEdit || isSaving) return;
+    if (!canEdit || isSaving || titleError) return;
+    const payload = {
+      title,
+      description: description || null,
+      visibility: visibilityMode,
+      counterMode,
+      cooldownEnabled,
+      cooldownSeconds,
+      goalsEnabled,
+      showAllReachedGoals,
+      scoreboardEnabled,
+    };
+    const validation = updateCounterSchema.safeParse(payload);
+    if (!validation.success) {
+      saveError = validation.error.issues[0].message;
+      return;
+    }
     isSaving = true;
     saveError = "";
     goalErrors = new Set();
@@ -167,23 +188,19 @@
       const patchRes = await fetch(`/api/counters/${counter.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description: description || null,
-          visibility: visibilityMode,
-          counterMode,
-          cooldownEnabled,
-          cooldownSeconds,
-          goalsEnabled,
-          showAllReachedGoals,
-          scoreboardEnabled,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!patchRes.ok) {
         const body = await patchRes.json().catch(() => ({}));
+        const fieldError = Object.values(
+          (body.errors ?? {}) as Record<string, string[] | undefined>,
+        ).flat()[0];
         saveError =
-          body.error ?? body.message ?? "Failed to save counter settings.";
+          body.error ??
+          body.message ??
+          fieldError ??
+          "Failed to save counter settings.";
         return;
       }
 
@@ -322,8 +339,17 @@
               placeholder="Give it a name..."
               required
               disabled={!canEdit}
+              aria-invalid={canEdit && titleError ? "true" : undefined}
+              aria-describedby={canEdit && titleError
+                ? "counter-title-error"
+                : undefined}
               class="w-full bg-transparent border-0 border-b-2 border-slate-300 dark:border-slate-600 text-2xl font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-0 py-2 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-0 disabled:opacity-50 disabled:cursor-not-allowed"
             />
+            {#if canEdit && titleError}
+              <p id="counter-title-error" class="text-sm text-red-600 dark:text-red-400">
+                {titleError}
+              </p>
+            {/if}
             <input
               type="text"
               bind:value={description}
@@ -595,7 +621,7 @@
         <button
           type="button"
           onclick={handleSave}
-          disabled={!canEdit || isSaving || !title.trim()}
+          disabled={!canEdit || isSaving || !!titleError}
           class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {#if isSaving}

@@ -41,7 +41,7 @@
         </h2>
         <p class="mt-2 text-slate-600 dark:text-slate-400 leading-relaxed">
           Every change syncs instantly across all connected devices using
-          WebSocket technology (Socket.IO). When someone increments a counter,
+          WebSocket technology (Socket.IO). When someone changes a counter,
           every other person viewing it sees the update immediately — no manual
           refresh needed. Whether you're tracking attendance in real time or
           collaborating on a team goal, everyone is always on the same page.
@@ -65,11 +65,10 @@
           Share via Link
         </h2>
         <p class="mt-2 text-slate-600 dark:text-slate-400 leading-relaxed">
-          Each counter gets a unique URL that you can share with anyone. Send it
-          via email, messaging apps, or social media — recipients can start
-          collaborating immediately without downloading an app or creating an
-          account. Private counters can also be shared via secure, token-based
-          links.
+          Each counter gets a unique URL. Anyone with a public counter link can
+          view and change the count in its configured direction. For private
+          counters, a valid share-token link grants access to view and change
+          the count, even without signing in.
         </p>
       </div>
     </div>
@@ -119,13 +118,18 @@
           and every counter and dashboard the team owns is instantly available
           to all of its members. Team roles — <strong>viewer</strong>,
           <strong>incrementer</strong>, <strong>editor</strong>,
-          <strong>admin</strong>, and <strong>owner</strong> — carry over to
-          everything the team owns, so permissions stay consistent. Invite
-          members by username or share a join link with a role of your choice,
-          move your existing counters and dashboards into a team whenever you
-          like, and keep things private: team counters start out private and
-          team pages are only visible to members.
+          <strong>admin</strong>, and <strong>owner</strong> — carry over to everything
+          the team owns, so permissions stay consistent. Invite members by username
+          or share a join link with a role of your choice, move your existing counters
+          and dashboards into a team whenever you like, and keep things private: team
+          counters start out private and team pages are only visible to members.
         </p>
+        <a
+          href="/teams"
+          class="mt-4 inline-flex items-center gap-2 font-semibold text-blue-700 underline underline-offset-4 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+        >
+          Explore Teams <span aria-hidden="true">&rarr;</span>
+        </a>
       </div>
     </div>
 
@@ -195,10 +199,11 @@
         </h2>
         <p class="mt-2 text-slate-600 dark:text-slate-400 leading-relaxed">
           Choose from three visibility modes: <strong>public</strong> (anyone
-          can view and increment), <strong>public read-only</strong> (anyone can
-          view but only members can increment), and <strong>private</strong> (only
-          invited members can access). This gives you full control over who can see
-          and modify your counters.
+          can view and change the count), <strong>public read-only</strong>
+          (anyone can view; members with counting access can change it), and
+          <strong>private</strong> (members can access; anyone with a valid share-token
+          link can also view and change the count without signing in). Sharing that
+          link grants access. Each counter can be configured to count up or down.
         </p>
       </div>
     </div>
@@ -219,11 +224,10 @@
           No Account Required
         </h2>
         <p class="mt-2 text-slate-600 dark:text-slate-400 leading-relaxed">
-          Get started in seconds without creating an account or providing an
-          email address. Create public counters, share them, and start counting
-          immediately. When you're ready for more — private counters, member
-          roles, personal dashboards, and teams — create an account to unlock
-          these features.
+          Create and use public counters without an account. Signing in is
+          required to create or manage private counters, use member roles,
+          personal dashboards, or teams. Recipients with a valid private-counter
+          share link can access it without signing in.
         </p>
       </div>
     </div>
@@ -249,8 +253,8 @@
           (read-only access), <strong>incrementer</strong> (can modify the
           count), <strong>editor</strong> (can update counter details), or
           <strong>admin</strong> (full management access). This role-based access
-          control ensures the right level of permissions for every team member.
-          Assign roles on a single counter or dashboard, or once for a whole team.
+          control ensures the right level of permissions for every team member. Assign
+          roles on a single counter or dashboard, or once for a whole team.
         </p>
       </div>
     </div>

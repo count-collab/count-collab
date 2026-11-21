@@ -1,5 +1,8 @@
 # Counter Settings Rework
 
+Counter titles are required and cannot consist only of whitespace. Leading and
+trailing whitespace is removed when a counter is created or updated.
+
 ## Settings Overlay
 
 Replaces the current edit modal with a full-page overlay covering the entire counter page.

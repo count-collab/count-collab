@@ -36,7 +36,7 @@ type Team = {
 };
 
 const alpha: Team = {
-  id: "t-1",
+  id: "3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e",
   name: "Alpha",
   role: "owner",
   memberCount: 3,
@@ -107,6 +107,43 @@ describe("Create page", () => {
     cleanup();
   });
 
+  it("rejects empty and whitespace-only counter names before sending a request", async () => {
+    renderPage({ preselectedType: "counter" });
+    await fireEvent.click(screen.getByRole("button", { name: /^Public/ }));
+    await waitForStep("How should your counter change?");
+    await fireEvent.click(screen.getByRole("button", { name: /^Increment only/ }));
+    await waitForStep("Name your counter");
+
+    const title = screen.getByPlaceholderText("Give it a name...");
+    const form = title.closest("form") as HTMLFormElement;
+    for (const value of ["", " ", " \t "]) {
+      await fireEvent.input(title, { target: { value } });
+      await fireEvent.submit(form);
+      expect(screen.getByText("Title is required")).toBeTruthy();
+      expect(title.getAttribute("aria-invalid")).toBe("true");
+      expect(fetchMock).not.toHaveBeenCalled();
+    }
+
+    await fireEvent.input(title, { target: { value: "a".repeat(201) } });
+    await fireEvent.submit(form);
+    expect(screen.getByText("Title must be less than 200 characters")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const description = screen.getByPlaceholderText("Add a description (optional)");
+    await fireEvent.input(title, { target: { value: "Coffee" } });
+    await fireEvent.input(description, { target: { value: "a".repeat(501) } });
+    await fireEvent.submit(form);
+    expect(screen.getByText("Description must be less than 500 characters")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    respondOnce(201, { id: "c-new" });
+    await fireEvent.input(description, { target: { value: "" } });
+    await fireEvent.input(title, { target: { value: "a".repeat(200) } });
+    await fireEvent.submit(form);
+    await waitFor(() => expect(mockGoto).toHaveBeenCalledWith("/c/c-new"));
+    expect(lastRequest().body.title).toBe("a".repeat(200));
+  });
+
   describe("type step", () => {
     it("shows counter, dashboard and team cards", () => {
       renderPage();
@@ -171,7 +208,7 @@ describe("Create page", () => {
       const { container } = renderPage({
         teams: [alpha],
         preselectedType: "counter",
-        search: "?type=counter&teamId=t-1",
+        search: `?type=counter&teamId=${alpha.id}`,
       });
 
       screen.getByRole("heading", {
@@ -203,7 +240,7 @@ describe("Create page", () => {
         body: expect.objectContaining({
           title: "Coffee",
           visibility: "private",
-          teamId: "t-1",
+          teamId: alpha.id,
         }),
       });
     });
@@ -212,7 +249,7 @@ describe("Create page", () => {
       const { container } = renderPage({
         teams: [alpha],
         preselectedType: "dashboard",
-        search: "?type=dashboard&teamId=t-1",
+        search: `?type=dashboard&teamId=${alpha.id}`,
       });
 
       screen.getByRole("heading", {
@@ -295,9 +332,34 @@ describe("Create page", () => {
       renderPage({
         teams: [alpha],
         preselectedType: "counter",
-        search: "?type=counter&teamId=t-1",
+        search: `?type=counter&teamId=${alpha.id}`,
       });
       expect(continueButton().disabled).toBe(false);
+    });
+
+    it("places Back beside Continue and returns to the previous wizard step", async () => {
+      renderPage();
+
+      await fireEvent.click(screen.getByRole("button", { name: /^Counter/ }));
+      await waitForStep(/How should your counter be accessible/);
+      await fireEvent.click(screen.getByRole("button", { name: /^Public/ }));
+      await waitForStep("How should your counter change?");
+
+      const backButton = screen.getByRole("button", { name: /^Back$/ });
+      const nextButton = continueButton();
+      expect(backButton.parentElement?.firstElementChild).toBe(backButton);
+      expect(backButton.parentElement?.lastElementChild).toBe(nextButton);
+      expect(backButton.querySelector("ion-icon")?.getAttribute("name")).toBe(
+        "arrow-back-outline",
+      );
+      expect(
+        screen
+          .getByRole("progressbar", { name: "Creation progress" })
+          .getAttribute("aria-valuetext"),
+      ).toBe("Step 3 of 4");
+
+      await fireEvent.click(backButton);
+      await waitForStep(/How should your counter be accessible/);
     });
   });
 
@@ -314,9 +376,7 @@ describe("Create page", () => {
         url: "/api/teams",
         body: { name: "New Team" },
       });
-      expect(screen.getByRole("button", { name: /Back/ }).className).toContain(
-        "invisible",
-      );
+      expect(screen.queryByRole("button", { name: /^Back$/ })).toBeNull();
 
       const roleOptions = within(screen.getByLabelText("Role"))
         .getAllByRole("option")

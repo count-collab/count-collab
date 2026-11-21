@@ -23,6 +23,39 @@ import {
   updateTeamSchema,
 } from "./validation";
 
+describe("counter title validation", () => {
+  it.each(["", " ", " \t\n ", "\u00a0"])(
+    "rejects a blank title on creation and update: %j",
+    (title) => {
+      for (const schema of [createCounterSchema, updateCounterSchema]) {
+        const result = schema.safeParse({ title });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error.flatten().fieldErrors.title).toContain(
+            "Title is required",
+          );
+        }
+      }
+    },
+  );
+
+  it("trims valid titles while allowing updates without a title", () => {
+    expect(createCounterSchema.parse({ title: "  Coffee  " }).title).toBe(
+      "Coffee",
+    );
+    expect(updateCounterSchema.parse({ title: "  Coffee  " }).title).toBe(
+      "Coffee",
+    );
+    expect(updateCounterSchema.parse({ description: "Updated" }).title).toBeUndefined();
+  });
+
+  it("still rejects titles over 200 characters before trimming", () => {
+    const title = `${"a".repeat(200)} `;
+    expect(createCounterSchema.safeParse({ title }).success).toBe(false);
+    expect(updateCounterSchema.safeParse({ title }).success).toBe(false);
+  });
+});
+
 describe("counter visibility validation", () => {
   it("accepts public_readonly during counter creation", () => {
     const result = createCounterSchema.parse({

@@ -2,7 +2,7 @@ import { error, json } from "@sveltejs/kit";
 import { canViewPrivateCounter } from "$lib/server/authorize";
 import {
   getCounter,
-  getCounterAnonymousStats,
+  getCounterStats,
   getCounterUserStats,
 } from "$lib/server/counters";
 import { counterIdSchema } from "$lib/utils/validation";
@@ -32,10 +32,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     throw error(404, "Counter not found");
   }
 
-  const [userStats, anonymousStats] = await Promise.all([
+  const [userStats, counterStats] = await Promise.all([
     userId ? getCounterUserStats(params.id, userId) : null,
-    getCounterAnonymousStats(params.id),
+    getCounterStats(params.id),
   ]);
 
-  return json({ userStats, anonymousStats });
+  return json({ userStats, counterStats });
 };

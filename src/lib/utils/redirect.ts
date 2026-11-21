@@ -13,8 +13,7 @@ export function safeRedirectPath(
   value: string | null | undefined,
   fallback: string,
 ): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//"))
-    return fallback;
+  if (!value?.startsWith("/") || value.startsWith("//")) return fallback;
   if (value.includes("\\") || hasControlCharacters(value)) return fallback;
 
   // Defence in depth: the browser must resolve it to the same origin.

@@ -7,7 +7,7 @@ export const faqItems: FaqItem[] = [
   {
     question: "What is Count Collab?",
     answer:
-      "Count Collab is a free, real-time collaborative counter platform. Create a counter, share its unique link, and let anyone increment or decrement it instantly — all changes sync across every device in real time.",
+      "Count Collab is a free, collaborative counter platform. Create counters with different visibility and update permissions, then share them with the people who should access them. Counter state is shared live.",
   },
   {
     question: "Is Count Collab free?",
@@ -17,17 +17,17 @@ export const faqItems: FaqItem[] = [
   {
     question: "Do I need an account to use Count Collab?",
     answer:
-      "No account is required to create or use public counters. However, signing up unlocks additional features like private counters, member roles, dashboards, teams, and the ability to manage who can access your counters.",
+      "No account is required to create or use public counters. Anyone can view and change a public counter; anyone can view a public read-only counter, but only members with counting access can change it. Private counters are accessible to members, with counting access needed to change the count, or to anyone with a valid private share-token link. Link holders do not need to sign in. Counters can be configured to count up or down. Signing up unlocks additional features like private counters, member roles, dashboards, teams, and the ability to manage who can access your counters.",
   },
   {
     question: "How does real-time sync work?",
     answer:
-      "Count Collab uses WebSocket technology (Socket.IO) to push every change instantly to all connected devices. When someone increments a counter, every other person viewing it sees the update immediately — no refresh needed.",
+      "Count Collab shares counter state live across connected devices. When someone makes an allowed update, other people viewing the counter see the shared state without refreshing.",
   },
   {
     question: "Can I make a counter private?",
     answer:
-      "Yes. Count Collab offers three visibility modes: public (anyone can view and increment), public read-only (anyone can view but only members can increment), and private (only invited members can access the counter).",
+      "Yes. Count Collab offers three visibility modes: public (anyone can view and change the count), public read-only (anyone can view, but only members with counting access can change it), and private (members can access it, with counting access needed to change the count; anyone with a valid private share-token link can also view and change it without signing in). Counters can be configured to count up or down.",
   },
   {
     question: "What are dashboards?",
@@ -57,11 +57,11 @@ export const faqItems: FaqItem[] = [
   {
     question: "Can multiple people update the same counter at once?",
     answer:
-      "Absolutely — that is the core feature of Count Collab. Any number of people can increment or decrement a counter simultaneously, and every change syncs in real time across all devices.",
+      "Multiple people can use the same counter, and its shared state updates live. Accepted changes may be rate-limited. Public and public read-only counters have platform cooldowns of 30 seconds for guests and 5 seconds for signed-in users; configured counter cooldowns may also apply.",
   },
   {
     question: "Is there a cooldown between counter updates?",
     answer:
-      "Yes. To prevent spam, there is a short cooldown between increments. Guest users (no account) have a 30-second cooldown, while signed-in users enjoy a shorter 5-second cooldown.",
+      "Public and public read-only counters have platform cooldowns of 30 seconds for guests and 5 seconds for signed-in users. Private counters do not use those platform cooldowns; their configured counter cooldown may apply.",
   },
 ];
