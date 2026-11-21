@@ -124,6 +124,12 @@
           and dashboards into a team whenever you like, and keep things private: team
           counters start out private and team pages are only visible to members.
         </p>
+        <a
+          href="/teams"
+          class="mt-4 inline-flex items-center gap-2 font-semibold text-blue-700 underline underline-offset-4 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+        >
+          Explore Teams <span aria-hidden="true">&rarr;</span>
+        </a>
       </div>
     </div>
 
