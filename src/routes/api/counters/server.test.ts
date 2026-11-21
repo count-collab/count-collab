@@ -15,21 +15,8 @@ vi.mock("$lib/server/team-authorize", () => ({
   canEditTeamResources: mockCanEditTeamResources,
 }));
 
-vi.mock("$lib/server/request", () => ({
-  parseAndValidateBody: vi.fn(
-    async (_req: Request, _schema: unknown, _label: string) => ({
-      success: true,
-      data: JSON.parse(await _req.text()),
-    }),
-  ),
-}));
-
 vi.mock("$lib/utils/socket", () => ({
   emitCounterCreated: mockEmitCounterCreated,
-}));
-
-vi.mock("$lib/utils/validation", () => ({
-  createCounterSchema: {},
 }));
 
 import { POST } from "./+server";
@@ -53,6 +40,20 @@ function makeLocals(userId: string | null) {
 describe("POST /api/counters", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it.each(["", " ", " \t\n "])("rejects a blank title: %j", async (title) => {
+    const response = await POST({
+      request: makeRequest({ title }),
+      locals: makeLocals(null),
+    } as any);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      errors: { title: ["Title is required"] },
+    });
+    expect(mockCreateCounter).not.toHaveBeenCalled();
+    expect(mockEmitCounterCreated).not.toHaveBeenCalled();
   });
 
   it("coerces anonymous public_readonly submissions to public", async () => {

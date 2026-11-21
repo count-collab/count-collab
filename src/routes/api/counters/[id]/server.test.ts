@@ -66,10 +66,16 @@ vi.mock("$lib/server/ratelimit", () => ({
 
 vi.mock("$lib/server/request", () => ({
   parseAndValidateBody: vi.fn(
-    async (_req: Request, _schema: unknown, _label: string) => ({
-      success: true,
-      data: JSON.parse(await _req.text()),
-    }),
+    async (req: Request, schema: unknown, label: string) => {
+      const { updateCounterSchema } =
+        await vi.importActual<typeof import("$lib/utils/validation")>("$lib/utils/validation");
+      if (schema === updateCounterSchema) {
+        const { parseAndValidateBody } =
+          await vi.importActual<typeof import("$lib/server/request")>("$lib/server/request");
+        return parseAndValidateBody(req, updateCounterSchema, label);
+      }
+      return { success: true, data: JSON.parse(await req.text()) };
+    },
   ),
 }));
 
@@ -77,7 +83,8 @@ vi.mock("$lib/utils/socket", () => ({
   emitCounterUpdate: mockEmitCounterUpdate,
 }));
 
-vi.mock("$lib/utils/validation", () => ({
+vi.mock("$lib/utils/validation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("$lib/utils/validation")>()),
   counterIdSchema: {
     safeParse: (val: string) => {
       const uuidRegex =
@@ -88,7 +95,6 @@ vi.mock("$lib/utils/validation", () => ({
     },
   },
   incrementCounterSchema: {},
-  updateCounterSchema: {},
 }));
 
 import { CounterOverflowError } from "$lib/server/counter-limits";
@@ -561,6 +567,26 @@ describe("POST /api/counters/[id] (amount limits)", () => {
 });
 
 describe("PATCH /api/counters/[id] (update)", () => {
+  it.each(["", " ", " \t\n "])("rejects a blank title: %j", async (title) => {
+    mockCanEditCounter.mockResolvedValue(true);
+    const response = await PATCH(
+      makeEvent(VALID_ID, {
+        locals: makeLocals("user-1"),
+        request: new Request("http://localhost", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      errors: { title: ["Title is required"] },
+    });
+    expect(mockUpdateCounter).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for invalid counter ID", async () => {
     await expect(
       PATCH(

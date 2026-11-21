@@ -15,6 +15,7 @@ import { untrack } from "svelte";
   } from "$lib/db/schema";
   import { canAssignTeamRole, teamRoleLabels, teamRoleOrder } from "$lib/roles";
   import { rateLimit } from "$lib/stores/ratelimit";
+  import { createCounterSchema } from "$lib/utils/counter-validation";
   import type { PageProps } from "./$types";
 
   let { data }: PageProps = $props();
@@ -255,11 +256,38 @@ import { untrack } from "svelte";
     await goto(`/t/${createdTeam.id}/${slugify(createdTeam.name)}`);
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
     if (isSubmitting) return;
-    isSubmitting = true;
     errors = {};
 
+    const payload = {
+      title,
+      description,
+      visibility,
+      counterMode: creationType === "counter" ? counterMode : undefined,
+      teamId: ownerKind === "team" ? ownerTeamId : undefined,
+    };
+
+    if (creationType === "counter") {
+      const validation = createCounterSchema.safeParse(payload);
+      if (!validation.success) {
+        for (const issue of validation.error.issues) {
+          const field = issue.path[0];
+          const key =
+            field === "title" || field === "description" || field === "teamId"
+              ? field
+              : "general";
+          errors[key] ??= issue.message;
+        }
+        return;
+      }
+    } else if (!title.trim()) {
+      errors = { title: "Title is required" };
+      return;
+    }
+
+    isSubmitting = true;
     const apiPath =
       creationType === "dashboard" ? "/api/dashboards" : "/api/counters";
 
@@ -267,13 +295,7 @@ import { untrack } from "svelte";
       const response = await fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          visibility,
-          counterMode: creationType === "counter" ? counterMode : undefined,
-          teamId: ownerKind === "team" ? ownerTeamId : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -841,17 +863,19 @@ import { untrack } from "svelte";
               </div>
             {/if}
 
-            <form onsubmit={handleSubmit} class="space-y-6">
+            <form onsubmit={handleSubmit} class="space-y-6" novalidate>
               <div class="space-y-1">
                 <input
                   type="text"
                   required
                   bind:value={title}
                   placeholder="Give it a name..."
+                  aria-invalid={errors.title ? "true" : undefined}
+                  aria-describedby={errors.title ? "create-title-error" : undefined}
                   class="w-full bg-transparent border-0 border-b-2 border-slate-300 dark:border-slate-600 text-2xl font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 px-0 py-2 focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none focus:ring-0"
                 />
                 {#if errors.title}
-                  <p class="text-sm text-red-600 dark:text-red-400">
+                  <p id="create-title-error" class="text-sm text-red-600 dark:text-red-400">
                     {errors.title}
                   </p>
                 {/if}
